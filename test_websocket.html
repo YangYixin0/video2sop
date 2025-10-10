@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket 测试</title>
+</head>
+<body>
+    <h1>WebSocket 连接测试</h1>
+    <div id="status">连接中...</div>
+    <div id="messages"></div>
+    <input type="text" id="messageInput" placeholder="输入消息">
+    <button onclick="sendMessage()">发送</button>
+
+    <script>
+        const ws = new WebSocket('ws://127.0.0.1:8123/ws');
+        const status = document.getElementById('status');
+        const messages = document.getElementById('messages');
+        
+        ws.onopen = function() {
+            status.textContent = '已连接';
+            status.style.color = 'green';
+        };
+        
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            messages.innerHTML += '<div>' + JSON.stringify(data) + '</div>';
+        };
+        
+        ws.onerror = function(event) {
+            status.textContent = '连接错误: ' + JSON.stringify(event);
+            status.style.color = 'red';
+        };
+        
+        ws.onclose = function(event) {
+            status.textContent = '连接关闭: ' + event.code;
+            status.style.color = 'orange';
+        };
+        
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value;
+            if (message) {
+                ws.send(JSON.stringify({type: 'message', content: message}));
+                input.value = '';
+            }
+        }
+        
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

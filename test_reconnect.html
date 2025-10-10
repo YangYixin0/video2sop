@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>重连按钮测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        button { padding: 10px 20px; margin: 5px; border: none; border-radius: 5px; cursor: pointer; }
+        .reconnect-btn { background-color: #007bff; color: white; }
+        .reconnect-btn:hover { background-color: #0056b3; }
+        .reconnect-btn:disabled { background-color: #6c757d; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket 重连测试</h1>
+    
+    <div id="status" class="status disconnected">
+        状态: 未连接
+    </div>
+    
+    <div>
+        <button id="connectBtn" class="reconnect-btn">连接</button>
+        <button id="disconnectBtn" class="reconnect-btn">断开</button>
+        <button id="reconnectBtn" class="reconnect-btn">重连</button>
+    </div>
+    
+    <div>
+        <h3>消息日志:</h3>
+        <div id="messages" style="height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; background-color: #f8f9fa;">
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let isConnected = false;
+        
+        const statusDiv = document.getElementById('status');
+        const messagesDiv = document.getElementById('messages');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const reconnectBtn = document.getElementById('reconnectBtn');
+        
+        function updateStatus(connected) {
+            isConnected = connected;
+            if (connected) {
+                statusDiv.className = 'status connected';
+                statusDiv.textContent = '状态: 已连接';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                reconnectBtn.disabled = true;
+            } else {
+                statusDiv.className = 'status disconnected';
+                statusDiv.textContent = '状态: 未连接';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                reconnectBtn.disabled = false;
+            }
+        }
+        
+        function addMessage(message) {
+            const time = new Date().toLocaleTimeString();
+            messagesDiv.innerHTML += `<div>[${time}] ${message}</div>`;
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                addMessage('WebSocket 已经连接');
+                return;
+            }
+            
+            addMessage('尝试连接 WebSocket...');
+            ws = new WebSocket('ws://127.0.0.1:8123/ws');
+            
+            ws.onopen = function() {
+                addMessage('✅ WebSocket 连接成功');
+                updateStatus(true);
+            };
+            
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    addMessage(`📥 收到消息: ${data.type} - ${data.content || JSON.stringify(data)}`);
+                } catch (e) {
+                    addMessage(`📥 收到消息: ${event.data}`);
+                }
+            };
+            
+            ws.onclose = function(event) {
+                addMessage(`❌ WebSocket 连接关闭: ${event.code} ${event.reason}`);
+                updateStatus(false);
+            };
+            
+            ws.onerror = function(event) {
+                addMessage(`❌ WebSocket 错误: ${JSON.stringify(event)}`);
+                updateStatus(false);
+            };
+        }
+        
+        function disconnect() {
+            if (ws) {
+                ws.close(1000, '主动断开');
+                addMessage('主动断开连接');
+            }
+        }
+        
+        function reconnect() {
+            addMessage('🔄 重连按钮被点击');
+            disconnect();
+            setTimeout(() => {
+                addMessage('🔄 开始重连...');
+                connect();
+            }, 1000);
+        }
+        
+        // 绑定事件
+        connectBtn.onclick = connect;
+        disconnectBtn.onclick = disconnect;
+        reconnectBtn.onclick = reconnect;
+        
+        // 初始化状态
+        updateStatus(false);
+        
+        // 自动连接
+        setTimeout(connect, 1000);
+    </script>
+</body>
+</html>
