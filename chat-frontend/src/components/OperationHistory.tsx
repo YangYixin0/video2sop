@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from 'react';
 
 export interface OperationRecord {
   id: string;
-  type: 'upload' | 'speech_recognition' | 'file_removed';
+  type: 'upload' | 'speech_recognition' | 'file_removed' | 'video_understanding';
   timestamp: Date;
   status: 'success' | 'error' | 'processing';
   message: string;
@@ -14,6 +14,9 @@ export interface OperationRecord {
     session_id?: string;
     deleted_count?: number;
     speech_result?: unknown;
+    video_result?: string;
+    fps?: number;
+    has_audio_context?: boolean;
   };
 }
 
@@ -47,6 +50,8 @@ export default function OperationHistory({ records, isConnected = true }: Operat
         return '📁';
       case 'speech_recognition':
         return '🎤';
+      case 'video_understanding':
+        return '🎬';
       case 'file_removed':
         return '🗑️';
       default:
@@ -120,6 +125,7 @@ export default function OperationHistory({ records, isConnected = true }: Operat
                   <span className="font-medium text-gray-800">
                     {record.type === 'upload' && '视频上传'}
                     {record.type === 'speech_recognition' && '语音识别'}
+                    {record.type === 'video_understanding' && '视频理解'}
                     {record.type === 'file_removed' && '文件删除'}
                   </span>
                 </div>
@@ -136,37 +142,6 @@ export default function OperationHistory({ records, isConnected = true }: Operat
               {/* 操作消息 */}
               <p className="text-sm text-gray-700 mb-2">{record.message}</p>
 
-              {/* 链接信息（仅上传操作） */}
-              {record.type === 'upload' && record.data && (
-                <div className="space-y-1 mb-2">
-                  {record.data.video_url && (
-                    <div className="text-xs">
-                      <strong>视频:</strong>
-                      <a
-                        href={record.data.video_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline ml-1 break-all"
-                      >
-                        查看视频
-                      </a>
-                    </div>
-                  )}
-                  {record.data.audio_url && (
-                    <div className="text-xs">
-                      <strong>音频:</strong>
-                      <a
-                        href={record.data.audio_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline ml-1 break-all"
-                      >
-                        下载音频
-                      </a>
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* 删除统计（仅删除操作） */}
               {record.type === 'file_removed' && record.data?.deleted_count !== undefined && (

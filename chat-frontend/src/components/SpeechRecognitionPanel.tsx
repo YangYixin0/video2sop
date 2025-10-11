@@ -191,7 +191,7 @@ export default function SpeechRecognitionPanel({
         {!isProcessing && results.length === 0 && !error && uploadResult && (
           <div className="text-center text-gray-500 py-8">
             <div className="text-4xl mb-2">🎤</div>
-            <p>点击上方"开始语音识别"按钮</p>
+            <p>点击上方&ldquo;开始语音识别&rdquo;按钮</p>
             <p className="text-sm mt-1">系统将自动处理视频中的音频并显示识别结果</p>
           </div>
         )}

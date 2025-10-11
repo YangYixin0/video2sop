@@ -5,6 +5,7 @@ import OperationHistory, { OperationRecord } from '@/components/OperationHistory
 import ResizableLayout from '@/components/ResizableLayout';
 import VideoUploader from '@/components/VideoUploader';
 import SpeechRecognitionPanel from '@/components/SpeechRecognitionPanel';
+import VideoUnderstandingPanel from '@/components/VideoUnderstandingPanel';
 import { useWebSocket } from '@/hooks/useWebSocket';
 
 export default function Home() {
@@ -16,6 +17,12 @@ export default function Home() {
   } | null>(null);
   
   const [operationRecords, setOperationRecords] = useState<OperationRecord[]>([]);
+  const [speechRecognitionResult, setSpeechRecognitionResult] = useState<{
+    sentence_id: number;
+    text: string;
+    begin_time: number;
+    end_time: number;
+  }[] | null>(null);
 
   // WebSocket 连接用于接收操作记录
   const { isConnected: wsConnected, sendMessage: sendWebSocketMessage } = useWebSocket({
@@ -23,9 +30,9 @@ export default function Home() {
       if (data.type === 'upload_complete') {
         // 更新当前上传结果状态
         setCurrentUploadResult({
-          video_url: data.video_url,
-          audio_url: data.audio_url,
-          session_id: data.session_id
+          video_url: data.video_url || '',
+          audio_url: data.audio_url || '',
+          session_id: data.session_id || ''
         });
         
         // 添加上传记录
@@ -41,7 +48,7 @@ export default function Home() {
             session_id: data.session_id
           }
         };
-        setOperationRecords(prev => [uploadRecord, ...prev]);
+        setOperationRecords(prev => [...prev, uploadRecord]);
       } else if (data.type === 'file_removed') {
         // 清空当前上传结果状态
         setCurrentUploadResult(null);
@@ -58,7 +65,7 @@ export default function Home() {
             deleted_count: data.deleted_count
           }
         };
-        setOperationRecords(prev => [removeRecord, ...prev]);
+        setOperationRecords(prev => [...prev, removeRecord]);
       } else if (data.type === 'speech_recognition_complete') {
         // 添加语音识别记录
         const speechRecord: OperationRecord = {
@@ -71,13 +78,28 @@ export default function Home() {
             speech_result: data.result
           }
         };
-        setOperationRecords(prev => [speechRecord, ...prev]);
+        setOperationRecords(prev => [...prev, speechRecord]);
+      } else if (data.type === 'video_understanding_complete') {
+        // 添加视频理解记录
+        const videoRecord: OperationRecord = {
+          id: `video-${Date.now()}`,
+          type: 'video_understanding',
+          timestamp: new Date(),
+          status: 'success',
+          message: data.message || '视频理解已执行',
+          data: {
+            video_result: typeof data.result === 'string' ? data.result : String(data.result),
+            fps: data.fps,
+            has_audio_context: data.has_audio_context
+          }
+        };
+        setOperationRecords(prev => [...prev, videoRecord]);
       }
     }
   });
 
   // 处理VideoUploader的WebSocket消息
-  const handleVideoUploaderWebSocketMessage = (message: any) => {
+  const handleVideoUploaderWebSocketMessage = (message: Record<string, unknown>) => {
     console.log('handleVideoUploaderWebSocketMessage:', message, 'wsConnected:', wsConnected);
     if (sendWebSocketMessage && wsConnected) {
       console.log('发送WebSocket消息:', JSON.stringify(message));
@@ -105,9 +127,42 @@ export default function Home() {
       }
 
       const result = await response.json();
-      return result.result || [];
+      const speechResults = result.result || [];
+      
+      // 保存语音识别结果到state
+      setSpeechRecognitionResult(speechResults);
+      
+      return speechResults;
     } catch (error) {
       console.error('语音识别失败:', error);
+      throw error;
+    }
+  };
+
+  // 视频理解处理函数
+  const handleVideoUnderstanding = async (params: {
+    video_url: string;
+    prompt: string;
+    fps: number;
+    audio_transcript?: string;
+  }) => {
+    try {
+      const response = await fetch('http://127.0.0.1:8123/video_understanding', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return result.result || '';
+    } catch (error) {
+      console.error('视频理解失败:', error);
       throw error;
     }
   };
@@ -121,12 +176,9 @@ export default function Home() {
     >
       <div className="w-full max-w-6xl mx-auto px-4">
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            LangGraph Agent Chat
+          <h1 className="text-3xl font-bold text-gray-900 mb-6">
+            Video2SOP：将仪器教学视频转化为SOP
           </h1>
-          <p className="text-base text-gray-600 mb-6">
-            基于 Qwen3-plus 模型的智能对话助手，使用 LangGraph 构建，支持实时流式对话和视频处理。
-          </p>
         </div>
 
         {/* 视频上传组件 */}
@@ -148,7 +200,7 @@ export default function Home() {
                   session_id: result.session_id
                 }
               };
-              setOperationRecords(prev => [uploadRecord, ...prev]);
+              setOperationRecords(prev => [...prev, uploadRecord]);
             }}
             onUploadError={(error) => {
               console.error('视频上传失败:', error);
@@ -167,7 +219,7 @@ export default function Home() {
                   deleted_count: 2
                 }
               };
-              setOperationRecords(prev => [removeRecord, ...prev]);
+              setOperationRecords(prev => [...prev, removeRecord]);
             }}
             onWebSocketMessage={handleVideoUploaderWebSocketMessage}
           />
@@ -180,9 +232,18 @@ export default function Home() {
             onSpeechRecognition={handleSpeechRecognition}
           />
         </div>
+
+        {/* 视频理解面板 */}
+        <div className="mb-6">
+          <VideoUnderstandingPanel
+            uploadResult={currentUploadResult}
+            speechRecognitionResult={speechRecognitionResult}
+            onVideoUnderstanding={handleVideoUnderstanding}
+          />
+        </div>
         
-        {/* 响应式网格布局 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 text-left mb-6">
+        {/* 技术栈 */}
+        <div className="w-full max-w-2xl mx-auto mb-6">
           <div className="bg-white p-4 rounded-lg shadow-sm border">
             <h3 className="text-base font-semibold text-gray-800 mb-2">🚀 技术栈</h3>
             <ul className="space-y-1 text-sm text-gray-600">
@@ -191,62 +252,6 @@ export default function Home() {
               <li>• FastAPI + WebSocket</li>
               <li>• Next.js + TypeScript</li>
             </ul>
-          </div>
-          
-          <div className="bg-white p-4 rounded-lg shadow-sm border">
-            <h3 className="text-base font-semibold text-gray-800 mb-2">✨ 功能特性</h3>
-            <ul className="space-y-1 text-sm text-gray-600">
-              <li>• 实时流式对话</li>
-              <li>• 语音识别转录</li>
-              <li>• 视频上传处理</li>
-              <li>• 音频自动提取</li>
-              <li>• LangSmith 调试追踪</li>
-              <li>• 响应式 UI 设计</li>
-              <li>• 可调节侧边栏</li>
-            </ul>
-          </div>
-          
-          <div className="bg-white p-4 rounded-lg shadow-sm border lg:col-span-2 xl:col-span-1">
-            <h3 className="text-base font-semibold text-gray-800 mb-2">🎯 使用指南</h3>
-            <ul className="space-y-1 text-sm text-gray-600">
-              <li>• 上传视频文件，自动提取音频</li>
-              <li>• 在聊天中发送音频链接进行转录</li>
-              <li>• 拖拽右侧边缘调整聊天面板宽度</li>
-              <li>• 左侧内容区域会自动响应式调整</li>
-              <li>• 最小宽度: 300px，最大宽度: 600px</li>
-              <li>• 支持实时预览调整效果</li>
-            </ul>
-          </div>
-        </div>
-        
-        {/* 操作提示 */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
-          <div className="flex items-center justify-center space-x-3 mb-3">
-            <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-sm">
-              💡
-            </div>
-            <h3 className="text-base font-semibold text-blue-800">开始使用</h3>
-          </div>
-          <p className="text-sm text-blue-700 mb-3">
-            上传视频文件后，系统会自动提取音频并上传到云端。在右侧聊天面板中发送音频链接，AI 助手可以帮您转录内容。
-          </p>
-          <div className="flex flex-wrap justify-center gap-3 text-xs text-blue-600">
-            <span className="flex items-center space-x-1">
-              <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
-              <span>视频上传</span>
-            </span>
-            <span className="flex items-center space-x-1">
-              <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
-              <span>音频提取</span>
-            </span>
-            <span className="flex items-center space-x-1">
-              <div className="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
-              <span>语音转录</span>
-            </span>
-            <span className="flex items-center space-x-1">
-              <div className="w-1.5 h-1.5 bg-orange-400 rounded-full"></div>
-              <span>云端存储</span>
-            </span>
           </div>
         </div>
       </div>

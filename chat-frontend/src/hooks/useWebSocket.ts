@@ -4,6 +4,15 @@ interface WebSocketMessage {
   type: string;
   content?: string;
   status?: string;
+  video_url?: string;
+  audio_url?: string;
+  session_id?: string;
+  message?: string;
+  result?: unknown;
+  fps?: number;
+  has_audio_context?: boolean;
+  deleted_count?: number;
+  tool_name?: string;
 }
 
 interface UseWebSocketOptions {

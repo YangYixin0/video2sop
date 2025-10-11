@@ -9,6 +9,7 @@ from agent import QwenAgent
 from langchain_core.messages import BaseMessage
 from oss_api import setup_oss_routes
 from speech_tool import speech_recognition
+from video_understanding_tool import video_understanding
 
 # 加载环境变量
 load_dotenv('../.env')
@@ -242,6 +243,67 @@ async def speech_recognition_endpoint(request: dict):
         raise
     except Exception as e:
         error_msg = f"语音识别处理异常: {str(e)}"
+        print(error_msg)
+        raise HTTPException(status_code=500, detail=error_msg)
+
+@app.post("/video_understanding")
+async def video_understanding_endpoint(request: dict):
+    """视频理解API端点"""
+    try:
+        video_url = request.get("video_url")
+        prompt = request.get("prompt")
+        fps = request.get("fps", 2)
+        audio_transcript = request.get("audio_transcript")
+        
+        if not video_url:
+            raise HTTPException(status_code=400, detail="缺少 video_url 参数")
+        if not prompt:
+            raise HTTPException(status_code=400, detail="缺少 prompt 参数")
+        
+        # 确保fps是整数且在合理范围内
+        try:
+            fps = int(fps)
+            if fps < 1 or fps > 10:
+                fps = 2  # 默认值
+        except (ValueError, TypeError):
+            fps = 2
+        
+        # 调用视频理解工具
+        result_json = video_understanding(
+            video_url=video_url,
+            prompt=prompt,
+            fps=fps,
+            audio_transcript=audio_transcript
+        )
+        result = json.loads(result_json)
+        
+        # 检查是否有错误
+        if "error" in result:
+            raise HTTPException(status_code=500, detail=result["error"])
+        
+        # 通过WebSocket广播操作记录
+        video_notification = {
+            "type": "video_understanding_complete",
+            "video_url": video_url,
+            "result": result.get("result", ""),
+            "fps": fps,
+            "has_audio_context": bool(audio_transcript),
+            "message": "视频理解已执行"
+        }
+        
+        # 发送给所有连接的客户端
+        for connection in manager.active_connections:
+            try:
+                await manager.send_message(connection, json.dumps(video_notification))
+            except:
+                pass  # 忽略发送失败
+        
+        return {"success": True, "result": result.get("result", "")}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = f"视频理解处理异常: {str(e)}"
         print(error_msg)
         raise HTTPException(status_code=500, detail=error_msg)
 

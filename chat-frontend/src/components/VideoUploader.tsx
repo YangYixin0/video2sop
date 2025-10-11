@@ -18,7 +18,7 @@ interface VideoUploaderProps {
   onUploadComplete?: (result: UploadResult) => void;
   onUploadError?: (error: string) => void;
   onFileRemoved?: () => void;
-  onWebSocketMessage?: (message: any) => void;
+  onWebSocketMessage?: (message: Record<string, unknown>) => void;
   maxFileSize?: number; // 字节
   allowedTypes?: string[];
 }
@@ -146,7 +146,7 @@ export default function VideoUploader({
   const uploadToOSS = useCallback(async (file: File, signature: Record<string, unknown>) => {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('key', signature.oss_key);
+    formData.append('key', signature.oss_key || '');
     formData.append('policy', signature.policy || '');
     formData.append('OSSAccessKeyId', signature.OSSAccessKeyId || '');
     formData.append('signature', signature.signature || '');

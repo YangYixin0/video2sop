@@ -70,9 +70,9 @@ export default function ChatSidebar() {
           content: data.message || '正在处理...',
           timestamp: new Date(),
           toolCall: {
-            name: data.tool_name,
-            status: data.status,
-            message: data.message
+            name: data.tool_name || '',
+            status: (data.status === 'running' || data.status === 'completed') ? data.status : 'running',
+            message: data.message || ''
           }
         };
         setMessages(prev => [...prev, toolMessage]);
@@ -97,9 +97,9 @@ export default function ChatSidebar() {
           content: data.message || '视频和音频上传完成！',
           timestamp: new Date(),
           uploadResult: {
-            video_url: data.video_url,
-            audio_url: data.audio_url,
-            session_id: data.session_id
+            video_url: data.video_url || '',
+            audio_url: data.audio_url || '',
+            session_id: data.session_id || ''
           }
         };
         setMessages(prev => [...prev, uploadMessage]);
@@ -111,8 +111,8 @@ export default function ChatSidebar() {
           content: data.message || '上传的文件已从服务器删除',
           timestamp: new Date(),
           removeResult: {
-            session_id: data.session_id,
-            deleted_count: data.deleted_count
+            session_id: data.session_id || '',
+            deleted_count: data.deleted_count || 0
           }
         };
         setMessages(prev => [...prev, removeMessage]);
