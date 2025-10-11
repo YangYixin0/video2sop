@@ -243,7 +243,7 @@ export default function Home() {
         </div>
         
         {/* 技术栈 */}
-        <div className="w-full max-w-2xl mx-auto mb-6">
+        <div className="w-full max-w-4xl mx-auto mb-6">
           <div className="bg-white p-4 rounded-lg shadow-sm border">
             <h3 className="text-base font-semibold text-gray-800 mb-2">🚀 技术栈</h3>
             <ul className="space-y-1 text-sm text-gray-600">
