@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>修复后的HTML测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .result { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 3px; }
+        pre { white-space: pre-wrap; word-wrap: break-word; max-height: 400px; overflow-y: auto; }
+        .success { border-left: 4px solid #28a745; background: #d4edda; }
+        .info { border-left: 4px solid #17a2b8; background: #d1ecf1; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 修复后的HTML导出功能测试</h1>
+        
+        <div class="section info">
+            <h2>✅ 修复内容</h2>
+            <ul>
+                <li><strong>视频配置位置</strong>：现在视频文件配置区域位于HTML文档开头，在SOP内容之前</li>
+                <li><strong>区块播放修复</strong>：区块播放按钮现在会动态获取当前配置的视频文件名</li>
+                <li><strong>错误提示改进</strong>：显示具体的视频文件名，便于排查问题</li>
+                <li><strong>文件同步</strong>：选择新视频文件后，所有播放功能都会使用新文件</li>
+            </ul>
+        </div>
+        
+        <div class="section">
+            <h2>生成修复后的测试HTML</h2>
+            <p>点击下面的按钮生成包含修复功能的HTML文件：</p>
+            <button onclick="generateFixedHTML()">生成修复后的HTML</button>
+            <div id="result" class="result" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        function generateFixedHTML() {
+            const testBlocks = [
+                {
+                    id: "block_1",
+                    type: "title",
+                    content: "修复后的SOP文档测试",
+                    start_time: null,
+                    end_time: null,
+                    show_play_button: false
+                },
+                {
+                    id: "block_2", 
+                    type: "step",
+                    content: "第一步：测试视频文件配置\n\n目的：验证视频文件配置功能是否正常工作\n\n操作：\n1. 点击上方的视频文件配置按钮\n2. 选择视频文件\n3. 点击测试播放按钮\n4. 点击本区块的播放按钮测试片段播放",
+                    start_time: 5,
+                    end_time: 15,
+                    show_play_button: true
+                },
+                {
+                    id: "block_3", 
+                    type: "step",
+                    content: "第二步：验证区块播放功能\n\n目的：确保区块播放按钮使用正确的视频文件\n\n操作：\n1. 配置不同的视频文件\n2. 点击本区块播放按钮\n3. 验证是否播放正确的视频文件",
+                    start_time: 20,
+                    end_time: 35,
+                    show_play_button: true
+                }
+            ];
+
+            const testHTML = generateFixedHTMLContent(testBlocks, "test_video.mp4", "修复后的SOP测试文档");
+            
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result success';
+            resultDiv.innerHTML = '<h3>✅ 修复后的HTML功能特点：</h3>' +
+                '<div style="background: #e8f5e8; padding: 15px; border-radius: 5px; margin: 10px 0;">' +
+                '<h4>🎯 主要修复：</h4>' +
+                '<ul>' +
+                '<li>✅ <strong>视频配置在开头</strong>：视频文件配置区域现在位于HTML文档最开头</li>' +
+                '<li>✅ <strong>动态视频引用</strong>：区块播放按钮会动态获取当前配置的视频文件名</li>' +
+                '<li>✅ <strong>文件同步更新</strong>：选择新视频文件后，所有播放功能立即使用新文件</li>' +
+                '<li>✅ <strong>错误提示优化</strong>：显示具体的视频文件名，便于排查问题</li>' +
+                '</ul>' +
+                '</div>' +
+                '<div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 10px 0;">' +
+                '<h4>📝 使用说明：</h4>' +
+                '<ol>' +
+                '<li>导出HTML文件后，视频配置区域会显示在文档开头</li>' +
+                '<li>点击"选择视频文件"按钮选择你的视频文件</li>' +
+                '<li>点击"测试播放"按钮验证视频文件是否可用</li>' +
+                '<li>点击区块中的播放按钮测试片段播放功能</li>' +
+                '<li>如果更换视频文件，所有播放功能都会自动使用新文件</li>' +
+                '</ol>' +
+                '</div>' +
+                '<details style="margin-top: 15px;">' +
+                '<summary style="cursor: pointer; font-weight: bold;">查看生成的HTML代码预览</summary>' +
+                '<pre style="max-height: 300px; overflow-y: auto; margin-top: 10px;">' + 
+                testHTML.substring(0, 2000) + '...\n\n[HTML内容较长，已截断]' + 
+                '</pre>' +
+                '</details>';
+        }
+
+        function generateFixedHTMLContent(blocks, videoFileName, fileName) {
+            let html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${fileName}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .video-config {
+            margin: 30px 0; 
+            padding: 20px; 
+            background: #f8f9fa; 
+            border-radius: 8px; 
+            border: 2px dashed #dee2e6;
+        }
+        .block {
+            margin-bottom: 30px;
+            padding: 20px;
+            border-left: 4px solid #e0e0e0;
+            background: #fafafa;
+            border-radius: 0 8px 8px 0;
+        }
+        .block.step { border-left-color: #f97316; background: #fff7ed; }
+        .play-button {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.2s;
+        }
+        .play-button:hover { background: #059669; }
+        .video-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 300px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+        .video-container video {
+            width: 100%;
+            border-radius: 8px 8px 0 0;
+        }
+        .video-controls {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 0 0 8px 8px;
+        }
+        .close-video {
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 style="text-align: center; color: #1f2937; margin-bottom: 30px;">
+            📋 SOP 标准操作流程文档
+        </h1>
+
+        <!-- 视频文件配置区域 - 现在在开头！ -->
+        <div class="video-config">
+            <h3 style="margin: 0 0 15px 0; color: #495057; display: flex; align-items: center;">
+                <span style="margin-right: 8px;">🎥</span>
+                视频文件配置
+            </h3>
+            <div style="margin-bottom: 15px;">
+                <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 0.9em;">
+                    <strong>当前视频文件：</strong><span id="currentVideoName" style="color: #007bff; font-weight: 500;">${videoFileName}</span>
+                </p>
+                <p style="margin: 0; color: #6c757d; font-size: 0.85em;">
+                    💡 请确保视频文件与HTML文件在同一目录下，文件名完全匹配
+                </p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button onclick="selectVideoFile()" style="
+                    padding: 8px 16px; 
+                    background: #007bff; 
+                    color: white; 
+                    border: none; 
+                    border-radius: 4px; 
+                    cursor: pointer; 
+                    font-size: 0.9em;
+                    transition: background-color 0.2s;
+                " onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background='#007bff'">
+                    📁 选择视频文件
+                </button>
+                <button onclick="testVideoFile()" style="
+                    padding: 8px 16px; 
+                    background: #28a745; 
+                    color: white; 
+                    border: none; 
+                    border-radius: 4px; 
+                    cursor: pointer; 
+                    font-size: 0.9em;
+                    transition: background-color 0.2s;
+                " onmouseover="this.style.background='#1e7e34'" onmouseout="this.style.background='#28a745'">
+                    ▶️ 测试播放
+                </button>
+                <span id="videoStatus" style="font-size: 0.85em; color: #6c757d;"></span>
+            </div>
+            <input type="file" id="videoFileInput" accept="video/*" style="display: none;" onchange="handleVideoFileSelect(event)">
+        </div>`;
+
+            // 添加区块内容
+            blocks.forEach(block => {
+                const canPlay = block.show_play_button && block.start_time !== undefined;
+                
+                html += `
+        <div class="block ${block.type}">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                <div style="font-weight: bold; font-size: 1.1em; color: #374151;">${block.type === 'title' ? '标题' : '操作步骤'}</div>
+                ${canPlay ? `
+                <button class="play-button" onclick="playSegment(${block.start_time}, ${block.end_time || 'null'})">
+                    ▶️ 播放 (${Math.floor(block.start_time/60)}:${(block.start_time%60).toString().padStart(2,'0')}${block.end_time ? ` - ${Math.floor(block.end_time/60)}:${(block.end_time%60).toString().padStart(2,'0')}` : ''})
+                </button>
+                ` : ''}
+            </div>
+            <div style="white-space: pre-wrap; line-height: 1.7; color: #4b5563;">${block.content}</div>
+        </div>`;
+            });
+
+            // 添加JavaScript
+            html += `
+    </div>
+
+    <!-- 视频播放器 -->
+    <div id="videoContainer" class="video-container" style="display: none;">
+        <button class="close-video" onclick="closeVideo()">×</button>
+        <video id="sopVideo" controls>
+            <source src="${videoFileName}" type="video/mp4">
+            您的浏览器不支持视频播放。
+        </video>
+        <div class="video-controls">
+            <div id="timeInfo" style="text-align: center; font-size: 0.9em; color: #6b7280;">
+                点击播放按钮开始观看
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('sopVideo');
+        const videoContainer = document.getElementById('videoContainer');
+        const timeInfo = document.getElementById('timeInfo');
+        let currentSegment = null;
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return mins + ':' + secs.toString().padStart(2, '0');
+        }
+
+        function playSegment(startTime, endTime) {
+            // 获取当前配置的视频文件名 - 这是修复的关键！
+            const currentVideoName = document.getElementById('currentVideoName').textContent;
+            const video = document.getElementById('sopVideo');
+            const source = video.querySelector('source');
+            
+            // 确保视频源是最新的
+            if (source.src !== currentVideoName) {
+                source.src = currentVideoName;
+                video.load();
+            }
+            
+            // 检查视频是否可用
+            video.addEventListener('error', function onError() {
+                alert('视频文件未找到，请确保视频文件"' + currentVideoName + '"与HTML文件在同一目录下。');
+                video.removeEventListener('error', onError);
+            }, { once: true });
+            
+            video.addEventListener('loadeddata', function onLoaded() {
+                videoContainer.style.display = 'block';
+                video.currentTime = startTime;
+                video.play();
+                
+                currentSegment = { start: startTime, end: endTime };
+                timeInfo.textContent = '播放中: ' + formatTime(startTime) + 
+                    (endTime ? ' - ' + formatTime(endTime) : '');
+                
+                // 如果有结束时间，设置自动停止
+                if (endTime) {
+                    const checkEnd = () => {
+                        if (video.currentTime >= endTime) {
+                            video.pause();
+                            timeInfo.textContent = '播放完成: ' + formatTime(startTime) + ' - ' + formatTime(endTime);
+                        }
+                    };
+                    
+                    const interval = setInterval(checkEnd, 100);
+                    video.addEventListener('pause', () => clearInterval(interval), { once: true });
+                }
+                video.removeEventListener('loadeddata', onLoaded);
+            }, { once: true });
+        }
+
+        function closeVideo() {
+            video.pause();
+            videoContainer.style.display = 'none';
+            currentSegment = null;
+        }
+
+        function selectVideoFile() {
+            document.getElementById('videoFileInput').click();
+        }
+
+        function handleVideoFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const fileName = file.name;
+                document.getElementById('currentVideoName').textContent = fileName;
+                
+                // 更新video元素的src
+                const video = document.getElementById('sopVideo');
+                const source = video.querySelector('source');
+                source.src = fileName;
+                video.load();
+                
+                // 更新状态显示
+                const status = document.getElementById('videoStatus');
+                status.textContent = '✅ 已选择: ' + fileName;
+                status.style.color = '#28a745';
+                
+                console.log('视频文件已更改为:', fileName);
+                console.log('现在区块播放按钮将使用文件:', fileName);
+            }
+        }
+
+        function testVideoFile() {
+            const video = document.getElementById('sopVideo');
+            const fileName = document.getElementById('currentVideoName').textContent;
+            const status = document.getElementById('videoStatus');
+            const source = video.querySelector('source');
+            
+            status.textContent = '🔄 测试中...';
+            status.style.color = '#ffc107';
+            
+            // 确保使用当前配置的文件名
+            if (source.src !== fileName) {
+                source.src = fileName;
+            }
+            
+            // 尝试加载视频
+            video.addEventListener('loadeddata', function() {
+                status.textContent = '✅ 视频文件可正常播放';
+                status.style.color = '#28a745';
+                video.removeEventListener('loadeddata', arguments.callee);
+            }, { once: true });
+            
+            video.addEventListener('error', function() {
+                status.textContent = '❌ 视频文件无法加载，请检查文件"' + fileName + '"是否存在';
+                status.style.color = '#dc3545';
+                video.removeEventListener('error', arguments.callee);
+            }, { once: true });
+            
+            // 重新加载视频
+            video.load();
+        }
+
+        // 页面加载完成后的提示
+        window.addEventListener('load', () => {
+            console.log('SOP文档已加载完成');
+            console.log('当前视频文件:', '${videoFileName}');
+            console.log('请确保视频文件与HTML文件在同一目录下');
+            
+            // 自动测试视频文件
+            setTimeout(() => {
+                testVideoFile();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>`;
+
+            return html;
+        }
+    </script>
+</body>
+</html>
+

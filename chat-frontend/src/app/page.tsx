@@ -6,7 +6,9 @@ import ResizableLayout from '@/components/ResizableLayout';
 import VideoUploader from '@/components/VideoUploader';
 import SpeechRecognitionPanel from '@/components/SpeechRecognitionPanel';
 import VideoUnderstandingPanel from '@/components/VideoUnderstandingPanel';
+import SOPEditor from '@/components/SOPEditor';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { SOPBlock } from '@/types/sop';
 
 export default function Home() {
   // 全局状态管理
@@ -23,6 +25,8 @@ export default function Home() {
     begin_time: number;
     end_time: number;
   }[] | null>(null);
+  
+  const [videoUnderstandingResult, setVideoUnderstandingResult] = useState<string>('');
 
   // WebSocket 连接用于接收操作记录
   const { isConnected: wsConnected, sendMessage: sendWebSocketMessage } = useWebSocket({
@@ -94,6 +98,38 @@ export default function Home() {
           }
         };
         setOperationRecords(prev => [...prev, videoRecord]);
+        
+        // 保存视频理解结果
+        if (typeof data.result === 'string') {
+          setVideoUnderstandingResult(data.result);
+        }
+      } else if (data.type === 'sop_parse_complete') {
+        // 添加SOP解析记录
+        const parseRecord: OperationRecord = {
+          id: `parse-${Date.now()}`,
+          type: 'sop_parse',
+          timestamp: new Date(),
+          status: 'success',
+          message: data.message || 'SOP解析完成',
+          data: {
+            blocks_count: data.blocks_count
+          }
+        };
+        setOperationRecords(prev => [...prev, parseRecord]);
+      } else if (data.type === 'sop_refine_complete') {
+        // 添加SOP精修记录
+        const refineRecord: OperationRecord = {
+          id: `refine-${Date.now()}`,
+          type: 'sop_refine',
+          timestamp: new Date(),
+          status: 'success',
+          message: data.message || 'SOP精修完成',
+          data: {
+            blocks_count: data.blocks_count,
+            has_user_notes: data.has_user_notes
+          }
+        };
+        setOperationRecords(prev => [...prev, refineRecord]);
       }
     }
   });
@@ -160,9 +196,66 @@ export default function Home() {
       }
 
       const result = await response.json();
-      return result.result || '';
+      const videoResult = result.result || '';
+      
+      // 保存视频理解结果
+      setVideoUnderstandingResult(videoResult);
+      
+      return videoResult;
     } catch (error) {
       console.error('视频理解失败:', error);
+      throw error;
+    }
+  };
+
+  // SOP解析处理函数
+  const handleParseSOP = async (manuscript: string) => {
+    try {
+      const response = await fetch('http://127.0.0.1:8123/parse_sop', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ manuscript }),
+        // 添加代理绕过设置
+        mode: 'cors',
+        credentials: 'omit'
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return result.result;
+    } catch (error) {
+      console.error('SOP解析失败:', error);
+      throw error;
+    }
+  };
+
+  // SOP精修处理函数
+  const handleRefineSOP = async (blocks: SOPBlock[], userNotes: string) => {
+    try {
+      const response = await fetch('http://127.0.0.1:8123/refine_sop', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ blocks, user_notes: userNotes }),
+        // 添加代理绕过设置
+        mode: 'cors',
+        credentials: 'omit'
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return result.result;
+    } catch (error) {
+      console.error('SOP精修失败:', error);
       throw error;
     }
   };
@@ -170,7 +263,7 @@ export default function Home() {
   return (
     <ResizableLayout
       defaultSidebarWidth={400}
-      minSidebarWidth={300}
+      minSidebarWidth={200}
       maxSidebarWidth={600}
       sidebar={<OperationHistory records={operationRecords} isConnected={wsConnected} />}
     >
@@ -241,6 +334,16 @@ export default function Home() {
             onVideoUnderstanding={handleVideoUnderstanding}
           />
         </div>
+
+        {/* SOP编辑器 */}
+        <div className="mb-6">
+          <SOPEditor
+            manuscript={videoUnderstandingResult}
+            videoUrl={currentUploadResult?.video_url}
+            onParseSOP={handleParseSOP}
+            onRefineSOP={handleRefineSOP}
+          />
+        </div>
         
         {/* 技术栈 */}
         <div className="w-full max-w-4xl mx-auto mb-6">
@@ -248,7 +351,6 @@ export default function Home() {
             <h3 className="text-base font-semibold text-gray-800 mb-2">🚀 技术栈</h3>
             <ul className="space-y-1 text-sm text-gray-600">
               <li>• LangGraph Agent</li>
-              <li>• Qwen3-plus 模型</li>
               <li>• FastAPI + WebSocket</li>
               <li>• Next.js + TypeScript</li>
             </ul>

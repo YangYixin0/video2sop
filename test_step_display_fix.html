@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>步骤显示修复测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background: white; }
+        .success { border-left: 4px solid #28a745; background: #d4edda; }
+        .warning { border-left: 4px solid #ffc107; background: #fff3cd; }
+        .info { border-left: 4px solid #17a2b8; background: #d1ecf1; }
+        
+        /* 模拟区块布局 */
+        .compact-block {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin: 15px 0;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .compact-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 12px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        
+        .compact-left {
+            flex: 1;
+            min-width: 0;
+            margin-right: 12px;
+        }
+        
+        .compact-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+        
+        .compact-preview {
+            font-size: 14px;
+            color: #374151;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+        
+        .compact-preview.limited {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .compact-preview.extended {
+            display: -webkit-box;
+            -webkit-line-clamp: 6;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .compact-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
+        
+        .compact-time {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+        
+        .time-badge {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        
+        .time-badge.blue { background: #dbeafe; color: #1e40af; }
+        .time-badge.green { background: #dcfce7; color: #166534; }
+        
+        .compact-actions {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .action-btn {
+            padding: 4px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-size: 14px;
+        }
+        
+        .action-btn:hover { background: rgba(0,0,0,0.05); }
+        .action-btn.play { color: #059669; }
+        .action-btn.edit { color: #2563eb; }
+        .action-btn.delete { color: #dc2626; }
+        
+        .comparison {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .comparison-item {
+            flex: 1;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .comparison-item.before {
+            border-color: #dc3545;
+            background: #fff5f5;
+        }
+        
+        .comparison-item.after {
+            border-color: #28a745;
+            background: #f8fff8;
+        }
+        
+        .step-content {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 步骤显示修复测试</h1>
+        
+        <div class="section warning">
+            <h2>⚠️ 问题分析</h2>
+            <p><strong>问题原因：</strong>在优化区块布局时，我将所有区块的内容预览设置为最多显示2行（<code>WebkitLineClamp: 2</code>），这导致原本完整显示的多行步骤内容（包含1.1、1.2、1.3等子步骤）被截断，看起来像是被"拆散"了。</p>
+            <p><strong>实际情况：</strong>解析器工作正常，区块内容也是完整的，只是在显示时被截断了。</p>
+        </div>
+        
+        <div class="section">
+            <h2>🔄 修复前后对比</h2>
+            <div class="comparison">
+                <div class="comparison-item before">
+                    <h3>修复前 - 内容被截断</h3>
+                    <div class="compact-block">
+                        <div class="compact-header">
+                            <div class="compact-left">
+                                <div class="compact-meta">
+                                    <span>📝</span>
+                                    <span style="font-size: 12px; font-weight: 500;">步骤</span>
+                                    <span style="font-size: 12px; color: #9ca3af;">#step_1</span>
+                                </div>
+                                <div class="compact-preview limited">
+第一步：设备准备和检查 (0:05 - 0:15)
+1.1 检查压片机外观是否完好，无损坏或变形
+1.2 确认模具底座与模具套的匹配性
+1.3 检查压力表是否正常工作
+1.4 确认安全防护设备齐全
+1.5 检查工作台面清洁度
+                                </div>
+                            </div>
+                            <div class="compact-right">
+                                <div class="compact-time">
+                                    <span class="time-badge blue">0:05 - 0:15</span>
+                                    <span class="time-badge green">播放</span>
+                                </div>
+                                <div class="compact-actions">
+                                    <span class="action-btn play">▶️</span>
+                                    <span class="action-btn edit">✏️</span>
+                                    <span class="action-btn delete">🗑️</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p><strong>问题：</strong>只显示前2行，子步骤1.3、1.4、1.5被截断，看起来像是"拆散"了。</p>
+                </div>
+                
+                <div class="comparison-item after">
+                    <h3>修复后 - 完整显示</h3>
+                    <div class="compact-block">
+                        <div class="compact-header">
+                            <div class="compact-left">
+                                <div class="compact-meta">
+                                    <span>📝</span>
+                                    <span style="font-size: 12px; font-weight: 500;">步骤</span>
+                                    <span style="font-size: 12px; color: #9ca3af;">#step_1</span>
+                                </div>
+                                <div class="compact-preview extended">
+第一步：设备准备和检查 (0:05 - 0:15)
+1.1 检查压片机外观是否完好，无损坏或变形
+1.2 确认模具底座与模具套的匹配性
+1.3 检查压力表是否正常工作
+1.4 确认安全防护设备齐全
+1.5 检查工作台面清洁度
+                                </div>
+                            </div>
+                            <div class="compact-right">
+                                <div class="compact-time">
+                                    <span class="time-badge blue">0:05 - 0:15</span>
+                                    <span class="time-badge green">播放</span>
+                                </div>
+                                <div class="compact-actions">
+                                    <span class="action-btn play">▶️</span>
+                                    <span class="action-btn edit">✏️</span>
+                                    <span class="action-btn delete">🗑️</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p><strong>优势：</strong>显示最多6行，可以看到完整的步骤和子步骤。</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>📋 完整步骤内容示例</h2>
+            <p>以下是修复后应该完整显示的步骤内容：</p>
+            
+            <div class="step-content">
+第一步：设备准备和检查 (0:05 - 0:15)
+1.1 检查压片机外观是否完好，无损坏或变形
+1.2 确认模具底座与模具套的匹配性
+1.3 检查压力表是否正常工作
+1.4 确认安全防护设备齐全
+1.5 检查工作台面清洁度
+
+第二步：模具组装 (0:15 - 0:25)
+2.1 将模具底座与模具套通过螺纹或卡扣方式组装牢固
+2.2 检查组装后的模具是否稳固
+2.3 确认模具表面无划痕或污渍
+
+第三步：样品制备 (0:25 - 0:35)
+3.1 准备待压制的样品材料
+3.2 检查样品质量是否符合要求
+3.3 将样品均匀分布在模具中
+            </div>
+        </div>
+        
+        <div class="section success">
+            <h2>✅ 修复方案</h2>
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; font-family: monospace; font-size: 14px;">
+                <h3>代码修改：</h3>
+                <p style="color: #dc3545;">- WebkitLineClamp: 2,  // 所有区块都只显示2行</p>
+                <p style="color: #28a745;">+ WebkitLineClamp: block.type === 'step' ? 6 : 2,  // 步骤类型显示6行，其他类型显示2行</p>
+                
+                <h3>逻辑说明：</h3>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+                    <li><strong>步骤类型（step）</strong>：显示最多6行，可以容纳完整的步骤和子步骤</li>
+                    <li><strong>其他类型</strong>：仍然显示2行，保持紧凑布局</li>
+                    <li><strong>保持响应式</strong>：在不同屏幕尺寸下都能良好工作</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section info">
+            <h2>🎯 修复效果</h2>
+            <ul>
+                <li><strong>步骤完整性</strong>：步骤类型区块现在可以完整显示主要步骤和所有子步骤</li>
+                <li><strong>布局平衡</strong>：非步骤类型仍然保持紧凑的2行显示</li>
+                <li><strong>用户体验</strong>：用户可以快速浏览完整的操作步骤，无需点击编辑</li>
+                <li><strong>逻辑清晰</strong>：每个步骤区块包含完整的操作内容，逻辑结构清晰</li>
+            </ul>
+        </div>
+        
+        <div class="section success">
+            <h2>🧪 测试方法</h2>
+            <ol>
+                <li>访问主应用：<code>http://localhost:50001</code></li>
+                <li>解析SOP文档，观察步骤区块的显示</li>
+                <li>验证步骤类型区块是否显示完整的步骤和子步骤</li>
+                <li>检查其他类型区块是否仍然保持紧凑显示</li>
+                <li>测试编辑功能是否正常工作</li>
+            </ol>
+        </div>
+    </div>
+</body>
+</html>
+

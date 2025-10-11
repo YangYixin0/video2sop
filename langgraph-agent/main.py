@@ -10,6 +10,8 @@ from langchain_core.messages import BaseMessage
 from oss_api import setup_oss_routes
 from speech_tool import speech_recognition
 from video_understanding_tool import video_understanding
+from sop_parser_tool import sop_parser
+from sop_refine_tool import sop_refine
 
 # 加载环境变量
 load_dotenv('../.env')
@@ -304,6 +306,90 @@ async def video_understanding_endpoint(request: dict):
         raise
     except Exception as e:
         error_msg = f"视频理解处理异常: {str(e)}"
+        print(error_msg)
+        raise HTTPException(status_code=500, detail=error_msg)
+
+@app.post("/parse_sop")
+async def parse_sop_endpoint(request: dict):
+    """SOP解析API端点"""
+    try:
+        manuscript = request.get("manuscript")
+        if not manuscript:
+            raise HTTPException(status_code=400, detail="缺少 manuscript 参数")
+        
+        # 调用SOP解析工具
+        result_json = sop_parser(manuscript)
+        result = json.loads(result_json)
+        
+        # 检查是否有错误
+        if "error" in result:
+            raise HTTPException(status_code=500, detail=result["error"])
+        
+        # 通过WebSocket广播解析完成通知
+        parse_notification = {
+            "type": "sop_parse_complete",
+            "blocks_count": len(result.get("blocks", [])),
+            "message": f"SOP解析完成，共生成 {len(result.get('blocks', []))} 个区块"
+        }
+        
+        # 发送给所有连接的客户端
+        for connection in manager.active_connections:
+            try:
+                await manager.send_message(connection, json.dumps(parse_notification))
+            except:
+                pass  # 忽略发送失败
+        
+        return {"success": True, "result": result}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = f"SOP解析处理异常: {str(e)}"
+        print(error_msg)
+        raise HTTPException(status_code=500, detail=error_msg)
+
+@app.post("/refine_sop")
+async def refine_sop_endpoint(request: dict):
+    """SOP精修API端点"""
+    try:
+        blocks = request.get("blocks")
+        user_notes = request.get("user_notes", "")
+        
+        if not blocks:
+            raise HTTPException(status_code=400, detail="缺少 blocks 参数")
+        
+        # 将区块数组转换为JSON字符串
+        blocks_json = json.dumps({"blocks": blocks}, ensure_ascii=False)
+        
+        # 调用SOP精修工具
+        result_json = sop_refine(blocks_json, user_notes)
+        result = json.loads(result_json)
+        
+        # 检查是否有错误
+        if "error" in result:
+            raise HTTPException(status_code=500, detail=result["error"])
+        
+        # 通过WebSocket广播精修完成通知
+        refine_notification = {
+            "type": "sop_refine_complete",
+            "blocks_count": len(result.get("blocks", [])),
+            "has_user_notes": bool(user_notes),
+            "message": f"SOP精修完成，共处理 {len(result.get('blocks', []))} 个区块"
+        }
+        
+        # 发送给所有连接的客户端
+        for connection in manager.active_connections:
+            try:
+                await manager.send_message(connection, json.dumps(refine_notification))
+            except:
+                pass  # 忽略发送失败
+        
+        return {"success": True, "result": result}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = f"SOP精修处理异常: {str(e)}"
         print(error_msg)
         raise HTTPException(status_code=500, detail=error_msg)
 

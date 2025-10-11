@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOP API 测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        textarea { width: 100%; height: 200px; margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 3px; }
+        .result { background: #f8f9fa; padding: 15px; margin: 10px 0; border-radius: 3px; border-left: 4px solid #007bff; }
+        .error { border-left-color: #dc3545; background: #f8d7da; }
+        .success { border-left-color: #28a745; background: #d4edda; }
+        pre { white-space: pre-wrap; word-wrap: break-word; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 SOP API 功能测试</h1>
+        
+        <div class="section">
+            <h2>1. SOP解析测试</h2>
+            <p>测试将SOP草稿文本解析为结构化区块数组</p>
+            <textarea id="manuscriptInput" placeholder="请输入SOP草稿文本...">标题：手动压片机标准操作流程（SOP）草稿
+
+摘要：
+本SOP旨在规范手动压片机（型号MC-24，品牌MTR米淇）在实验室中对粉末样品进行压制成型的完整操作流程。
+
+关键词：
+手动压片机、粉末成型、模具组装、加压操作、退模、压力表、安全操作、实验室设备
+
+操作步骤：
+
+第一步：装粉末 —— 目的：正确组装模具并装入待压制粉末，确保成型质量与安全性。
+00:03 - 00:08
+操作：
+1. 将模具套与模具底座旋合组装，确保连接紧密无松动。
+2. 在模具底座内放入第一个垫片，注意光滑面朝上。</textarea>
+            <br>
+            <button onclick="testParseSOP()">解析SOP</button>
+            <button onclick="loadManuscript1()">加载manuscript1.txt</button>
+            <div id="parseResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="section">
+            <h2>2. SOP精修测试</h2>
+            <p>测试基于用户批注精修SOP区块</p>
+            <textarea id="refineNotes" placeholder="请输入精修建议...">请将操作步骤描述得更加详细和专业，添加安全注意事项。</textarea>
+            <br>
+            <button onclick="testRefineSOP()" id="refineBtn" disabled>精修SOP</button>
+            <div id="refineResult" class="result" style="display: none;"></div>
+        </div>
+
+        <div class="section">
+            <h2>3. 测试状态</h2>
+            <div id="status">等待测试...</div>
+        </div>
+    </div>
+
+    <script>
+        let parsedBlocks = null;
+
+        async function testParseSOP() {
+            const manuscript = document.getElementById('manuscriptInput').value;
+            const resultDiv = document.getElementById('parseResult');
+            const statusDiv = document.getElementById('status');
+            const refineBtn = document.getElementById('refineBtn');
+
+            if (!manuscript.trim()) {
+                showResult(resultDiv, '请先输入SOP草稿文本', 'error');
+                return;
+            }
+
+            statusDiv.textContent = '正在解析SOP...';
+            showResult(resultDiv, '正在解析，请稍候...', '');
+
+            try {
+                const response = await fetch('http://127.0.0.1:8123/parse_sop', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ manuscript })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                parsedBlocks = result.result.blocks;
+                
+                showResult(resultDiv, `解析成功！生成了 ${parsedBlocks.length} 个区块：\n\n` + 
+                    JSON.stringify(result.result, null, 2), 'success');
+                
+                refineBtn.disabled = false;
+                statusDiv.textContent = 'SOP解析完成，可以测试精修功能';
+
+            } catch (error) {
+                console.error('解析失败:', error);
+                showResult(resultDiv, `解析失败: ${error.message}`, 'error');
+                statusDiv.textContent = 'SOP解析失败';
+            }
+        }
+
+        async function testRefineSOP() {
+            const notes = document.getElementById('refineNotes').value;
+            const resultDiv = document.getElementById('refineResult');
+            const statusDiv = document.getElementById('status');
+
+            if (!parsedBlocks || parsedBlocks.length === 0) {
+                showResult(resultDiv, '请先解析SOP文档', 'error');
+                return;
+            }
+
+            statusDiv.textContent = '正在精修SOP...';
+            showResult(resultDiv, '正在精修，请稍候...', '');
+
+            try {
+                const response = await fetch('http://127.0.0.1:8123/refine_sop', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        blocks: parsedBlocks, 
+                        user_notes: notes 
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                
+                showResult(resultDiv, `精修成功！处理了 ${result.result.blocks.length} 个区块：\n\n` + 
+                    JSON.stringify(result.result, null, 2), 'success');
+                
+                statusDiv.textContent = 'SOP精修完成';
+
+            } catch (error) {
+                console.error('精修失败:', error);
+                showResult(resultDiv, `精修失败: ${error.message}`, 'error');
+                statusDiv.textContent = 'SOP精修失败';
+            }
+        }
+
+        async function loadManuscript1() {
+            try {
+                const response = await fetch('/temp/manuscript1.txt');
+                if (response.ok) {
+                    const text = await response.text();
+                    document.getElementById('manuscriptInput').value = text;
+                } else {
+                    alert('无法加载manuscript1.txt文件');
+                }
+            } catch (error) {
+                alert('加载文件失败: ' + error.message);
+            }
+        }
+
+        function showResult(element, content, type) {
+            element.style.display = 'block';
+            element.className = `result ${type}`;
+            element.innerHTML = `<pre>${content}</pre>`;
+        }
+
+        // 页面加载时检查后端连接
+        window.addEventListener('load', async () => {
+            const statusDiv = document.getElementById('status');
+            try {
+                const response = await fetch('http://127.0.0.1:8123/health');
+                if (response.ok) {
+                    statusDiv.textContent = '✅ 后端服务连接正常，可以开始测试';
+                } else {
+                    statusDiv.textContent = '❌ 后端服务响应异常';
+                }
+            } catch (error) {
+                statusDiv.textContent = '❌ 无法连接到后端服务 (http://127.0.0.1:8123)';
+            }
+        });
+    </script>
+</body>
+</html>
+

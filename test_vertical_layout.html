@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>上下布局测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background: white; }
+        .success { border-left: 4px solid #28a745; background: #d4edda; }
+        .info { border-left: 4px solid #17a2b8; background: #d1ecf1; }
+        .demo-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; }
+        .layout-comparison { display: flex; gap: 20px; margin: 20px 0; }
+        .layout-demo { flex: 1; border: 2px solid #ddd; border-radius: 8px; padding: 15px; }
+        .layout-demo.before { border-color: #dc3545; background: #fff5f5; }
+        .layout-demo.after { border-color: #28a745; background: #f8fff8; }
+        .grid-layout { display: grid; gap: 10px; margin: 15px 0; }
+        .grid-layout.horizontal { grid-template-columns: 1fr 1fr; }
+        .grid-layout.vertical { grid-template-rows: auto auto; }
+        .area { padding: 15px; border-radius: 5px; text-align: center; font-weight: bold; }
+        .edit-area { background: #e3f2fd; border: 2px solid #2196f3; }
+        .ai-area { background: #f3e5f5; border: 2px solid #9c27b0; }
+        .collapsible-demo { margin: 15px 0; }
+        .collapsible-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 10px 15px; 
+            background: #f8f9fa; 
+            border: 1px solid #dee2e6; 
+            border-radius: 5px; 
+            cursor: pointer; 
+        }
+        .collapsible-header:hover { background: #e9ecef; }
+        .collapsible-content { 
+            padding: 15px; 
+            border: 1px solid #dee2e6; 
+            border-top: none; 
+            border-radius: 0 0 5px 5px; 
+            background: white; 
+        }
+        .arrow { transition: transform 0.3s; }
+        .arrow.rotated { transform: rotate(180deg); }
+        .height-demo { 
+            height: 200px; 
+            background: #fff3cd; 
+            border: 1px solid #ffeaa7; 
+            border-radius: 5px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            margin: 10px 0; 
+        }
+        .height-demo.small { height: 150px; }
+        .height-demo.large { height: 250px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📐 SOP编辑器布局更新</h1>
+        
+        <div class="section success">
+            <h2>✅ 更新内容</h2>
+            <ul>
+                <li><strong>布局方向</strong>：从左右布局改为上下布局</li>
+                <li><strong>区域顺序</strong>：编辑区在上方，AI精修区在下方</li>
+                <li><strong>高度优化</strong>：调整了各区域的最大高度，更适合上下布局</li>
+                <li><strong>视频播放器</strong>：添加了可折叠功能，默认折叠状态</li>
+            </ul>
+        </div>
+        
+        <div class="section">
+            <h2>🔄 布局对比</h2>
+            <div class="layout-comparison">
+                <div class="layout-demo before">
+                    <h3>修复前 - 左右布局</h3>
+                    <div class="grid-layout horizontal">
+                        <div class="area edit-area">📝 编辑区 (A)</div>
+                        <div class="area ai-area">🤖 AI精修区 (B)</div>
+                    </div>
+                    <p><strong>特点：</strong></p>
+                    <ul>
+                        <li>编辑区和AI精修区并排显示</li>
+                        <li>适合宽屏显示器</li>
+                        <li>高度限制：48rem (编辑区), 40rem (AI区)</li>
+                    </ul>
+                </div>
+                
+                <div class="layout-demo after">
+                    <h3>修复后 - 上下布局</h3>
+                    <div class="grid-layout vertical">
+                        <div class="area edit-area">📝 编辑区</div>
+                        <div class="area ai-area">🤖 AI精修区</div>
+                    </div>
+                    <p><strong>特点：</strong></p>
+                    <ul>
+                        <li>编辑区在上方，AI精修区在下方</li>
+                        <li>适合各种屏幕尺寸</li>
+                        <li>高度优化：32rem (编辑区), 28rem (AI区)</li>
+                        <li>删除了A、B标识</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>🎬 视频播放器折叠功能</h2>
+            <div class="collapsible-demo">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <h3>🎬 视频播放器</h3>
+                    <div style="display: flex; align-items: center;">
+                        <span style="margin-right: 10px; color: #666; font-size: 14px;">点击展开</span>
+                        <span class="arrow">▼</span>
+                    </div>
+                </div>
+                <div class="collapsible-content" style="display: none;">
+                    <div class="height-demo">
+                        <p>视频播放器内容区域</p>
+                        <p>(这里会显示SOPVideoPlayer组件)</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin-top: 15px;">
+                <h4>折叠功能特点：</h4>
+                <ul>
+                    <li><strong>默认状态</strong>：折叠（节省屏幕空间）</li>
+                    <li><strong>交互方式</strong>：点击标题栏展开/折叠</li>
+                    <li><strong>视觉反馈</strong>：箭头旋转动画，悬停效果</li>
+                    <li><strong>状态提示</strong>：显示"点击展开"或"点击折叠"</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>📏 高度优化对比</h2>
+            <div style="display: flex; gap: 20px; margin: 20px 0;">
+                <div style="flex: 1;">
+                    <h4>修复前高度</h4>
+                    <div class="height-demo large">编辑区<br/>max-height: 48rem</div>
+                    <div class="height-demo large">AI精修区<br/>max-height: 40rem</div>
+                </div>
+                <div style="flex: 1;">
+                    <h4>修复后高度</h4>
+                    <div class="height-demo">编辑区<br/>max-height: 32rem</div>
+                    <div class="height-demo small">AI精修区<br/>max-height: 28rem</div>
+                </div>
+            </div>
+            <p><strong>优化原因：</strong>上下布局时，需要为两个区域都留出足够的垂直空间，因此适当减少了各区域的最大高度。</p>
+        </div>
+        
+        <div class="section info">
+            <h2>🎯 用户体验改进</h2>
+            <ul>
+                <li><strong>更好的移动端体验</strong>：上下布局在手机和平板上更友好</li>
+                <li><strong>更清晰的工作流程</strong>：先编辑（上），后精修（下）的逻辑更自然</li>
+                <li><strong>节省屏幕空间</strong>：视频播放器默认折叠，为编辑器留出更多空间</li>
+                <li><strong>更灵活的内容查看</strong>：可以根据需要展开视频播放器</li>
+                <li><strong>界面更简洁</strong>：删除A、B标识，减少视觉干扰</li>
+            </ul>
+        </div>
+        
+        <div class="section info">
+            <h2>🧪 测试方法</h2>
+            <ol>
+                <li>访问主应用：<code>http://localhost:50001</code></li>
+                <li>进入SOP编辑器，观察布局变化</li>
+                <li>测试视频播放器的折叠/展开功能</li>
+                <li>验证编辑区和AI精修区的上下排列</li>
+                <li>检查滚动条是否正常工作</li>
+                <li>在不同屏幕尺寸下测试响应式效果</li>
+            </ol>
+        </div>
+        
+        <div class="section success">
+            <h2>📝 代码修改总结</h2>
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; font-family: monospace; font-size: 14px;">
+                <h3>主要修改：</h3>
+                <p><strong>1. 布局容器：</strong></p>
+                <p style="color: #dc3545;">- &lt;div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6"&gt;</p>
+                <p style="color: #28a745;">+ &lt;div className="space-y-6 mb-6"&gt;</p>
+                
+                <p><strong>2. 区域注释：</strong></p>
+                <p style="color: #dc3545;">- {/* 左侧：用户编辑区 */}</p>
+                <p style="color: #28a745;">+ {/* 上方：用户编辑区 */}</p>
+                <p style="color: #dc3545;">- {/* 右侧：AI精修区 */}</p>
+                <p style="color: #28a745;">+ {/* 下方：AI精修区 */}</p>
+                
+                <p><strong>3. 高度调整：</strong></p>
+                <p style="color: #dc3545;">- max-h-[48rem] (编辑区)</p>
+                <p style="color: #28a745;">+ max-h-[32rem] (编辑区)</p>
+                <p style="color: #dc3545;">- max-h-[40rem] (AI区)</p>
+                <p style="color: #28a745;">+ max-h-[28rem] (AI区)</p>
+                
+                <p><strong>4. 视频播放器折叠：</strong></p>
+                <p style="color: #28a745;">+ const [isVideoPlayerCollapsed, setIsVideoPlayerCollapsed] = useState(true);</p>
+                <p style="color: #28a745;">+ 添加可折叠的标题栏和内容区域</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function toggleCollapsible(header) {
+            const content = header.nextElementSibling;
+            const arrow = header.querySelector('.arrow');
+            const statusText = header.querySelector('span');
+            
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                arrow.classList.add('rotated');
+                statusText.textContent = '点击折叠';
+            } else {
+                content.style.display = 'none';
+                arrow.classList.remove('rotated');
+                statusText.textContent = '点击展开';
+            }
+        }
+    </script>
+</body>
+</html>
+

@@ -62,12 +62,13 @@ export default function SpeechRecognitionPanel({
 
   return (
     <div className="w-full max-w-4xl mx-auto bg-white rounded-lg shadow-sm border">
-      <div className="p-4 border-b border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-          <span className="mr-2">🎤</span>
-          语音识别
-        </h3>
-      </div>
+        <div className="p-4 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+            <span className="mr-2">🎤</span>
+            语音识别
+            <span className="ml-2 text-sm font-normal text-blue-600">(Paraformer-V2)</span>
+          </h3>
+        </div>
 
       <div className="p-4">
         {/* 当前视频信息 */}
