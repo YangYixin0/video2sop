@@ -17,6 +17,8 @@ interface UploadResult {
 interface VideoUploaderProps {
   onUploadComplete?: (result: UploadResult) => void;
   onUploadError?: (error: string) => void;
+  onFileRemoved?: () => void;
+  onWebSocketMessage?: (message: any) => void;
   maxFileSize?: number; // 字节
   allowedTypes?: string[];
 }
@@ -27,6 +29,8 @@ const DEFAULT_ALLOWED_TYPES = ['video/mp4', 'video/mov', 'video/avi', 'video/mkv
 export default function VideoUploader({
   onUploadComplete,
   onUploadError,
+  onFileRemoved,
+  onWebSocketMessage,
   maxFileSize = DEFAULT_MAX_SIZE,
   allowedTypes = DEFAULT_ALLOWED_TYPES
 }: VideoUploaderProps) {
@@ -53,31 +57,48 @@ export default function VideoUploader({
           body: JSON.stringify({ session_id: sessionId })
         });
         const result = await response.json();
-        return result.result || { deleted_count: 0 };
+        const deleteResult = result.result || { deleted_count: 0 };
+        onFileRemoved?.(); // 通知父组件文件已删除
+        return deleteResult;
       } catch (error) {
         console.error('清理文件失败:', error);
+        onFileRemoved?.(); // 即使失败也通知父组件
         return { deleted_count: 0 };
       }
     }
     return { deleted_count: 0 };
-  }, [sessionId, uploadResult]);
+  }, [sessionId, uploadResult, onFileRemoved]);
 
   // 组件卸载时清理
   useEffect(() => {
     return () => {
-      cleanup();
+      if (sessionId && uploadResult) {
+        // 直接调用API，避免依赖cleanup函数
+        fetch('http://127.0.0.1:8123/delete_session_files', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId })
+        }).catch(console.error);
+      }
     };
-  }, [cleanup]);
+  }, [sessionId, uploadResult]);
 
   // 页面关闭时清理
   useEffect(() => {
     const handleBeforeUnload = () => {
-      cleanup();
+      if (sessionId && uploadResult) {
+        // 直接调用API，避免依赖cleanup函数
+        fetch('http://127.0.0.1:8123/delete_session_files', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId })
+        }).catch(console.error);
+      }
     };
     
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [cleanup]);
+  }, [sessionId, uploadResult]);
 
   // 生成会话 ID
   const generateSessionId = useCallback(async () => {
@@ -122,7 +143,7 @@ export default function VideoUploader({
   }, []);
 
   // 直接上传到 OSS
-  const uploadToOSS = useCallback(async (file: File, signature: any) => {
+  const uploadToOSS = useCallback(async (file: File, signature: Record<string, unknown>) => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('key', signature.oss_key);
@@ -254,19 +275,13 @@ export default function VideoUploader({
       setUploadStatus({ status: 'completed', message: '上传完成！', progress: 100 });
       onUploadComplete?.(result);
 
-      // 通知 WebSocket
-      if (window.WebSocket) {
-        const ws = new WebSocket('ws://127.0.0.1:8123/ws');
-        ws.onopen = () => {
-          ws.send(JSON.stringify({
-            type: 'upload_complete',
-            video_url: videoUrl,
-            audio_url: audioUrl,
-            session_id: sessionId
-          }));
-          ws.close();
-        };
-      }
+      // 通过回调发送WebSocket消息
+      onWebSocketMessage?.({
+        type: 'upload_complete',
+        video_url: videoUrl,
+        audio_url: audioUrl,
+        session_id: sessionId
+      });
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '上传失败';
@@ -299,21 +314,15 @@ export default function VideoUploader({
       fileInputRef.current.value = '';
     }
 
-    // 发送文件删除通知到 WebSocket
+    // 通过回调发送文件删除通知到 WebSocket
     if (currentSessionId && deletedCount > 0) {
-      if (window.WebSocket) {
-        const ws = new WebSocket('ws://127.0.0.1:8123/ws');
-        ws.onopen = () => {
-          ws.send(JSON.stringify({
-            type: 'file_removed',
-            session_id: currentSessionId,
-            deleted_count: deletedCount
-          }));
-          ws.close();
-        };
-      }
+      onWebSocketMessage?.({
+        type: 'file_removed',
+        session_id: currentSessionId,
+        deleted_count: deletedCount
+      });
     }
-  }, [uploadResult, cleanup, sessionId]);
+  }, [uploadResult, cleanup, sessionId, onWebSocketMessage]);
 
   // 拖拽处理
   const handleDragOver = useCallback((e: React.DragEvent) => {

@@ -133,10 +133,9 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   }, []);
 
   useEffect(() => {
-    // 延迟连接，避免组件加载时立即连接
-    const connectTimeout = setTimeout(() => {
-      connect();
-    }, 2000);
+    // 立即尝试连接
+    console.log('useWebSocket: 开始连接WebSocket');
+    connect();
 
     // 定期发送心跳（仅在连接时）
     const pingInterval = setInterval(() => {
@@ -146,7 +145,6 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     }, 30000);
 
     return () => {
-      clearTimeout(connectTimeout);
       clearInterval(pingInterval);
       // 不主动断开连接，让连接自然保持
     };

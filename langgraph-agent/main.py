@@ -2,12 +2,13 @@ import os
 import json
 import asyncio
 from typing import List
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from agent import QwenAgent
 from langchain_core.messages import BaseMessage
 from oss_api import setup_oss_routes
+from speech_tool import speech_recognition
 
 # 加载环境变量
 load_dotenv('../.env')
@@ -203,6 +204,46 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         print(f"WebSocket 错误: {e}")
         manager.disconnect(websocket)
+
+@app.post("/speech_recognition")
+async def speech_recognition_endpoint(request: dict):
+    """语音识别API端点"""
+    try:
+        audio_url = request.get("audio_url")
+        if not audio_url:
+            raise HTTPException(status_code=400, detail="缺少 audio_url 参数")
+        
+        # 调用语音识别工具
+        result_json = speech_recognition(audio_url)
+        result = json.loads(result_json)
+        
+        # 检查是否有错误
+        if "error" in result:
+            raise HTTPException(status_code=500, detail=result["error"])
+        
+        # 通过WebSocket广播操作记录
+        speech_notification = {
+            "type": "speech_recognition_complete",
+            "audio_url": audio_url,
+            "result": result,
+            "message": "语音识别已执行"
+        }
+        
+        # 发送给所有连接的客户端
+        for connection in manager.active_connections:
+            try:
+                await manager.send_message(connection, json.dumps(speech_notification))
+            except:
+                pass  # 忽略发送失败
+        
+        return {"success": True, "result": result}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = f"语音识别处理异常: {str(e)}"
+        print(error_msg)
+        raise HTTPException(status_code=500, detail=error_msg)
 
 @app.get("/")
 async def root():
