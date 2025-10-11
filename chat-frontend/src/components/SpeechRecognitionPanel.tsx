@@ -77,33 +77,6 @@ export default function SpeechRecognitionPanel({
               <span className="text-lg">✅</span>
               <span className="font-medium text-green-800">视频已上传，可以进行语音识别</span>
             </div>
-            <div className="text-sm text-green-700 space-y-1">
-              <div>
-                <strong>会话ID:</strong> {uploadResult.session_id}
-              </div>
-              <div className="truncate">
-                <strong>视频链接:</strong> 
-                <a 
-                  href={uploadResult.video_url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-green-600 hover:underline ml-1"
-                >
-                  查看视频
-                </a>
-              </div>
-              <div className="truncate">
-                <strong>音频链接:</strong> 
-                <a 
-                  href={uploadResult.audio_url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-green-600 hover:underline ml-1"
-                >
-                  下载音频
-                </a>
-              </div>
-            </div>
           </div>
         ) : (
           <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
