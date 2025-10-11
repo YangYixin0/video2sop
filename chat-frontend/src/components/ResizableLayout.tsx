@@ -83,10 +83,11 @@ export default function ResizableLayout({
     <div ref={containerRef} className="flex h-screen bg-gray-50">
       {/* 主内容区域 */}
       <div 
-        className="flex flex-col items-center justify-center p-8 transition-all duration-200"
+        className="flex flex-col items-center p-4 pt-6 transition-all duration-200 overflow-y-auto"
         style={{ 
           width: `calc(100% - ${sidebarWidth}px)`,
-          minWidth: '300px'
+          minWidth: '300px',
+          maxHeight: '100vh'
         }}
       >
         {children}

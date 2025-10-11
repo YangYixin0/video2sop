@@ -7,9 +7,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from agent import QwenAgent
 from langchain_core.messages import BaseMessage
+from oss_api import setup_oss_routes
 
 # 加载环境变量
-load_dotenv()
+load_dotenv('../.env')
 
 # 配置 LangSmith 追踪（如果设置了环境变量）
 if os.getenv('LANGSMITH_TRACING'):
@@ -24,11 +25,18 @@ app = FastAPI(title="LangGraph Agent Chat", version="1.0.0")
 # 配置 CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:50001", "http://127.0.0.1:50001"],
+    allow_origins=[
+        "http://localhost:50001", 
+        "http://127.0.0.1:50001",
+        "http://maqp1391303.bohrium.tech:50001"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 设置 OSS 相关路由
+setup_oss_routes(app)
 
 # 初始化 Agent
 agent = QwenAgent()
@@ -141,6 +149,54 @@ async def websocket_endpoint(websocket: WebSocket):
                 await manager.send_message(websocket, json.dumps({
                     "type": "pong"
                 }))
+            
+            elif message_data.get("type") == "upload_complete":
+                # 处理上传完成通知
+                video_url = message_data.get("video_url", "")
+                audio_url = message_data.get("audio_url", "")
+                session_id = message_data.get("session_id", "")
+                
+                # 发送上传完成通知给所有连接的客户端
+                upload_notification = {
+                    "type": "upload_complete",
+                    "video_url": video_url,
+                    "audio_url": audio_url,
+                    "session_id": session_id,
+                    "message": f"视频和音频上传完成！视频链接：{video_url}，音频链接：{audio_url}"
+                }
+                
+                # 发送给当前连接的客户端
+                await manager.send_message(websocket, json.dumps(upload_notification))
+                
+                # 可选：发送给所有连接的客户端
+                for connection in manager.active_connections:
+                    try:
+                        await manager.send_message(connection, json.dumps(upload_notification))
+                    except:
+                        pass  # 忽略发送失败
+            
+            elif message_data.get("type") == "file_removed":
+                # 处理文件删除通知
+                session_id = message_data.get("session_id", "")
+                file_count = message_data.get("deleted_count", 0)
+                
+                # 发送文件删除通知给所有连接的客户端
+                remove_notification = {
+                    "type": "file_removed",
+                    "session_id": session_id,
+                    "deleted_count": file_count,
+                    "message": f"上传的文件已从服务器删除（共删除 {file_count} 个文件）"
+                }
+                
+                # 发送给当前连接的客户端
+                await manager.send_message(websocket, json.dumps(remove_notification))
+                
+                # 可选：发送给所有连接的客户端
+                for connection in manager.active_connections:
+                    try:
+                        await manager.send_message(connection, json.dumps(remove_notification))
+                    except:
+                        pass  # 忽略发送失败
                 
     except WebSocketDisconnect:
         manager.disconnect(websocket)

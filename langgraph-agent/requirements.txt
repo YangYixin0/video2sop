@@ -7,3 +7,5 @@ dashscope>=1.14.0
 python-dotenv>=1.0.0
 langsmith>=0.0.80
 requests>=2.31.0
+oss2>=2.18.0
+python-multipart>=0.0.20

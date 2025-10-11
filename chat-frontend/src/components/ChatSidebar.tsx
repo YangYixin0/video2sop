@@ -5,7 +5,7 @@ import { useWebSocket } from '../hooks/useWebSocket';
 
 interface Message {
   id: string;
-  type: 'user' | 'assistant';
+  type: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
   toolCall?: {
@@ -14,6 +14,15 @@ interface Message {
     message?: string;
   };
   isToolResult?: boolean;
+  uploadResult?: {
+    video_url: string;
+    audio_url: string;
+    session_id: string;
+  };
+  removeResult?: {
+    session_id: string;
+    deleted_count: number;
+  };
 }
 
 // 生成唯一 ID 的辅助函数
@@ -80,6 +89,33 @@ export default function ChatSidebar() {
             timestamp: new Date()
           }
         ]);
+      } else if (data.type === 'upload_complete') {
+        // 处理上传完成通知
+        const uploadMessage: Message = {
+          id: generateMessageId('upload'),
+          type: 'system',
+          content: data.message || '视频和音频上传完成！',
+          timestamp: new Date(),
+          uploadResult: {
+            video_url: data.video_url,
+            audio_url: data.audio_url,
+            session_id: data.session_id
+          }
+        };
+        setMessages(prev => [...prev, uploadMessage]);
+      } else if (data.type === 'file_removed') {
+        // 处理文件删除通知
+        const removeMessage: Message = {
+          id: generateMessageId('remove'),
+          type: 'system',
+          content: data.message || '上传的文件已从服务器删除',
+          timestamp: new Date(),
+          removeResult: {
+            session_id: data.session_id,
+            deleted_count: data.deleted_count
+          }
+        };
+        setMessages(prev => [...prev, removeMessage]);
       }
     }
   });
@@ -168,11 +204,30 @@ export default function ChatSidebar() {
               className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
                 message.type === 'user'
                   ? 'bg-blue-500 text-white'
+                  : message.type === 'system'
+                  ? 'bg-green-50 border border-green-200 text-green-800'
                   : message.toolCall
                   ? 'bg-yellow-50 border border-yellow-200 text-yellow-800'
                   : 'bg-gray-100 text-gray-800'
               }`}
             >
+              {/* 系统消息标识 */}
+              {message.type === 'system' && (
+                <div className="flex items-center space-x-2 mb-2">
+                  {message.removeResult ? (
+                    <>
+                      <span className="text-lg">🗑️</span>
+                      <span className="text-xs font-medium">文件删除</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-lg">📁</span>
+                      <span className="text-xs font-medium">文件上传</span>
+                    </>
+                  )}
+                </div>
+              )}
+
               {/* 工具调用标识 */}
               {message.toolCall && (
                 <div className="flex items-center space-x-2 mb-2">
@@ -191,9 +246,40 @@ export default function ChatSidebar() {
               )}
               
               <p className="text-sm whitespace-pre-wrap font-mono">{message.content}</p>
+              
+              {/* 上传结果链接 */}
+              {message.uploadResult && (
+                <div className="mt-2 space-y-1">
+                  <div className="text-xs">
+                    <strong>视频:</strong> 
+                    <a 
+                      href={message.uploadResult.video_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline ml-1"
+                    >
+                      查看视频
+                    </a>
+                  </div>
+                  <div className="text-xs">
+                    <strong>音频:</strong> 
+                    <a 
+                      href={message.uploadResult.audio_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline ml-1"
+                    >
+                      下载音频
+                    </a>
+                  </div>
+                </div>
+              )}
+              
               <p className={`text-xs mt-1 ${
                 message.type === 'user' 
                   ? 'text-blue-100' 
+                  : message.type === 'system'
+                  ? 'text-green-600'
                   : message.toolCall 
                   ? 'text-yellow-600' 
                   : 'text-gray-500'
