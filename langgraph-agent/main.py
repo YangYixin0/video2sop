@@ -89,28 +89,44 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 try:
                     # 流式调用 Agent
-                    full_response = ""
-                    async for chunk in agent.astream_chat(user_message, chat_history.copy()):
-                        if chunk:
-                            full_response = chunk  # 累积完整响应
-                            # 发送流式响应
+                    final_message = None
+                    
+                    async for message in agent.astream_chat(user_message, chat_history.copy()):
+                        final_message = message
+                        
+                        # 检查是否包含工具调用
+                        if hasattr(message, 'tool_calls') and message.tool_calls:
+                            for tool_call in message.tool_calls:
+                                if tool_call['name'] == 'speech_recognition':
+                                    # 发送工具调用状态
+                                    await manager.send_message(websocket, json.dumps({
+                                        "type": "tool_call",
+                                        "tool_name": "speech_recognition",
+                                        "status": "running",
+                                        "message": "正在转录音频..."
+                                    }))
+                        
+                        # 发送普通消息内容
+                        elif hasattr(message, 'content') and message.content:
                             await manager.send_message(websocket, json.dumps({
                                 "type": "chunk",
-                                "content": chunk
+                                "content": message.content
                             }))
                     
                     # 发送完成信号
-                    await manager.send_message(websocket, json.dumps({
-                        "type": "complete",
-                        "content": full_response
-                    }))
+                    if final_message and hasattr(final_message, 'content'):
+                        await manager.send_message(websocket, json.dumps({
+                            "type": "complete",
+                            "content": final_message.content
+                        }))
                     
                     # 更新全局会话历史
                     from langchain_core.messages import HumanMessage, AIMessage
                     chat_history.append(HumanMessage(content=user_message))
-                    chat_history.append(AIMessage(content=full_response))
+                    if final_message and hasattr(final_message, 'content'):
+                        chat_history.append(AIMessage(content=final_message.content))
                     
-                    print(f"AI 响应完成: {full_response[:100]}...")
+                    print(f"AI 响应完成: {final_message.content[:100] if final_message and hasattr(final_message, 'content') else 'No content'}...")
                     
                 except Exception as e:
                     error_msg = f"处理消息时出现错误: {str(e)}"

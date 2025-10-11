@@ -8,7 +8,18 @@ interface Message {
   type: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  toolCall?: {
+    name: string;
+    status: 'running' | 'completed';
+    message?: string;
+  };
+  isToolResult?: boolean;
 }
+
+// 生成唯一 ID 的辅助函数
+const generateMessageId = (prefix: string): string => {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+};
 
 export default function ChatSidebar() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -35,9 +46,27 @@ export default function ChatSidebar() {
           const lastMessage = newMessages[newMessages.length - 1];
           if (lastMessage && lastMessage.type === 'assistant' && data.content) {
             lastMessage.content = data.content;
+            // 如果有工具调用，标记为已完成
+            if (lastMessage.toolCall) {
+              lastMessage.toolCall.status = 'completed';
+            }
           }
           return newMessages;
         });
+      } else if (data.type === 'tool_call') {
+        // 添加工具调用消息
+        const toolMessage: Message = {
+          id: generateMessageId('tool'),
+          type: 'assistant',
+          content: data.message || '正在处理...',
+          timestamp: new Date(),
+          toolCall: {
+            name: data.tool_name,
+            status: data.status,
+            message: data.message
+          }
+        };
+        setMessages(prev => [...prev, toolMessage]);
       } else if (data.type === 'status' && data.status === 'processing') {
         setIsTyping(true);
       } else if (data.type === 'error') {
@@ -45,7 +74,7 @@ export default function ChatSidebar() {
         setMessages(prev => [
           ...prev,
           {
-            id: Date.now().toString(),
+            id: generateMessageId('error'),
             type: 'assistant',
             content: `错误: ${data.content}`,
             timestamp: new Date()
@@ -72,7 +101,7 @@ export default function ChatSidebar() {
     if (!inputValue.trim() || !isConnected) return;
 
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: generateMessageId('user'),
       type: 'user',
       content: inputValue,
       timestamp: new Date()
@@ -82,7 +111,7 @@ export default function ChatSidebar() {
     
     // 添加占位的 AI 消息
     const aiMessage: Message = {
-      id: (Date.now() + 1).toString(),
+      id: generateMessageId('ai'),
       type: 'assistant',
       content: '',
       timestamp: new Date()
@@ -139,12 +168,35 @@ export default function ChatSidebar() {
               className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
                 message.type === 'user'
                   ? 'bg-blue-500 text-white'
+                  : message.toolCall
+                  ? 'bg-yellow-50 border border-yellow-200 text-yellow-800'
                   : 'bg-gray-100 text-gray-800'
               }`}
             >
-              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+              {/* 工具调用标识 */}
+              {message.toolCall && (
+                <div className="flex items-center space-x-2 mb-2">
+                  <span className="text-lg">🎤</span>
+                  <span className="text-xs font-medium">
+                    {message.toolCall.name === 'speech_recognition' ? '语音识别' : message.toolCall.name}
+                  </span>
+                  {message.toolCall.status === 'running' && (
+                    <div className="flex space-x-1">
+                      <div className="w-1 h-1 bg-yellow-500 rounded-full animate-bounce"></div>
+                      <div className="w-1 h-1 bg-yellow-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                      <div className="w-1 h-1 bg-yellow-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              <p className="text-sm whitespace-pre-wrap font-mono">{message.content}</p>
               <p className={`text-xs mt-1 ${
-                message.type === 'user' ? 'text-blue-100' : 'text-gray-500'
+                message.type === 'user' 
+                  ? 'text-blue-100' 
+                  : message.toolCall 
+                  ? 'text-yellow-600' 
+                  : 'text-gray-500'
               }`}>
                 {message.timestamp.toLocaleTimeString()}
               </p>
