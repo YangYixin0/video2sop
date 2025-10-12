@@ -4,6 +4,7 @@ OSS 相关 API 端点
 import os
 import tempfile
 import requests
+import json
 from typing import Dict, Any
 from fastapi import HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
@@ -28,12 +29,14 @@ class UploadSignatureRequest(BaseModel):
 
 class DeleteSessionRequest(BaseModel):
     session_id: str
+    client_session_id: str = None
 
 class ExtractAudioRequest(BaseModel):
     video_url: str
     session_id: str
+    client_session_id: str = None
 
-def setup_oss_routes(app):
+def setup_oss_routes(app, connection_manager=None):
     """设置 OSS 相关的路由"""
     
     @app.post("/generate_session_id")
@@ -69,6 +72,9 @@ def setup_oss_routes(app):
         """删除指定会话的所有文件"""
         try:
             result = delete_session_files(request.session_id)
+            
+            # 注意：不再通过WebSocket发送删除通知，因为前端通过回调处理操作记录
+            
             return {
                 "success": True,
                 "result": result
@@ -124,6 +130,16 @@ def setup_oss_routes(app):
                 oss_key = f"{request.session_id}/audio.mp3"
                 audio_url = upload_file_to_oss(audio_path, oss_key)
                 
+                # 通过WebSocket发送音频提取完成通知给特定客户端
+                if connection_manager and request.client_session_id:
+                    audio_notification = {
+                        "type": "audio_extraction_complete",
+                        "audio_url": audio_url,
+                        "session_id": request.session_id,
+                        "message": "音频提取完成"
+                    }
+                    await connection_manager.send_to_client(request.client_session_id, json.dumps(audio_notification))
+                
                 return {
                     "success": True,
                     "audio_url": audio_url,
@@ -147,7 +163,8 @@ def setup_oss_routes(app):
     async def upload_file_proxy(
         file: UploadFile = File(...),
         session_id: str = Form(...),
-        file_type: str = Form(...)
+        file_type: str = Form(...),
+        client_session_id: str = Form(None)
     ) -> Dict[str, Any]:
         """通过后端代理上传文件到 OSS"""
         try:

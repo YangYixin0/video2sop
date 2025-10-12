@@ -63,16 +63,22 @@ LANGSMITH_PROJECT=video2sop
 
 ### 2. 一键启动
 
-**推荐方式（修复版）**:
-```bash
-cd /root/app
-./start_services_fixed.sh
-```
-
-**标准方式**:
+**标准启动（推荐）:**
 ```bash
 cd /root/app
 ./start_services.sh
+```
+
+**持久化启动（断开Shell连接后继续运行）:**
+```bash
+cd /root/app
+./start_services_persistent.sh
+```
+
+**停止服务:**
+```bash
+cd /root/app
+./stop_services.sh
 ```
 
 ### 3. 手动启动
@@ -94,8 +100,8 @@ npm run dev
 ### 4. 访问应用
 
 - 🌐 前端界面: http://127.0.0.1:50001
-- 🔧 后端 API: http://127.0.0.1:8000
-- 📊 健康检查: http://127.0.0.1:8000/health
+- 🔧 后端 API: http://127.0.0.1:8123
+- 📊 健康检查: http://127.0.0.1:8123/health
 
 ## 📁 项目结构
 
@@ -118,7 +124,8 @@ npm run dev
 │   │   │   ├── VideoUploader.tsx     # 视频上传组件
 │   │   │   ├── SpeechRecognitionPanel.tsx  # 语音识别组件
 │   │   │   ├── VideoUnderstandingPanel.tsx # 视频理解组件
-│   │   │   └── OperationHistory.tsx  # 操作历史组件
+│   │   │   ├── OperationHistory.tsx  # 操作历史组件
+│   │   │   └── SOPExporter.tsx       # SOP导出组件
 │   │   └── hooks/
 │   │       └── useWebSocket.ts       # WebSocket 钩子
 │   ├── package.json                  # 前端依赖
@@ -129,7 +136,9 @@ npm run dev
 │   │   ├── qwen3_vl_plus_video.py  # 视频理解参考实现
 │   │   └── paraformer-v2.py        # 语音识别参考实现
 │   └── manuscript_video_understanding/  # 生成的文档示例
-├── start_services.sh                # 一键启动脚本
+├── start_services.sh                # 标准启动脚本
+├── start_services_persistent.sh     # 持久化启动脚本
+├── stop_services.sh                 # 停止服务脚本
 ├── TROUBLESHOOTING.md               # 故障排除指南
 └── .env                            # 环境变量配置
 ```
@@ -138,7 +147,7 @@ npm run dev
 
 ### WebSocket 端点
 
-**连接地址:** `ws://127.0.0.1:8000/ws`
+**连接地址:** `ws://127.0.0.1:8123/ws`
 
 **接收消息格式:**
 ```json
@@ -196,6 +205,7 @@ npm run dev
 3. **视频理解** → 结合视频和音频内容，使用 Qwen3-VL-Plus 分析操作流程
 4. **SOP生成** → 生成包含标题、摘要、关键词、材料清单、操作步骤的标准操作流程文档
 5. **结果展示** → 在操作历史中记录并显示生成的SOP文档
+6. **文档导出** → 支持导出TXT格式（适合修改后发布至开放获取平台）和HTML格式（适合实验室内部使用）
 
 ## 🎨 界面特性
 
@@ -204,6 +214,8 @@ npm run dev
 - **Markdown渲染**: 支持 Markdown 格式的结果展示和源码查看切换
 - **实时状态**: WebSocket 实时更新操作状态和进度
 - **操作历史**: 完整记录所有操作，新记录显示在底部
+- **会话隔离**: 每个浏览器标签页独立运行，操作记录不互相干扰
+- **SOP导出**: 支持TXT和HTML格式的SOP文档导出功能
 
 ## 🐛 故障排除
 
@@ -213,8 +225,10 @@ npm run dev
 1. **WebSocket 连接失败** - 检查代理设置，使用 `127.0.0.1` 而不是 `localhost`
 2. **API 密钥错误** - 确保在 `.env` 文件中设置了有效的 `DASHSCOPE_API_KEY`
 3. **OSS配置错误** - 确保正确配置了 OSS 存储参数
-4. **端口冲突** - 检查端口 8000 和 50001 是否被占用
+4. **端口冲突** - 检查端口 8123 和 50001 是否被占用
 5. **视频格式不支持** - 确保上传的视频格式为 MP4, MOV, AVI, MKV, WEBM
+6. **服务无法停止** - 使用 `./stop_services.sh` 强制停止所有相关进程
+7. **断开连接后服务停止** - 使用 `./start_services_persistent.sh` 启动持久化服务
 
 ## 🧪 测试
 
@@ -227,7 +241,7 @@ import websockets
 import json
 
 async def test_ws():
-    uri = 'ws://127.0.0.1:8000/ws'
+    uri = 'ws://127.0.0.1:8123/ws'
     async with websockets.connect(uri) as websocket:
         print('WebSocket 连接成功')
         # 监听消息
@@ -246,7 +260,7 @@ asyncio.run(test_ws())
 
 ### 测试 HTTP 健康检查
 ```bash
-curl --noproxy '*' http://127.0.0.1:8000/health
+curl --noproxy '*' http://127.0.0.1:8123/health
 ```
 
 ### 完整连接测试
@@ -274,13 +288,15 @@ python test_connection.py
 
 ## 🔄 更新日志
 
-- **v1.1.0** - Video2SOP 版本
+- **v1.2.0** - 会话隔离和SOP导出优化
+  - 实现浏览器标签页会话隔离
+  - 改进用户体验和界面交互
+
+- **v1.1.0** - Video2SOP 基础版本
   - 集成 Qwen3-VL-Plus 视频理解模型
   - 集成 Paraformer-V2 语音识别
   - 实现视频上传和 OSS 存储
-  - 添加视频理解组件和操作历史
   - 支持 SOP 文档自动生成
-  - 优化界面布局和用户体验
 
 ## 📄 许可证
 

@@ -40,9 +40,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 设置 OSS 相关路由
-setup_oss_routes(app)
-
 # 初始化 Agent
 agent = QwenAgent()
 
@@ -54,6 +51,8 @@ class ConnectionManager:
     
     def __init__(self):
         self.active_connections: List[WebSocket] = []
+        # 维护 client_session_id 到 WebSocket 连接的映射
+        self.client_sessions: Dict[str, WebSocket] = {}
     
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
@@ -63,6 +62,17 @@ class ConnectionManager:
     def disconnect(self, websocket: WebSocket):
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
+        
+        # 清理会话映射
+        client_session_id_to_remove = None
+        for client_session_id, ws in self.client_sessions.items():
+            if ws == websocket:
+                client_session_id_to_remove = client_session_id
+                break
+        if client_session_id_to_remove:
+            del self.client_sessions[client_session_id_to_remove]
+            print(f"已清理客户端会话映射: {client_session_id_to_remove}")
+        
         print(f"客户端已断开，当前连接数: {len(self.active_connections)}")
     
     async def send_message(self, websocket: WebSocket, message: str):
@@ -71,8 +81,29 @@ class ConnectionManager:
         except Exception as e:
             print(f"发送消息失败: {e}")
             self.disconnect(websocket)
+    
+    def register_client(self, client_session_id: str, websocket: WebSocket):
+        """注册客户端会话"""
+        self.client_sessions[client_session_id] = websocket
+        print(f"客户端会话已注册: {client_session_id}")
+    
+    async def send_to_client(self, client_session_id: str, message: str):
+        """向特定客户端发送消息"""
+        if client_session_id in self.client_sessions:
+            websocket = self.client_sessions[client_session_id]
+            try:
+                await websocket.send_text(message)
+                print(f"已向客户端 {client_session_id} 发送消息")
+            except Exception as e:
+                print(f"向客户端 {client_session_id} 发送消息失败: {e}")
+                self.disconnect(websocket)
+        else:
+            print(f"客户端 {client_session_id} 未找到或已断开连接")
 
 manager = ConnectionManager()
+
+# 设置 OSS 相关路由
+setup_oss_routes(app, manager)
 
 @app.get("/health")
 async def health_check():
@@ -155,13 +186,29 @@ async def websocket_endpoint(websocket: WebSocket):
                     "type": "pong"
                 }))
             
+            elif message_data.get("type") == "register":
+                # 客户端注册
+                client_session_id = message_data.get("client_session_id")
+                if client_session_id:
+                    manager.register_client(client_session_id, websocket)
+                    await manager.send_message(websocket, json.dumps({
+                        "type": "register_success",
+                        "client_session_id": client_session_id
+                    }))
+                else:
+                    await manager.send_message(websocket, json.dumps({
+                        "type": "register_error",
+                        "message": "缺少 client_session_id"
+                    }))
+            
             elif message_data.get("type") == "upload_complete":
                 # 处理上传完成通知
                 video_url = message_data.get("video_url", "")
                 audio_url = message_data.get("audio_url", "")
                 session_id = message_data.get("session_id", "")
+                client_session_id = message_data.get("client_session_id", "")
                 
-                # 发送上传完成通知给所有连接的客户端
+                # 发送上传完成通知给特定客户端
                 upload_notification = {
                     "type": "upload_complete",
                     "video_url": video_url,
@@ -170,22 +217,16 @@ async def websocket_endpoint(websocket: WebSocket):
                     "message": f"视频和音频上传完成！视频链接：{video_url}，音频链接：{audio_url}"
                 }
                 
-                # 发送给当前连接的客户端
+                # 只发送给发送消息的客户端
                 await manager.send_message(websocket, json.dumps(upload_notification))
-                
-                # 可选：发送给所有连接的客户端
-                for connection in manager.active_connections:
-                    try:
-                        await manager.send_message(connection, json.dumps(upload_notification))
-                    except:
-                        pass  # 忽略发送失败
             
             elif message_data.get("type") == "file_removed":
                 # 处理文件删除通知
                 session_id = message_data.get("session_id", "")
                 file_count = message_data.get("deleted_count", 0)
+                client_session_id = message_data.get("client_session_id", "")
                 
-                # 发送文件删除通知给所有连接的客户端
+                # 发送文件删除通知给特定客户端
                 remove_notification = {
                     "type": "file_removed",
                     "session_id": session_id,
@@ -193,15 +234,8 @@ async def websocket_endpoint(websocket: WebSocket):
                     "message": f"上传的文件已从服务器删除（共删除 {file_count} 个文件）"
                 }
                 
-                # 发送给当前连接的客户端
+                # 只发送给发送消息的客户端
                 await manager.send_message(websocket, json.dumps(remove_notification))
-                
-                # 可选：发送给所有连接的客户端
-                for connection in manager.active_connections:
-                    try:
-                        await manager.send_message(connection, json.dumps(remove_notification))
-                    except:
-                        pass  # 忽略发送失败
                 
     except WebSocketDisconnect:
         manager.disconnect(websocket)
@@ -254,20 +288,9 @@ async def load_example_video_endpoint():
         except:
             pass  # 忽略清理失败
         
-        # 通过WebSocket广播操作记录
-        upload_notification = {
-            "type": "upload_complete",
-            "video_url": video_url,
-            "audio_url": audio_url,
-            "session_id": session_id
-        }
-        
-        # 发送给所有连接的客户端
-        for connection in manager.active_connections:
-            try:
-                await manager.send_message(connection, json.dumps(upload_notification))
-            except:
-                pass  # 忽略发送失败
+        # 注意：load_example_video 是演示功能，暂时不发送 WebSocket 通知
+        # 因为该端点没有 client_session_id 参数，无法确定发送给哪个客户端
+        # 如果需要支持，可以添加 client_session_id 参数
         
         return {
             "success": True,
@@ -288,6 +311,7 @@ async def speech_recognition_endpoint(request: dict):
     """语音识别API端点"""
     try:
         audio_url = request.get("audio_url")
+        client_session_id = request.get("client_session_id")
         if not audio_url:
             raise HTTPException(status_code=400, detail="缺少 audio_url 参数")
         
@@ -299,7 +323,7 @@ async def speech_recognition_endpoint(request: dict):
         if "error" in result:
             raise HTTPException(status_code=500, detail=result["error"])
         
-        # 通过WebSocket广播操作记录
+        # 通过WebSocket发送操作记录给特定客户端
         speech_notification = {
             "type": "speech_recognition_complete",
             "audio_url": audio_url,
@@ -307,12 +331,9 @@ async def speech_recognition_endpoint(request: dict):
             "message": "语音识别已执行"
         }
         
-        # 发送给所有连接的客户端
-        for connection in manager.active_connections:
-            try:
-                await manager.send_message(connection, json.dumps(speech_notification))
-            except:
-                pass  # 忽略发送失败
+        # 发送给特定客户端
+        if client_session_id:
+            await manager.send_to_client(client_session_id, json.dumps(speech_notification))
         
         return {"success": True, "result": result}
         
@@ -331,6 +352,7 @@ async def video_understanding_endpoint(request: dict):
         prompt = request.get("prompt")
         fps = request.get("fps", 2)
         audio_transcript = request.get("audio_transcript")
+        client_session_id = request.get("client_session_id")
         
         if not video_url:
             raise HTTPException(status_code=400, detail="缺少 video_url 参数")
@@ -358,7 +380,7 @@ async def video_understanding_endpoint(request: dict):
         if "error" in result:
             raise HTTPException(status_code=500, detail=result["error"])
         
-        # 通过WebSocket广播操作记录
+        # 通过WebSocket发送操作记录给特定客户端
         video_notification = {
             "type": "video_understanding_complete",
             "video_url": video_url,
@@ -368,12 +390,9 @@ async def video_understanding_endpoint(request: dict):
             "message": "视频理解已执行"
         }
         
-        # 发送给所有连接的客户端
-        for connection in manager.active_connections:
-            try:
-                await manager.send_message(connection, json.dumps(video_notification))
-            except:
-                pass  # 忽略发送失败
+        # 发送给特定客户端
+        if client_session_id:
+            await manager.send_to_client(client_session_id, json.dumps(video_notification))
         
         return {"success": True, "result": result.get("result", "")}
         
@@ -389,6 +408,7 @@ async def parse_sop_endpoint(request: dict):
     """SOP解析API端点"""
     try:
         manuscript = request.get("manuscript")
+        client_session_id = request.get("client_session_id")
         if not manuscript:
             raise HTTPException(status_code=400, detail="缺少 manuscript 参数")
         
@@ -400,19 +420,16 @@ async def parse_sop_endpoint(request: dict):
         if "error" in result:
             raise HTTPException(status_code=500, detail=result["error"])
         
-        # 通过WebSocket广播解析完成通知
+        # 通过WebSocket发送解析完成通知给特定客户端
         parse_notification = {
             "type": "sop_parse_complete",
             "blocks_count": len(result.get("blocks", [])),
             "message": f"SOP解析完成，共生成 {len(result.get('blocks', []))} 个区块"
         }
         
-        # 发送给所有连接的客户端
-        for connection in manager.active_connections:
-            try:
-                await manager.send_message(connection, json.dumps(parse_notification))
-            except:
-                pass  # 忽略发送失败
+        # 发送给特定客户端
+        if client_session_id:
+            await manager.send_to_client(client_session_id, json.dumps(parse_notification))
         
         return {"success": True, "result": result}
         
@@ -537,6 +554,7 @@ async def refine_sop_endpoint(request: dict):
     try:
         blocks = request.get("blocks")
         user_notes = request.get("user_notes", "")
+        client_session_id = request.get("client_session_id")
         
         if not blocks:
             raise HTTPException(status_code=400, detail="缺少 blocks 参数")
@@ -548,7 +566,7 @@ async def refine_sop_endpoint(request: dict):
         if "error" in result:
             raise HTTPException(status_code=500, detail=result["error"])
         
-        # 通过WebSocket广播精修完成通知
+        # 通过WebSocket发送精修完成通知给特定客户端
         refine_notification = {
             "type": "sop_refine_complete",
             "blocks_count": len(result.get("blocks", [])),
@@ -556,12 +574,9 @@ async def refine_sop_endpoint(request: dict):
             "message": f"SOP精修完成，共处理 {len(result.get('blocks', []))} 个区块"
         }
         
-        # 发送给所有连接的客户端
-        for connection in manager.active_connections:
-            try:
-                await manager.send_message(connection, json.dumps(refine_notification))
-            except:
-                pass  # 忽略发送失败
+        # 发送给特定客户端
+        if client_session_id:
+            await manager.send_to_client(client_session_id, json.dumps(refine_notification))
         
         return {"success": True, "result": result}
         

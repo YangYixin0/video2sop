@@ -12,6 +12,16 @@ import { SOPBlock } from '@/types/sop';
 import { notificationManager } from '@/utils/notifications';
 
 export default function Home() {
+  // 生成唯一的客户端会话ID
+  const [clientSessionId] = useState(() => {
+    // 兼容性更好的UUID生成方法
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    // 降级方案：使用时间戳和随机数生成唯一ID
+    return 'client_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  });
+  
   // 全局状态管理
   const [currentUploadResult, setCurrentUploadResult] = useState<{
     video_url: string;
@@ -50,37 +60,14 @@ export default function Home() {
         session_id: data.session_id || ''
       });
       
-      // 添加上传记录
-      const uploadRecord: OperationRecord = {
-        id: `upload-${Date.now()}`,
-        type: 'upload',
-        timestamp: new Date(),
-        status: 'success',
-        message: data.message || '视频和音频上传完成！',
-        data: {
-          video_url: data.video_url,
-          audio_url: data.audio_url,
-          session_id: data.session_id
-        }
-      };
-      setOperationRecords(prev => [...prev, uploadRecord]);
+      // 注意：不在这里添加操作记录，因为onUploadComplete回调已经处理了
+      // 这避免了重复的操作记录
     } else if (data.type === 'file_removed') {
       // 清空当前上传结果状态
       setCurrentUploadResult(null);
       
-      // 添加删除记录
-      const removeRecord: OperationRecord = {
-        id: `remove-${Date.now()}`,
-        type: 'file_removed',
-        timestamp: new Date(),
-        status: 'success',
-        message: data.message || '上传的文件已从服务器删除',
-        data: {
-          session_id: data.session_id,
-          deleted_count: data.deleted_count
-        }
-      };
-      setOperationRecords(prev => [...prev, removeRecord]);
+      // 注意：不在这里添加操作记录，因为onFileRemoved回调已经处理了
+      // 这避免了重复的操作记录
     } else if (data.type === 'speech_recognition_complete') {
       // 发送通知
       if (notificationEnabled) {
@@ -186,7 +173,8 @@ export default function Home() {
 
   // WebSocket 连接用于接收操作记录
   const { isConnected: wsConnected, sendMessage: sendWebSocketMessage } = useWebSocket({
-    onMessage: handleWebSocketMessage
+    onMessage: handleWebSocketMessage,
+    clientSessionId: clientSessionId
   });
 
   // 初始化通知权限
@@ -230,7 +218,8 @@ export default function Home() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          audio_url: audioUrl
+          audio_url: audioUrl,
+          client_session_id: clientSessionId
         })
       });
 
@@ -264,7 +253,10 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(params)
+        body: JSON.stringify({
+          ...params,
+          client_session_id: clientSessionId
+        })
       });
 
       if (!response.ok) {
@@ -292,7 +284,10 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ manuscript }),
+        body: JSON.stringify({ 
+          manuscript,
+          client_session_id: clientSessionId
+        }),
         // 添加代理绕过设置
         mode: 'cors',
         credentials: 'omit'
@@ -318,7 +313,11 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ blocks, user_notes: userNotes }),
+        body: JSON.stringify({ 
+          blocks, 
+          user_notes: userNotes,
+          client_session_id: clientSessionId
+        }),
         // 添加代理绕过设置
         mode: 'cors',
         credentials: 'omit'
@@ -356,10 +355,14 @@ export default function Home() {
             <div className="flex items-center space-x-2">
               <span className="text-sm">🔔</span>
               <span className="text-xs text-gray-600">
-                {notificationEnabled ? '已启用' : '未启用'}
+                {notificationEnabled ? '已启用' : '浏览器通知未启用'}
               </span>
-              <span className="text-xs text-gray-400">·</span>
-              <span className="text-xs text-orange-600">通知不一定发挥效果</span>
+              {notificationEnabled && (
+                <>
+                  <span className="text-xs text-gray-400">·</span>
+                  <span className="text-xs text-orange-600">通知不一定发挥效果</span>
+                </>
+              )}
               {notificationEnabled ? (
                 <>
                   <button
@@ -434,6 +437,7 @@ export default function Home() {
         {/* 视频上传组件 */}
         <div className="mb-6">
           <VideoUploader 
+            clientSessionId={clientSessionId}
             onUploadComplete={(result) => {
               setCurrentUploadResult(result);
               

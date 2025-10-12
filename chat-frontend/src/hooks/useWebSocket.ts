@@ -22,10 +22,11 @@ interface UseWebSocketOptions {
   onError?: (error: string) => void;
   onOpen?: () => void;
   onClose?: () => void;
+  clientSessionId?: string;
 }
 
 export function useWebSocket(options: UseWebSocketOptions = {}) {
-  const { onMessage, onError, onOpen, onClose } = options;
+  const { onMessage, onError, onOpen, onClose, clientSessionId } = options;
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -64,6 +65,17 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         setError(null);
         reconnectAttemptsRef.current = 0;
         isConnectingRef.current = false;
+        
+        // 发送客户端注册消息
+        if (clientSessionId) {
+          const registerMessage = {
+            type: 'register',
+            client_session_id: clientSessionId
+          };
+          ws.send(JSON.stringify(registerMessage));
+          console.log('已发送客户端注册消息:', registerMessage);
+        }
+        
         onOpen?.();
       };
 
@@ -127,7 +139,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       const messageData = {
         type: 'message',
-        content: message
+        content: message,
+        client_session_id: clientSessionId
       };
       wsRef.current.send(JSON.stringify(messageData));
       console.log('发送消息:', messageData);
@@ -135,7 +148,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       console.error('WebSocket 未连接，无法发送消息');
       setError('WebSocket 未连接');
     }
-  }, []);
+  }, [clientSessionId]);
 
   const sendPing = useCallback(() => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {

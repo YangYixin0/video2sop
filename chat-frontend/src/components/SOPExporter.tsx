@@ -37,6 +37,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
   const generateTxtContent = (): string => {
     let content = '';
     const currentBlocks = getCurrentBlocks();
+    let stepCounter = 1; // 操作步骤计数器
     
     currentBlocks.forEach((block, index) => {
       // 添加区块标题
@@ -49,7 +50,14 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
         unknown: '其他内容'
       };
       
-      content += `${blockTypeNames[block.type]}：\n`;
+      // 对于操作步骤，添加数字编号
+      let blockTitle = blockTypeNames[block.type];
+      if (block.type === 'step') {
+        blockTitle = `操作步骤${stepCounter}`;
+        stepCounter++;
+      }
+      
+      content += `${blockTitle}：\n`;
       content += `${block.content}\n`;
       
       // 如果有时间戳，添加时间信息
@@ -65,7 +73,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
       }
       
       // 添加分隔线（除了最后一个区块）
-      if (index < blocks.length - 1) {
+      if (index < currentBlocks.length - 1) {
         content += `\n${'='.repeat(50)}\n\n`;
       }
     });
@@ -168,6 +176,23 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
             white-space: pre-wrap;
             line-height: 1.7;
             color: #4b5563;
+            padding: 12px;
+            border: 2px solid transparent;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+        .block-content:hover {
+            border-color: #e5e7eb;
+            background-color: #f9fafb;
+        }
+        .block-content:focus {
+            border-color: #3b82f6;
+            background-color: #f8faff;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .block-content:focus:hover {
+            background-color: #f8faff;
         }
         .time-info {
             margin-top: 10px;
@@ -194,9 +219,55 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
     <div class="container">
         <h1 style="text-align: center; color: #1f2937; margin-bottom: 30px;">
             📋 SOP 标准操作流程文档
-        </h1>`;
+        </h1>
+
+        <!-- 视频文件配置区域 -->
+        <div class="video-config">
+            <h3 style="margin: 0 0 15px 0; color: #495057; display: flex; align-items: center;">
+                <span style="margin-right: 8px;">🎥</span>
+                视频文件配置
+            </h3>
+            <div style="margin-bottom: 15px;">
+                <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 0.9em;">
+                    <strong>当前视频文件：</strong><span id="currentVideoName" style="color: #007bff; font-weight: 500;">${videoFileName}</span>
+                </p>
+                <p style="margin: 0; color: #6c757d; font-size: 0.85em;">
+                    💡 请确保视频文件与HTML文件在同一目录下
+                </p>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <button onclick="selectVideoFile()" style="
+                    padding: 8px 16px; 
+                    background: #007bff; 
+                    color: white; 
+                    border: none; 
+                    border-radius: 4px; 
+                    cursor: pointer; 
+                    font-size: 0.9em;
+                    transition: background-color 0.2s;
+                " onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background='#007bff'">
+                    📁 选择视频文件
+                </button>
+                <button onclick="testVideoFile()" style="
+                    padding: 8px 16px; 
+                    background: #28a745; 
+                    color: white; 
+                    border: none; 
+                    border-radius: 4px; 
+                    cursor: pointer; 
+                    font-size: 0.9em;
+                    transition: background-color 0.2s;
+                " onmouseover="this.style.background='#1e7e34'" onmouseout="this.style.background='#28a745'">
+                    ▶️ 测试播放
+                </button>
+                <span id="videoStatus" style="font-size: 0.85em; color: #6c757d;"></span>
+            </div>
+            <input type="file" id="videoFileInput" accept="video/*" style="display: none;" onchange="handleVideoFileSelect(event)">
+        </div>
+    </div>`;
 
     const currentBlocks = getCurrentBlocks();
+    let stepCounter = 1; // 操作步骤计数器
     currentBlocks.forEach((block, index) => {
       const blockTypeNames: Record<SOPBlock['type'], string> = {
         title: '标题',
@@ -207,19 +278,26 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
         unknown: '其他内容'
       };
 
+      // 对于操作步骤，添加数字编号
+      let blockTitle = blockTypeNames[block.type];
+      if (block.type === 'step') {
+        blockTitle = `操作步骤${stepCounter}`;
+        stepCounter++;
+      }
+
       const canPlay = block.show_play_button && block.start_time !== undefined;
       
       html += `
         <div class="block ${block.type}">
             <div class="block-header">
-                <div class="block-title">${blockTypeNames[block.type]}</div>
+                <div class="block-title">${blockTitle}</div>
                 ${canPlay ? `
                 <button class="play-button" onclick="playSegment(${block.start_time}, ${block.end_time || 'null'})">
                     ▶️ 播放 (${formatTime(block.start_time)}${block.end_time ? ` - ${formatTime(block.end_time)}` : ''})
                 </button>
                 ` : ''}
             </div>
-            <div class="block-content">${block.content}</div>
+            <div class="block-content" contenteditable="true">${block.content}</div>
             ${block.start_time !== undefined || block.end_time !== undefined ? `
             <div class="time-info">
                 时间范围：${block.start_time !== undefined ? formatTime(block.start_time) : '--'} 
@@ -230,50 +308,6 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
     });
 
     html += `
-    </div>
-
-    <!-- 视频文件配置区域 -->
-    <div class="video-config">
-        <h3 style="margin: 0 0 15px 0; color: #495057; display: flex; align-items: center;">
-            <span style="margin-right: 8px;">🎥</span>
-            视频文件配置
-        </h3>
-        <div style="margin-bottom: 15px;">
-            <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 0.9em;">
-                <strong>当前视频文件：</strong><span id="currentVideoName" style="color: #007bff; font-weight: 500;">${videoFileName}</span>
-            </p>
-            <p style="margin: 0; color: #6c757d; font-size: 0.85em;">
-                💡 请确保视频文件与HTML文件在同一目录下，文件名完全匹配
-            </p>
-        </div>
-        <div style="display: flex; gap: 10px; align-items: center;">
-            <button onclick="selectVideoFile()" style="
-                padding: 8px 16px; 
-                background: #007bff; 
-                color: white; 
-                border: none; 
-                border-radius: 4px; 
-                cursor: pointer; 
-                font-size: 0.9em;
-                transition: background-color 0.2s;
-            " onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background='#007bff'">
-                📁 选择视频文件
-            </button>
-            <button onclick="testVideoFile()" style="
-                padding: 8px 16px; 
-                background: #28a745; 
-                color: white; 
-                border: none; 
-                border-radius: 4px; 
-                cursor: pointer; 
-                font-size: 0.9em;
-                transition: background-color 0.2s;
-            " onmouseover="this.style.background='#1e7e34'" onmouseout="this.style.background='#28a745'">
-                ▶️ 测试播放
-            </button>
-            <span id="videoStatus" style="font-size: 0.85em; color: #6c757d;"></span>
-        </div>
-        <input type="file" id="videoFileInput" accept="video/*" style="display: none;" onchange="handleVideoFileSelect(event)">
     </div>
 
     <!-- 视频播放器 -->
@@ -421,9 +455,82 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
             }
         });
 
+        // 编辑相关功能
+        function initializeEditableContent() {
+            // 为所有可编辑区域添加编辑提示
+            const editableElements = document.querySelectorAll('.block-content[contenteditable="true"]');
+            editableElements.forEach(element => {
+                // 添加编辑提示
+                if (!element.hasAttribute('data-hint-added')) {
+                    element.setAttribute('data-hint-added', 'true');
+                    
+                    // 移除编辑提示功能，保持内容可编辑但无提示
+                    
+                    // 添加键盘快捷键支持
+                    element.addEventListener('keydown', function(e) {
+                        // Ctrl+S 保存提示
+                        if (e.ctrlKey && e.key === 's') {
+                            e.preventDefault();
+                            showSaveNotification();
+                        }
+                    });
+                }
+            });
+        }
+        
+        function showSaveNotification() {
+            // 创建保存提示
+            const notification = document.createElement('div');
+            notification.style.cssText = \`
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #10b981;
+                color: white;
+                padding: 12px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 10000;
+                animation: slideIn 0.3s ease-out;
+            \`;
+            notification.innerHTML = \`
+                <div style="display: flex; align-items: center;">
+                    <span style="margin-right: 8px;">💾</span>
+                    <span>编辑内容已更新！</span>
+                </div>
+            \`;
+            
+            // 添加动画样式
+            const style = document.createElement('style');
+            style.textContent = \`
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            \`;
+            document.head.appendChild(style);
+            
+            document.body.appendChild(notification);
+            
+            // 3秒后自动移除
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease-in';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 3000);
+        }
+        
         // 页面加载完成后的提示
         window.addEventListener('load', () => {
             console.log('SOP文档已加载完成');
+            initializeEditableContent();
             console.log('当前视频文件:', '${videoFileName}');
             console.log('请确保视频文件与HTML文件在同一目录下');
             
@@ -493,39 +600,69 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
         <h3 className="text-lg font-semibold text-gray-800 mb-2">📤 导出SOP文档</h3>
         
         {/* 区块选择 */}
-        <div className="mb-3">
-          <label className="block text-sm font-medium text-gray-700 mb-2">选择导出区域：</label>
-          <div className="flex space-x-4">
-            <label className="flex items-center">
+        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <label className="block text-base font-semibold text-blue-800 mb-3 flex items-center">
+            <span className="text-lg mr-2">🎯</span>
+            选择导出区域
+          </label>
+          <div className="flex space-x-6">
+            <label className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+              selectedBlocks === 'A' 
+                ? 'border-blue-500 bg-blue-100 shadow-md' 
+                : 'border-gray-300 bg-white hover:border-blue-300 hover:bg-blue-50'
+            }`}>
               <input
                 type="radio"
                 name="blockSelection"
                 value="A"
                 checked={selectedBlocks === 'A'}
                 onChange={(e) => setSelectedBlocks(e.target.value as 'A' | 'B')}
-                className="mr-2"
+                className="mr-3 w-4 h-4 text-blue-600 focus:ring-blue-500"
               />
-              <span className="text-sm">编辑区 ({blocksA.length} 个区块)</span>
+              <div>
+                <span className={`text-sm font-medium ${
+                  selectedBlocks === 'A' ? 'text-blue-800' : 'text-gray-700'
+                }`}>
+                  📝 编辑区
+                </span>
+                <span className={`block text-xs ${
+                  selectedBlocks === 'A' ? 'text-blue-600' : 'text-gray-500'
+                }`}>
+                  ({blocksA.length} 个区块)
+                </span>
+              </div>
             </label>
             {blocksB && blocksB.length > 0 && (
-              <label className="flex items-center">
+              <label className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+                selectedBlocks === 'B' 
+                  ? 'border-blue-500 bg-blue-100 shadow-md' 
+                  : 'border-gray-300 bg-white hover:border-blue-300 hover:bg-blue-50'
+              }`}>
                 <input
                   type="radio"
                   name="blockSelection"
                   value="B"
                   checked={selectedBlocks === 'B'}
                   onChange={(e) => setSelectedBlocks(e.target.value as 'A' | 'B')}
-                  className="mr-2"
+                  className="mr-3 w-4 h-4 text-blue-600 focus:ring-blue-500"
                 />
-                <span className="text-sm">精修区 ({blocksB.length} 个区块)</span>
+                <div>
+                  <span className={`text-sm font-medium ${
+                    selectedBlocks === 'B' ? 'text-blue-800' : 'text-gray-700'
+                  }`}>
+                    ✨ 精修区
+                  </span>
+                  <span className={`block text-xs ${
+                    selectedBlocks === 'B' ? 'text-blue-600' : 'text-gray-500'
+                  }`}>
+                    ({blocksB.length} 个区块)
+                  </span>
+                </div>
               </label>
             )}
           </div>
         </div>
         
-        <div className="text-sm text-gray-600">
-          当前选中区域共有 <span className="font-medium text-blue-600">{currentBlocks.length}</span> 个区块
-        </div>
       </div>
 
       <div className="space-y-3">
@@ -534,7 +671,9 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
           <div className="flex items-center justify-between mb-2">
             <div>
               <h4 className="font-medium text-gray-800">📄 纯文本格式 (.txt)</h4>
-              <p className="text-sm text-gray-600">导出为纯文本文件，便于阅读和打印</p>
+              <p className="text-sm text-gray-600">
+                适合编辑和发布于开发获取平台，例如 <a href="https://protocols.io" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-800">Protocols.io</a>
+              </p>
             </div>
             <button
               onClick={() => handleExport('txt')}
@@ -551,7 +690,12 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
           <div className="flex items-center justify-between mb-2">
             <div>
               <h4 className="font-medium text-gray-800">🌐 HTML关联格式 (.html)</h4>
-              <p className="text-sm text-gray-600">导出为HTML文件，支持视频片段播放和文件选择</p>
+              <p className="text-sm text-gray-600 mb-1">
+                适合实验室内部使用，支持交互式视频播放和内容编辑
+              </p>
+              <p className="text-sm text-gray-600">
+                视频文件需与HTML文件在同一目录下，然后在HTML文件开头配置视频文件
+              </p>
             </div>
             <button
               onClick={() => handleExport('html')}
@@ -576,17 +720,6 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
         </div>
       </div>
 
-      {/* 使用说明 */}
-      <div className="mt-4 p-3 bg-gray-50 rounded text-sm text-gray-600">
-        <h5 className="font-medium mb-1">💡 使用说明：</h5>
-        <ul className="space-y-1 text-xs">
-          <li>• <strong>TXT格式</strong>：适合打印和简单阅读</li>
-          <li>• <strong>HTML格式</strong>：支持视频片段播放，包含视频文件配置功能</li>
-          <li>• <strong>视频配置</strong>：HTML开头显示视频文件要求，可点击按钮选择视频</li>
-          <li>• <strong>测试功能</strong>：可测试视频文件是否能正常加载和播放</li>
-          <li>• <strong>文件要求</strong>：视频文件需与HTML文件在同一目录下</li>
-        </ul>
-      </div>
     </div>
   );
 };

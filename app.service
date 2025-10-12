@@ -1,0 +1,15 @@
+[Unit]
+Description=App Service (Backend + Frontend)
+After=network.target
+
+[Service]
+Type=forking
+User=root
+WorkingDirectory=/root/app
+ExecStart=/root/app/start_services_persistent.sh
+ExecStop=/root/app/stop_services.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
