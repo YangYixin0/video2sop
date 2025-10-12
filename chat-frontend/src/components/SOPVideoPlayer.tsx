@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { VideoPlayerProps } from '@/types/sop';
 
 const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -22,15 +22,15 @@ const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   // 跳转到指定时间
-  const seekTo = (time: number) => {
+  const seekTo = useCallback((time: number) => {
     if (videoRef.current) {
       videoRef.current.currentTime = time;
       setCurrentTime(time);
     }
-  };
+  }, []);
 
   // 播放指定时间段
-  const playSegment = (startTime: number, endTime?: number) => {
+  const playSegment = useCallback((startTime: number, endTime?: number) => {
     if (videoRef.current) {
       seekTo(startTime);
       setIsPlaying(true);
@@ -56,7 +56,7 @@ const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
         videoRef.current.addEventListener('pause', handlePause, { once: true });
       }
     }
-  };
+  }, [seekTo]);
 
   // 播放/暂停控制
   const togglePlayPause = () => {
@@ -108,7 +108,7 @@ const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
     } else if (currentStartTime !== undefined) {
       seekTo(currentStartTime);
     }
-  }, [currentStartTime, currentEndTime]);
+  }, [currentStartTime, currentEndTime, playSegment, seekTo]);
 
   // 进度条点击处理
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -124,7 +124,6 @@ const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
   return (
     <div className="bg-white rounded-lg shadow-sm border p-4">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-gray-800 mb-2">📹 视频播放器</h3>
         {videoUrl ? (
           <div className="text-sm text-gray-600 mb-2">
             视频文件: {videoUrl.split('/').pop()}

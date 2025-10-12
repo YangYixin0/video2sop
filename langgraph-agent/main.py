@@ -1,7 +1,8 @@
 import os
 import json
 import asyncio
-from typing import List
+from typing import List, Dict, Any
+from datetime import datetime, timedelta
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -40,11 +41,64 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 初始化 Agent
-agent = QwenAgent()
+# 初始化 Agent 实例池（3个实例）
+agent_pool = [QwenAgent() for _ in range(3)]
+next_agent_index = 0
 
-# 全局会话历史（单会话模式）
-chat_history: List[BaseMessage] = []
+# 会话管理
+session_histories: Dict[str, Dict[str, Any]] = {}
+# 结构: {
+#   "client_session_id": {
+#     "history": List[BaseMessage],
+#     "last_active": datetime,
+#     "agent_index": int
+#   }
+# }
+SESSION_TIMEOUT_HOURS = 1  # 1小时超时
+
+def update_session_activity(client_session_id: str):
+    """更新会话活跃时间"""
+    if client_session_id in session_histories:
+        session_histories[client_session_id]["last_active"] = datetime.now()
+
+def cleanup_expired_sessions():
+    """清理过期会话"""
+    now = datetime.now()
+    expired_sessions = [
+        sid for sid, session in session_histories.items()
+        if now - session["last_active"] > timedelta(hours=SESSION_TIMEOUT_HOURS)
+    ]
+    for sid in expired_sessions:
+        del session_histories[sid]
+        print(f"清理过期会话: {sid}")
+    
+    if expired_sessions:
+        print(f"已清理 {len(expired_sessions)} 个过期会话")
+
+def get_or_create_session(client_session_id: str) -> Dict[str, Any]:
+    """获取或创建会话，并清理过期会话"""
+    global next_agent_index
+    
+    # 清理过期会话
+    cleanup_expired_sessions()
+    
+    # 获取或创建会话
+    if client_session_id not in session_histories:
+        session_histories[client_session_id] = {
+            "history": [],
+            "last_active": datetime.now(),
+            "agent_index": next_agent_index % len(agent_pool)
+        }
+        next_agent_index += 1
+        print(f"创建新会话: {client_session_id}, 分配Agent实例: {session_histories[client_session_id]['agent_index']}")
+    else:
+        session_histories[client_session_id]["last_active"] = datetime.now()
+    
+    return session_histories[client_session_id]
+
+def get_agent_for_session(session: Dict[str, Any]) -> QwenAgent:
+    """获取会话对应的Agent实例"""
+    return agent_pool[session["agent_index"]]
 
 class ConnectionManager:
     """WebSocket 连接管理器"""
@@ -123,7 +177,21 @@ async def websocket_endpoint(websocket: WebSocket):
             
             if message_data.get("type") == "message":
                 user_message = message_data.get("content", "")
-                print(f"收到用户消息: {user_message}")
+                client_session_id = message_data.get("client_session_id", "")
+                
+                if not client_session_id:
+                    await manager.send_message(websocket, json.dumps({
+                        "type": "error",
+                        "content": "缺少 client_session_id"
+                    }))
+                    continue
+                
+                print(f"收到用户消息: {user_message} (会话: {client_session_id})")
+                
+                # 获取或创建会话
+                session = get_or_create_session(client_session_id)
+                session_history = session["history"]
+                agent = get_agent_for_session(session)
                 
                 # 发送开始处理信号
                 await manager.send_message(websocket, json.dumps({
@@ -132,10 +200,10 @@ async def websocket_endpoint(websocket: WebSocket):
                 }))
                 
                 try:
-                    # 流式调用 Agent
+                    # 流式调用 Agent（使用会话独立的历史）
                     final_message = None
                     
-                    async for message in agent.astream_chat(user_message, chat_history.copy()):
+                    async for message in agent.astream_chat(user_message, session_history.copy()):
                         final_message = message
                         
                         # 检查是否包含工具调用
@@ -164,13 +232,13 @@ async def websocket_endpoint(websocket: WebSocket):
                             "content": final_message.content
                         }))
                     
-                    # 更新全局会话历史
+                    # 更新会话历史（而非全局历史）
                     from langchain_core.messages import HumanMessage, AIMessage
-                    chat_history.append(HumanMessage(content=user_message))
+                    session_history.append(HumanMessage(content=user_message))
                     if final_message and hasattr(final_message, 'content'):
-                        chat_history.append(AIMessage(content=final_message.content))
+                        session_history.append(AIMessage(content=final_message.content))
                     
-                    print(f"AI 响应完成: {final_message.content[:100] if final_message and hasattr(final_message, 'content') else 'No content'}...")
+                    print(f"AI 响应完成 (会话: {client_session_id}): {final_message.content[:100] if final_message and hasattr(final_message, 'content') else 'No content'}...")
                     
                 except Exception as e:
                     error_msg = f"处理消息时出现错误: {str(e)}"
@@ -315,8 +383,12 @@ async def speech_recognition_endpoint(request: dict):
         if not audio_url:
             raise HTTPException(status_code=400, detail="缺少 audio_url 参数")
         
-        # 调用语音识别工具
-        result_json = speech_recognition(audio_url)
+        # 更新会话活跃时间
+        if client_session_id:
+            update_session_activity(client_session_id)
+        
+        # 使用线程池执行同步调用，避免阻塞事件循环
+        result_json = await asyncio.to_thread(speech_recognition, audio_url)
         result = json.loads(result_json)
         
         # 检查是否有错误
@@ -367,8 +439,13 @@ async def video_understanding_endpoint(request: dict):
         except (ValueError, TypeError):
             fps = 2
         
-        # 调用视频理解工具
-        result_json = video_understanding(
+        # 更新会话活跃时间
+        if client_session_id:
+            update_session_activity(client_session_id)
+        
+        # 使用线程池执行同步调用
+        result_json = await asyncio.to_thread(
+            video_understanding,
             video_url=video_url,
             prompt=prompt,
             fps=fps,
@@ -412,8 +489,12 @@ async def parse_sop_endpoint(request: dict):
         if not manuscript:
             raise HTTPException(status_code=400, detail="缺少 manuscript 参数")
         
-        # 调用SOP解析工具
-        result_json = sop_parser(manuscript)
+        # 更新会话活跃时间
+        if client_session_id:
+            update_session_activity(client_session_id)
+        
+        # 使用线程池执行同步调用
+        result_json = await asyncio.to_thread(sop_parser, manuscript)
         result = json.loads(result_json)
         
         # 检查是否有错误
@@ -483,10 +564,10 @@ async def refine_sop_blocks(blocks, user_notes):
 4. 确保精修后的内容更加专业和准确
 5. 只返回JSON格式，不要添加其他文字说明"""
 
-        # 调用qwen3-max
+        # 调用qwen-plus
         response = dashscope.Generation.call(
             api_key=os.getenv('DASHSCOPE_API_KEY'),
-            model="qwen-max",
+            model="qwen-plus",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
@@ -559,8 +640,12 @@ async def refine_sop_endpoint(request: dict):
         if not blocks:
             raise HTTPException(status_code=400, detail="缺少 blocks 参数")
         
-        # 直接调用精修逻辑，避免LangChain工具包装问题
-        result = await refine_sop_blocks(blocks, user_notes)
+        # 更新会话活跃时间
+        if client_session_id:
+            update_session_activity(client_session_id)
+        
+        # 使用线程池执行同步调用
+        result = await asyncio.to_thread(refine_sop_blocks, blocks, user_notes)
         
         # 检查是否有错误
         if "error" in result:
@@ -586,6 +671,27 @@ async def refine_sop_endpoint(request: dict):
         error_msg = f"SOP精修处理异常: {str(e)}"
         print(error_msg)
         raise HTTPException(status_code=500, detail=error_msg)
+
+@app.get("/sessions/stats")
+async def get_session_stats():
+    """获取会话统计信息"""
+    cleanup_expired_sessions()  # 先清理过期会话
+    
+    return {
+        "active_sessions": len(session_histories),
+        "agent_pool_size": len(agent_pool),
+        "timeout_hours": SESSION_TIMEOUT_HOURS,
+        "sessions": [
+            {
+                "client_session_id": sid[:16] + "...",
+                "message_count": len(session["history"]),
+                "agent_index": session["agent_index"],
+                "last_active": session["last_active"].isoformat(),
+                "inactive_minutes": (datetime.now() - session["last_active"]).total_seconds() / 60
+            }
+            for sid, session in session_histories.items()
+        ]
+    }
 
 @app.get("/")
 async def root():

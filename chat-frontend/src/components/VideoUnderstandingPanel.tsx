@@ -4,6 +4,111 @@ import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+// 用时影响因素面板组件
+const PerformanceAnalysisPanel = () => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <div className="mb-4">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+      >
+        <span className="font-medium text-gray-700">其他用时影响因素</span>
+        <div className="flex items-center">
+          <span className="text-sm text-gray-500 mr-2">
+            {isExpanded ? '点击折叠' : '点击展开'}
+          </span>
+          <svg 
+            className={`w-5 h-5 text-gray-500 transition-transform ${isExpanded ? '' : 'rotate-90'}`}
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="mt-2 p-4 bg-white border border-gray-200 rounded-lg">
+          {/* 估计数据 */}
+          <div>
+            <h4 className="text-base font-semibold text-gray-800 mb-3">估计数据（基于Qwen3-VL-Plus）</h4>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse border border-gray-300 text-sm">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="border border-gray-300 px-3 py-2 text-left">视频规格</th>
+                    <th className="border border-gray-300 px-3 py-2 text-left">输出长度</th>
+                    <th className="border border-gray-300 px-3 py-2 text-left">平均处理时间</th>
+                    <th className="border border-gray-300 px-3 py-2 text-left">主要瓶颈</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="border border-gray-300 px-3 py-2">720p, 1分钟</td>
+                    <td className="border border-gray-300 px-3 py-2">200字</td>
+                    <td className="border border-gray-300 px-3 py-2">45-90秒</td>
+                    <td className="border border-gray-300 px-3 py-2">视频理解</td>
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <td className="border border-gray-300 px-3 py-2">1080p, 1分钟</td>
+                    <td className="border border-gray-300 px-3 py-2">200字</td>
+                    <td className="border border-gray-300 px-3 py-2">60-120秒</td>
+                    <td className="border border-gray-300 px-3 py-2">视频理解</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-gray-300 px-3 py-2">720p, 5分钟</td>
+                    <td className="border border-gray-300 px-3 py-2">500字</td>
+                    <td className="border border-gray-300 px-3 py-2">3-6分钟</td>
+                    <td className="border border-gray-300 px-3 py-2">视频理解</td>
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <td className="border border-gray-300 px-3 py-2">1080p, 5分钟</td>
+                    <td className="border border-gray-300 px-3 py-2">500字</td>
+                    <td className="border border-gray-300 px-3 py-2">5-10分钟</td>
+                    <td className="border border-gray-300 px-3 py-2">视频理解</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* 优化建议 */}
+          <div className="mt-6">
+            <h4 className="text-base font-semibold text-gray-800 mb-3">优化策略</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-3 bg-gray-50 rounded border border-gray-200">
+                <h5 className="font-medium text-gray-800 mb-2">主要瓶颈排序：</h5>
+                <ol className="text-sm text-gray-600 space-y-1">
+                  <li>1. <strong>视频时长</strong>（影响最大，线性关系）</li>
+                  <li>2. <strong>视频分辨率</strong>（二次关系）</li>
+                  <li>3. <strong>模型规模</strong>（硬件相关）</li>
+                  <li>4. <strong>输出长度</strong>（对数关系）</li>
+                  <li>5. <strong>网络延迟</strong>（API调用时）</li>
+                </ol>
+              </div>
+
+              <div className="p-3 bg-gray-50 rounded border border-gray-200">
+                <h5 className="font-medium text-gray-800 mb-2">优化建议：</h5>
+                <ul className="text-sm text-gray-600 space-y-1">
+                  <li>• <strong>优先降低视频分辨率</strong>：从1080p降到720p可节省50-70%时间</li>
+                  <li>• <strong>分段处理长视频</strong>：超过5分钟的视频建议分段（正在开发自动处理长视频的功能）</li>
+                  <li>• <strong>优化提示词</strong>：使用更精确的指令减少生成时间</li>
+                  <li>• <strong>选择合适的模型</strong>：平衡精度和速度需求</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface SpeechResult {
   sentence_id: number;
   text: string;
@@ -187,6 +292,9 @@ export default function VideoUnderstandingPanel({
             </span>
           </div>
         </div>
+
+        {/* 用时影响因素分析 - 折叠面板 */}
+        <PerformanceAnalysisPanel />
 
         {/* 执行按钮 */}
         <div className="mb-4">

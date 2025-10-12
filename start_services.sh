@@ -1,13 +1,35 @@
 #!/bin/bash
 
-echo "🚀 启动 LangGraph Agent Chat 系统 (修复版)"
+echo "🚀 启动 LangGraph Agent Chat 系统"
 echo "=============================================="
 
 # 清理之前的进程
 echo "🧹 清理之前的进程..."
 pkill -f "uvicorn main:app" 2>/dev/null || true
 pkill -f "next dev" 2>/dev/null || true
-sleep 2
+pkill -f "next-server" 2>/dev/null || true
+pkill -f "npm run dev" 2>/dev/null || true
+pkill -f "npm run start" 2>/dev/null || true
+
+# 强制清理端口占用
+echo "🔍 检查端口占用..."
+if netstat -tlnp 2>/dev/null | grep -q ":50001 "; then
+    echo "⚠️  端口50001被占用，正在清理..."
+    PID=$(netstat -tlnp 2>/dev/null | grep ":50001 " | awk '{print $7}' | cut -d'/' -f1)
+    if [ ! -z "$PID" ]; then
+        kill -9 $PID 2>/dev/null || true
+    fi
+fi
+
+if netstat -tlnp 2>/dev/null | grep -q ":8123 "; then
+    echo "⚠️  端口8123被占用，正在清理..."
+    PID=$(netstat -tlnp 2>/dev/null | grep ":8123 " | awk '{print $7}' | cut -d'/' -f1)
+    if [ ! -z "$PID" ]; then
+        kill -9 $PID 2>/dev/null || true
+    fi
+fi
+
+sleep 3
 
 # 检查环境变量
 if [ ! -f "/root/app/.env" ]; then

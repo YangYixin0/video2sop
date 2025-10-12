@@ -197,7 +197,7 @@ export default function VideoUploader({
     } else {
       throw new Error('代理上传失败');
     }
-  }, []);
+  }, [clientSessionId]);
 
   // 提取音频
   const extractAudio = useCallback(async (videoUrl: string, sessionId: string) => {
@@ -217,7 +217,7 @@ export default function VideoUploader({
     } else {
       throw new Error('音频提取失败');
     }
-  }, []);
+  }, [clientSessionId]);
 
   // 验证文件
   const validateFile = useCallback((file: File): string | null => {
@@ -302,7 +302,7 @@ export default function VideoUploader({
       setUploadStatus({ status: 'error', message: errorMessage, progress: 0 });
       onUploadError?.(errorMessage);
     }
-  }, [selectedFile, generateSessionId, getUploadSignature, uploadToOSS, uploadViaProxy, extractAudio, onUploadComplete, onUploadError]);
+  }, [selectedFile, generateSessionId, getUploadSignature, uploadToOSS, uploadViaProxy, extractAudio, onUploadComplete, onUploadError, clientSessionId, onWebSocketMessage]);
 
   // 移除文件
   const handleRemove = useCallback(async () => {
@@ -332,7 +332,7 @@ export default function VideoUploader({
     if (currentSessionId && deletedCount > 0) {
       onFileRemoved?.();
     }
-  }, [uploadResult, cleanup, sessionId, onFileRemoved, clientSessionId]);
+  }, [uploadResult, cleanup, sessionId, onFileRemoved]);
 
   // 拖拽处理
   const handleDragOver = useCallback((e: React.DragEvent) => {

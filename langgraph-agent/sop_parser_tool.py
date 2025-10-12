@@ -47,6 +47,8 @@ def sop_parser(manuscript: str) -> str:
 
 时间戳提取规则：
 - 查找形如"(0:05 - 0:08)"、"时间范围：0:03 - 0:21"等时间范围标记
+- 一般只有操作步骤有时间戳，其他区块没有时间戳
+- 时间戳可能在所属的区块开头或末尾，由上一点可以确定某个时间戳属于前面区块还是后面区块
 - 将时间转换为秒数（如"1:25"转换为85秒）
 - 对于包含多个子步骤的区块，使用整个步骤的时间范围
 - 如果区块包含时间戳，show_play_button设为true
@@ -94,16 +96,17 @@ def sop_parser(manuscript: str) -> str:
 
 应该解析为一个区块，content包含完整内容。"""
 
-        # 调用qwen3-max
+        # 调用qwen-plus，开启reasoning功能
         response = dashscope.Generation.call(
             api_key=os.getenv('DASHSCOPE_API_KEY'),
-            model="qwen-max",
+            model="qwen-plus",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
             result_format='message',
-            temperature=0.1
+            temperature=0.1,
+            enable_thinking=True  # 开启思考过程，但不参与后续处理
         )
         
         if response.status_code == 200:

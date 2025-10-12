@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 
 interface ResizableLayoutProps {
   children: React.ReactNode;
@@ -47,7 +47,7 @@ export default function ResizableLayout({
     setIsResizing(true);
   };
 
-  const handleMouseMove = (e: MouseEvent) => {
+  const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isResizing || !containerRef.current) return;
 
     const containerRect = containerRef.current.getBoundingClientRect();
@@ -60,15 +60,15 @@ export default function ResizableLayout({
     );
 
     setSidebarWidth(clampedWidth);
-  };
+  }, [isResizing, minSidebarWidth, maxSidebarWidth]);
 
-  const handleMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
     setIsResizing(false);
     // 保存宽度到 localStorage（仅在客户端）
     if (isClient) {
       localStorage.setItem('sidebar-width', sidebarWidth.toString());
     }
-  };
+  }, [isClient, sidebarWidth]);
 
   useEffect(() => {
     if (isResizing) {
@@ -84,7 +84,7 @@ export default function ResizableLayout({
         document.body.style.userSelect = '';
       };
     }
-  }, [isResizing]);
+  }, [isResizing, handleMouseMove, handleMouseUp]);
 
   return (
     <div ref={containerRef} className="flex h-screen bg-gray-50">

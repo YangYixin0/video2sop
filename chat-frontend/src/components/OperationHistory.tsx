@@ -25,9 +25,10 @@ export interface OperationRecord {
 interface OperationHistoryProps {
   records: OperationRecord[];
   isConnected?: boolean;
+  onReconnect?: () => void;
 }
 
-export default function OperationHistory({ records, isConnected = true }: OperationHistoryProps) {
+export default function OperationHistory({ records, isConnected = true, onReconnect }: OperationHistoryProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -98,11 +99,21 @@ export default function OperationHistory({ records, isConnected = true }: Operat
         <h2 className="text-lg font-semibold text-gray-800">操作记录</h2>
         <div className="flex items-center space-x-3">
           {/* 连接状态指示器 */}
-          <div className="flex items-center space-x-1">
-            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'} ${isConnected ? 'animate-pulse' : ''}`}></div>
-            <span className={`text-xs ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
-              {isConnected ? '已连接' : '未连接'}
-            </span>
+          <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1">
+              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'} ${isConnected ? 'animate-pulse' : ''}`}></div>
+              <span className={`text-xs ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
+                {isConnected ? '已连接' : '未连接'}
+              </span>
+            </div>
+            {!isConnected && onReconnect && (
+              <button
+                onClick={onReconnect}
+                className="text-xs px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+              >
+                重连
+              </button>
+            )}
           </div>
           <div className="text-sm text-gray-500">
             {records.length} 条记录

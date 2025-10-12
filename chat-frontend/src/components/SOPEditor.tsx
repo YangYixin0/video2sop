@@ -235,7 +235,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
               disabled={isParsing}
               className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-lg transition-colors"
             >
-              {isParsing ? '解析中...' : '解析SOP文档 (Qwen3-Max)'}
+              {isParsing ? '解析中...' : '解析SOP文档 (Qwen-Plus)'}
             </button>
           </div>
         )}
@@ -258,7 +258,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
                 {isVideoPlayerCollapsed ? '点击展开' : '点击折叠'}
               </span>
               <svg 
-                className={`w-5 h-5 text-gray-500 transition-transform ${isVideoPlayerCollapsed ? '' : 'rotate-180'}`}
+                className={`w-5 h-5 text-gray-500 transition-transform ${isVideoPlayerCollapsed ? 'rotate-90' : ''}`}
                 fill="none" 
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
@@ -378,7 +378,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
                 disabled={isRefining || blocksA.length === 0}
                 className="px-4 py-2 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-300 text-white rounded-lg transition-colors text-sm"
               >
-                {isRefining ? '精修中...' : 'AI精修 (Qwen3-Max)'}
+                {isRefining ? '精修中...' : 'AI精修 (Qwen-Plus)'}
               </button>
             </div>
           </div>

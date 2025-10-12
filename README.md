@@ -6,13 +6,13 @@
 
 - ✅ **视频理解**: 基于 Qwen3-VL-Plus 模型的视频内容分析
 - ✅ **语音识别**: 集成 Paraformer-V2 的音频转录功能
-- ✅ **SOP生成**: 自动生成标准操作流程文档
 - ✅ **实时处理**: WebSocket 实现实时状态更新
 - ✅ **响应式 UI**: Next.js + TypeScript + Tailwind CSS
 - ✅ **多模态分析**: 结合视频和音频内容进行综合分析
 - ✅ **操作历史**: 完整的操作记录和结果追踪
-- ✅ **会话隔离**: 每个浏览器标签页独立运行，避免操作冲突
+- ✅ **会话隔离**: 每个用户会话独立运行，避免操作冲突
 - ✅ **SOP导出**: 支持TXT和HTML格式的文档导出功能
+- ✅ **异步并发**: 支持多个会话同时调用工具，提升吞吐量
 
 ## 🏗️ 系统架构
 
@@ -20,7 +20,7 @@
 ┌─────────────────┐    WebSocket    ┌─────────────────┐
 │   Next.js       │ ←─────────────→ │   FastAPI       │
 │   Frontend      │                 │   Backend       │
-│   (端口 50001)  │                 │   (端口 8000)   │
+│   (端口 50001)  │                 │   (端口 8123)   │
 └─────────────────┘                 └─────────────────┘
                                            │
                                            ▼
@@ -127,7 +127,10 @@ npm run dev
 │   ├── agent.py                       # LangGraph Agent
 │   ├── video_understanding_tool.py    # 视频理解工具
 │   ├── speech_tool.py                 # 语音识别工具
+│   ├── sop_parser_tool.py             # SOP解析工具
+│   ├── sop_refine_tool.py             # SOP精修工具
 │   ├── oss_manager.py                 # OSS存储管理
+│   ├── oss_api.py                     # OSS API路由
 │   ├── requirements.txt               # Python 依赖
 │   └── README.md                     # 后端文档
 ├── chat-frontend/                     # 前端应用
@@ -157,6 +160,47 @@ npm run dev
 ├── TROUBLESHOOTING.md               # 故障排除指南
 └── .env                            # 环境变量配置
 ```
+
+## 🔄 会话管理
+
+系统实现了基于client_session_id的会话隔离机制：
+
+### 会话特性
+
+- 每个浏览器标签页拥有独立的会话ID
+- 会话超时时间：1小时（从最后活跃时间起算）
+- Agent实例池：3个实例，轮流分配给新会话
+- 自动清理：创建新会话时自动清理过期会话
+
+### 会话活跃判定
+
+以下操作会更新会话活跃时间：
+- WebSocket心跳消息（每30秒）
+- 语音识别请求
+- 视频理解请求
+- SOP解析/精修请求
+
+### 监控会话状态
+
+访问 `/sessions/stats` 端点查看当前活跃会话：
+
+```bash
+curl http://127.0.0.1:8123/sessions/stats
+```
+
+返回信息包括：
+- 活跃会话数量
+- 每个会话的消息数量
+- 分配的Agent实例
+- 最后活跃时间
+- 不活跃时长
+
+### 技术实现
+
+- **会话存储**：使用内存字典存储会话信息，包含历史记录、活跃时间和分配的Agent索引
+- **Agent实例池**：3个独立的QwenAgent实例，轮流分配给新会话
+- **自动清理**：创建新会话时自动清理1小时未活动的过期会话
+- **并发安全**：使用asyncio.to_thread确保同步API调用不阻塞事件循环
 
 ## 🔧 API 文档
 
@@ -190,6 +234,28 @@ npm run dev
   "has_audio_context": true
 }
 
+// SOP解析完成
+{
+  "type": "sop_parse_complete",
+  "message": "SOP解析完成，共生成 x 个区块",
+  "blocks_count": 5
+}
+
+// SOP精修完成
+{
+  "type": "sop_refine_complete",
+  "message": "SOP精修完成，共处理 x 个区块",
+  "blocks_count": 5,
+  "has_user_notes": true
+}
+
+// 文件删除完成
+{
+  "type": "file_removed",
+  "message": "上传的文件已从服务器删除（共删除 x 个文件）",
+  "deleted_count": 2
+}
+
 // 工具调用状态
 {
   "type": "tool_call",
@@ -208,9 +274,14 @@ npm run dev
 
 - `GET /` - 根路径信息
 - `GET /health` - 健康检查
+- `GET /sessions/stats` - 会话统计信息
+- `POST /load_example_video` - 加载示例视频
 - `POST /video_upload` - 视频上传
 - `POST /speech_recognition` - 语音识别
 - `POST /video_understanding` - 视频理解
+- `POST /parse_sop` - SOP解析
+- `POST /refine_sop` - SOP精修
+- `POST /delete_session_files` - 删除会话文件
 - `POST /cleanup_files` - 清理文件
 
 ## 🔄 工作流程
@@ -218,9 +289,9 @@ npm run dev
 1. **视频上传** → 用户上传实验室仪器操作视频
 2. **语音识别** → 自动提取视频中的音频并进行转录
 3. **视频理解** → 结合视频和音频内容，使用 Qwen3-VL-Plus 分析操作流程
-4. **SOP生成** → 生成包含标题、摘要、关键词、材料清单、操作步骤的标准操作流程文档
-5. **结果展示** → 在操作历史中记录并显示生成的SOP文档
-6. **文档导出** → 支持导出TXT格式（适合修改后发布至开放获取平台）和HTML格式（适合实验室内部使用）
+4. **SOP解析** → 将视频理解结果解析为结构化的SOP区块
+5. **SOP精修** → AI根据用户批注对SOP区块进行精修改进
+7. **文档导出** → 支持导出TXT格式（适合修改后发布至开放获取平台）和HTML格式（适合实验室内部使用）
 
 ## 🎨 界面特性
 
@@ -246,6 +317,8 @@ npm run dev
 7. **断开连接后服务停止** - 使用 `./start_services_persistent.sh` 启动持久化服务
 8. **生产构建失败** - 检查TypeScript错误，或脚本会自动回退到开发模式
 9. **开发辅助按钮消失** - 这是正常的，持久化启动使用生产模式时会隐藏开发工具
+10. **多标签页性能慢** - 已优化为并发处理，多标签页可同时处理请求
+11. **会话超时** - 会话1小时无活动会自动清理，重新操作即可
 
 ## 🧪 测试
 
@@ -280,6 +353,11 @@ asyncio.run(test_ws())
 curl --noproxy '*' http://127.0.0.1:8123/health
 ```
 
+### 测试会话统计
+```bash
+curl --noproxy '*' http://127.0.0.1:8123/sessions/stats
+```
+
 ### 完整连接测试
 ```bash
 cd /root/app
@@ -295,6 +373,9 @@ python test_connection.py
 - 支持 LangSmith 追踪
 - OSS 文件存储管理
 - 多模态 AI 模型集成
+- 会话隔离和Agent实例池管理
+- 异步并发处理，支持多会话同时调用工具
+- 使用 `asyncio.to_thread` 避免同步调用阻塞事件循环
 
 ### 前端开发
 - 使用 Next.js 15 + TypeScript
@@ -306,6 +387,12 @@ python test_connection.py
 - 严格的TypeScript类型检查
 
 ## 🔄 更新日志
+
+- **v1.3.0** - 并发性能优化和会话管理
+  - 优化大模型API调用，实现异步并发处理，支持多会话同时操作
+  - 添加会话隔离和Agent实例池管理
+  - 实现1小时会话超时自动清理机制
+  - 新增会话统计端点 `/sessions/stats`
 
 - **v1.2.0** - 会话隔离和生产模式优化
   - 实现浏览器标签页会话隔离

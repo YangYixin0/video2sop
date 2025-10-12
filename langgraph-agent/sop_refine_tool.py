@@ -71,16 +71,17 @@ def sop_refine(blocks_json: str, user_notes: str) -> str:
 4. 确保精修后的内容更加专业和准确
 5. 只返回JSON格式，不要添加其他文字说明"""
 
-        # 调用qwen3-max
+        # 调用qwen-plus，开启reasoning功能
         response = dashscope.Generation.call(
             api_key=os.getenv('DASHSCOPE_API_KEY'),
-            model="qwen-max",
+            model="qwen-plus",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
             result_format='message',
-            temperature=0.3
+            temperature=0.3,
+            enable_thinking=True  # 开启思考过程，但不参与后续处理
         )
         
         if response.status_code == 200:

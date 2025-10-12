@@ -117,7 +117,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       setError('无法创建 WebSocket 连接');
       isConnectingRef.current = false;
     }
-  }, [onMessage, onError, onOpen, onClose]);
+  }, [onMessage, onError, onOpen, onClose, clientSessionId]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {

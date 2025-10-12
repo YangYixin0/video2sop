@@ -175,7 +175,7 @@ export default function Home() {
   }, [notificationEnabled]);
 
   // WebSocket 连接用于接收操作记录
-  const { isConnected: wsConnected, sendMessage: sendWebSocketMessage } = useWebSocket({
+  const { isConnected: wsConnected, sendMessage: sendWebSocketMessage, connect: reconnectWebSocket } = useWebSocket({
     onMessage: handleWebSocketMessage,
     clientSessionId: clientSessionId
   });
@@ -343,7 +343,7 @@ export default function Home() {
       defaultSidebarWidth={240}
       minSidebarWidth={200}
       maxSidebarWidth={600}
-      sidebar={<OperationHistory records={operationRecords} isConnected={wsConnected} />}
+      sidebar={<OperationHistory records={operationRecords} isConnected={wsConnected} onReconnect={reconnectWebSocket} />}
     >
       <div className="w-full max-w-6xl mx-auto px-4 relative">
         <div className="text-center mb-6">
@@ -514,7 +514,7 @@ export default function Home() {
           <div className="bg-white p-4 rounded-lg shadow-sm border">
             <h3 className="text-base font-semibold text-gray-800 mb-2">🚀 技术栈</h3>
             <ul className="space-y-1 text-sm text-gray-600">
-              <li>• <strong>AI模型</strong>: Qwen3-VL-Plus (视频理解) + Paraformer-V2 (语音识别) + Qwen-Max (文本处理)</li>
+              <li>• <strong>AI模型</strong>: Qwen3-VL-Plus (视频理解) + Paraformer-V2 (语音识别) + Qwen-Plus (文本处理)</li>
               <li>• <strong>后端</strong>: FastAPI + WebSocket + LangGraph Agent</li>
               <li>• <strong>前端</strong>: Next.js 15 + TypeScript + React 19 + Tailwind CSS</li>
               <li>• <strong>存储</strong>: 阿里云OSS + 实时音频提取</li>
