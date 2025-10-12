@@ -116,6 +116,8 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
   // 播放视频片段
   const handlePlay = useCallback((startTime: number, endTime?: number) => {
     setCurrentVideoTime({ start: startTime, end: endTime });
+    // 自动展开视频播放器
+    setIsVideoPlayerCollapsed(false);
   }, []);
 
   // 选择区块
@@ -422,7 +424,8 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
       {/* 导出组件 */}
       <div className="mb-6">
         <SOPExporter
-          blocks={blocksA}
+          blocksA={blocksA}
+          blocksB={blocksB}
           videoUrl={videoUrl}
           fileName="sop_document"
         />

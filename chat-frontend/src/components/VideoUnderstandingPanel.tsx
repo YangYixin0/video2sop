@@ -30,7 +30,7 @@ interface VideoUnderstandingPanelProps {
 
 const DEFAULT_PROMPT = `1. 这是一个实验室仪器的操作教学视频和它的语音内容，请按照这些内容理解视频内演示者的操作，描述一个标准操作流程（SOP）草稿。这个草稿包含标题、摘要、关键词、材料试剂工具设备清单、操作步骤。
 
-2. 操作步骤越细致越好。步骤包含"目的"和"操作"两个层级，相邻的多个操作由它们的共同目的所统领。每个目的或步骤末尾带有一个时间起终范围（精确到秒）。
+2. 操作步骤越细致越好。步骤包含"目的"和"操作"两个层级，相邻的多个操作由它们的共同目的所统领。每个目的的开头带有一个时间起终范围（精确到秒），操作不要带时间起终范围。
 
 3. 最终以纯文本格式输出，不要使用任何Markdown语法标记。
 
@@ -98,7 +98,7 @@ export default function VideoUnderstandingPanel({
   const isReady = uploadResult && speechRecognitionResult && speechRecognitionResult.length > 0;
 
   return (
-    <div className="w-full max-w-4xl mx-auto bg-white rounded-lg shadow-sm border">
+    <div className="w-full max-w-7xl mx-auto bg-white rounded-lg shadow-sm border">
         <div className="p-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-800 flex items-center">
             <span className="mr-2">🎬</span>

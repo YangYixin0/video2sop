@@ -353,8 +353,54 @@ export default function VideoUploader({
     }
   }, [handleFileSelect]);
 
+  // 加载示例视频
+  const handleLoadExampleVideo = useCallback(async () => {
+    try {
+      setUploadStatus({ status: 'uploading', message: '正在加载示例视频...', progress: 0 });
+      
+      // 从后端获取示例视频
+      const response = await fetch('http://127.0.0.1:8123/load_example_video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setUploadStatus({ status: 'completed', message: '示例视频加载完成！', progress: 100 });
+        
+        const result: UploadResult = {
+          video_url: data.video_url,
+          audio_url: data.audio_url,
+          session_id: data.session_id
+        };
+        
+        // 设置示例视频的预览
+        setSelectedFile(new File([], 'pressing_operation.mp4', { type: 'video/mp4' }));
+        setVideoPreview(data.video_url);
+        
+        setUploadResult(result);
+        setSessionId(data.session_id);
+        
+        // 对于示例视频，只通过WebSocket发送消息，不调用onUploadComplete回调
+        // 避免重复添加操作记录
+        onWebSocketMessage?.({
+          type: 'upload_complete',
+          video_url: data.video_url,
+          audio_url: data.audio_url,
+          session_id: data.session_id
+        });
+      } else {
+        throw new Error(data.error || '加载示例视频失败');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '加载示例视频失败';
+      setUploadStatus({ status: 'error', message: errorMessage, progress: 0 });
+      onUploadError?.(errorMessage);
+    }
+  }, [onUploadComplete, onUploadError, onWebSocketMessage]);
+
   return (
-    <div className="w-full max-w-4xl mx-auto bg-white rounded-lg shadow-sm border max-h-96 overflow-y-auto">
+    <div className="w-full max-w-7xl mx-auto bg-white rounded-lg shadow-sm border max-h-[36rem] overflow-y-auto">
       <div className="p-4 border-b border-gray-200">
         <h3 className="text-lg font-semibold text-gray-800 flex items-center">
           <span className="mr-2">🎥</span>
@@ -384,6 +430,9 @@ export default function VideoUploader({
             </p>
             <p className="text-sm text-gray-500">
               支持格式: MP4, MOV, AVI, MKV, WEBM (最大 {Math.round(maxFileSize / 1024 / 1024)}MB)
+            </p>
+            <p className="text-xs text-blue-600 mt-2">
+              🛡️ 数据保护：当您关闭或刷新网页时，我们不会保留您的视频。
             </p>
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -425,6 +474,22 @@ export default function VideoUploader({
           className="hidden"
         />
       </div>
+
+      {/* 示例视频按钮 */}
+      {!uploadResult && (
+        <div className="mt-4 text-center">
+          <p className="text-sm text-gray-500 mb-2">或者</p>
+          <button
+            onClick={handleLoadExampleVideo}
+            disabled={uploadStatus.status === 'uploading' || uploadStatus.status === 'extracting'}
+            className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center space-x-2 mx-auto"
+          >
+            <span>🎬</span>
+            <span>加载示例视频</span>
+          </button>
+          <p className="text-xs text-gray-400 mt-1">使用预设的压片机操作视频</p>
+        </div>
+      )}
 
       {/* 上传状态 */}
       {uploadStatus.status !== 'idle' && (

@@ -12,6 +12,7 @@ from speech_tool import speech_recognition
 from video_understanding_tool import video_understanding
 from sop_parser_tool import sop_parser
 from sop_refine_tool import sop_refine
+import dashscope
 
 # 加载环境变量
 load_dotenv('../.env')
@@ -208,6 +209,80 @@ async def websocket_endpoint(websocket: WebSocket):
         print(f"WebSocket 错误: {e}")
         manager.disconnect(websocket)
 
+@app.post("/load_example_video")
+async def load_example_video_endpoint():
+    """加载示例视频API端点"""
+    try:
+        from oss_manager import generate_session_id, upload_file_to_oss
+        from audio_extractor import extract_audio_from_video
+        import shutil
+        from pathlib import Path
+        
+        # 示例视频路径
+        example_video_path = "/root/app/temp/video_example/pressing_operation.mp4"
+        
+        # 检查示例视频文件是否存在
+        if not os.path.exists(example_video_path):
+            raise HTTPException(status_code=404, detail="示例视频文件不存在")
+        
+        # 生成会话ID
+        session_id = generate_session_id()
+        
+        # 创建临时目录
+        temp_dir = Path(f"/tmp/video2sop/{session_id}")
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 复制示例视频到临时目录
+        temp_video_path = temp_dir / "pressing_operation.mp4"
+        shutil.copy2(example_video_path, temp_video_path)
+        
+        # 上传视频到OSS
+        video_oss_key = f"{session_id}/video/pressing_operation.mp4"
+        video_url = upload_file_to_oss(str(temp_video_path), video_oss_key)
+        
+        # 提取音频
+        temp_audio_path = temp_dir / "extracted_audio.mp3"
+        extracted_audio_path = extract_audio_from_video(str(temp_video_path), str(temp_audio_path))
+        
+        # 上传音频到OSS
+        audio_oss_key = f"{session_id}/audio/extracted_audio.mp3"
+        audio_url = upload_file_to_oss(extracted_audio_path, audio_oss_key)
+        
+        # 清理临时文件
+        try:
+            shutil.rmtree(temp_dir)
+        except:
+            pass  # 忽略清理失败
+        
+        # 通过WebSocket广播操作记录
+        upload_notification = {
+            "type": "upload_complete",
+            "video_url": video_url,
+            "audio_url": audio_url,
+            "session_id": session_id
+        }
+        
+        # 发送给所有连接的客户端
+        for connection in manager.active_connections:
+            try:
+                await manager.send_message(connection, json.dumps(upload_notification))
+            except:
+                pass  # 忽略发送失败
+        
+        return {
+            "success": True,
+            "video_url": video_url,
+            "audio_url": audio_url,
+            "session_id": session_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = f"加载示例视频异常: {str(e)}"
+        print(error_msg)
+        raise HTTPException(status_code=500, detail=error_msg)
+
 @app.post("/speech_recognition")
 async def speech_recognition_endpoint(request: dict):
     """语音识别API端点"""
@@ -348,6 +423,114 @@ async def parse_sop_endpoint(request: dict):
         print(error_msg)
         raise HTTPException(status_code=500, detail=error_msg)
 
+async def refine_sop_blocks(blocks, user_notes):
+    """直接调用DashScope API进行SOP精修，避免LangChain工具包装问题"""
+    try:
+        # 构建提示词
+        system_prompt = """你是一个专业的SOP文档精修专家。请根据用户的批注和建议，对SOP区块数组进行精修改进。
+
+精修原则：
+1. 保持原有的区块结构和类型分类
+2. 根据用户批注改进文本内容，使其更加专业、准确、易读
+3. 保持时间戳信息不变
+4. 确保技术术语的准确性和一致性
+5. 改进语言表达，使其符合标准SOP文档规范
+6. 保持逻辑清晰和操作步骤的完整性
+
+请严格按照以下JSON格式返回精修结果：
+{
+  "blocks": [
+    {
+      "id": "保持原ID",
+      "type": "保持原类型",
+      "content": "精修后的文本内容",
+      "start_time": 保持原时间戳,
+      "end_time": 保持原时间戳,
+      "show_play_button": 保持原设置
+    }
+  ]
+}"""
+
+        user_prompt = f"""请根据以下用户批注精修SOP区块：
+
+用户批注：
+{user_notes}
+
+原始区块数据：
+{json.dumps(blocks, ensure_ascii=False, indent=2)}
+
+要求：
+1. 根据用户批注改进相关内容
+2. 保持区块的ID、type、时间戳和show_play_button字段不变
+3. 主要精修content字段的文本内容
+4. 确保精修后的内容更加专业和准确
+5. 只返回JSON格式，不要添加其他文字说明"""
+
+        # 调用qwen3-max
+        response = dashscope.Generation.call(
+            api_key=os.getenv('DASHSCOPE_API_KEY'),
+            model="qwen-max",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            result_format='message',
+            temperature=0.3
+        )
+        
+        if response.status_code == 200:
+            result = response.output.choices[0].message.content
+            
+            # 尝试解析JSON结果
+            try:
+                # 提取JSON部分（可能包含在```json```代码块中）
+                import re
+                json_match = re.search(r'```json\s*(.*?)\s*```', result, re.DOTALL)
+                if json_match:
+                    json_str = json_match.group(1)
+                else:
+                    # 尝试直接解析
+                    json_str = result
+                
+                parsed_result = json.loads(json_str)
+                
+                # 验证结果格式
+                if 'blocks' in parsed_result and isinstance(parsed_result['blocks'], list):
+                    # 确保精修后的区块保持原有结构
+                    refined_blocks = parsed_result['blocks']
+                    
+                    # 验证每个区块都有必需的字段，如果缺失则从原区块复制
+                    for i, refined_block in enumerate(refined_blocks):
+                        if i < len(blocks):
+                            original_block = blocks[i]
+                            # 确保关键字段存在
+                            if 'id' not in refined_block:
+                                refined_block['id'] = original_block.get('id', f"block_{i+1}")
+                            if 'type' not in refined_block:
+                                refined_block['type'] = original_block.get('type', 'unknown')
+                            if 'start_time' not in refined_block:
+                                refined_block['start_time'] = original_block.get('start_time')
+                            if 'end_time' not in refined_block:
+                                refined_block['end_time'] = original_block.get('end_time')
+                            if 'show_play_button' not in refined_block:
+                                refined_block['show_play_button'] = original_block.get('show_play_button', False)
+                            if 'content' not in refined_block:
+                                refined_block['content'] = original_block.get('content', '')
+                    
+                    return parsed_result
+                else:
+                    return {"error": "精修结果格式不正确", "blocks": blocks}
+                    
+            except json.JSONDecodeError as e:
+                # 如果JSON解析失败，返回原始区块（表示精修失败）
+                return {"error": f"JSON解析失败: {str(e)}", "blocks": blocks}
+        else:
+            return {"error": f"API调用失败: {response.message}", "blocks": blocks}
+            
+    except Exception as e:
+        # 发生错误时返回原始区块
+        return {"error": str(e), "blocks": blocks}
+
 @app.post("/refine_sop")
 async def refine_sop_endpoint(request: dict):
     """SOP精修API端点"""
@@ -358,12 +541,8 @@ async def refine_sop_endpoint(request: dict):
         if not blocks:
             raise HTTPException(status_code=400, detail="缺少 blocks 参数")
         
-        # 将区块数组转换为JSON字符串
-        blocks_json = json.dumps({"blocks": blocks}, ensure_ascii=False)
-        
-        # 调用SOP精修工具
-        result_json = sop_refine(blocks_json, user_notes)
-        result = json.loads(result_json)
+        # 直接调用精修逻辑，避免LangChain工具包装问题
+        result = await refine_sop_blocks(blocks, user_notes)
         
         # 检查是否有错误
         if "error" in result:

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import OperationHistory, { OperationRecord } from '@/components/OperationHistory';
 import ResizableLayout from '@/components/ResizableLayout';
 import VideoUploader from '@/components/VideoUploader';
@@ -9,6 +9,7 @@ import VideoUnderstandingPanel from '@/components/VideoUnderstandingPanel';
 import SOPEditor from '@/components/SOPEditor';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { SOPBlock } from '@/types/sop';
+import { notificationManager } from '@/utils/notifications';
 
 export default function Home() {
   // 全局状态管理
@@ -27,112 +28,187 @@ export default function Home() {
   }[] | null>(null);
   
   const [videoUnderstandingResult, setVideoUnderstandingResult] = useState<string>('');
+  const [notificationEnabled, setNotificationEnabled] = useState(false);
+
+  // WebSocket消息处理函数
+  const handleWebSocketMessage = useCallback((data: any) => {
+    if (data.type === 'upload_complete') {
+      // 发送通知
+      if (notificationEnabled) {
+        notificationManager.sendNotification(
+          '📁 视频上传完成',
+          '视频和音频文件已成功上传，可以进行语音识别',
+          undefined,
+          true
+        );
+      }
+
+      // 更新当前上传结果状态
+      setCurrentUploadResult({
+        video_url: data.video_url || '',
+        audio_url: data.audio_url || '',
+        session_id: data.session_id || ''
+      });
+      
+      // 添加上传记录
+      const uploadRecord: OperationRecord = {
+        id: `upload-${Date.now()}`,
+        type: 'upload',
+        timestamp: new Date(),
+        status: 'success',
+        message: data.message || '视频和音频上传完成！',
+        data: {
+          video_url: data.video_url,
+          audio_url: data.audio_url,
+          session_id: data.session_id
+        }
+      };
+      setOperationRecords(prev => [...prev, uploadRecord]);
+    } else if (data.type === 'file_removed') {
+      // 清空当前上传结果状态
+      setCurrentUploadResult(null);
+      
+      // 添加删除记录
+      const removeRecord: OperationRecord = {
+        id: `remove-${Date.now()}`,
+        type: 'file_removed',
+        timestamp: new Date(),
+        status: 'success',
+        message: data.message || '上传的文件已从服务器删除',
+        data: {
+          session_id: data.session_id,
+          deleted_count: data.deleted_count
+        }
+      };
+      setOperationRecords(prev => [...prev, removeRecord]);
+    } else if (data.type === 'speech_recognition_complete') {
+      // 发送通知
+      if (notificationEnabled) {
+        notificationManager.sendNotification(
+          '🎤 语音识别完成',
+          '音频转录已完成，可以进行视频理解分析',
+          undefined,
+          true
+        );
+      }
+
+      // 添加语音识别记录
+      const speechRecord: OperationRecord = {
+        id: `speech-${Date.now()}`,
+        type: 'speech_recognition',
+        timestamp: new Date(),
+        status: 'success',
+        message: data.message || '语音识别已执行',
+        data: {
+          speech_result: data.result
+        }
+      };
+      setOperationRecords(prev => [...prev, speechRecord]);
+    } else if (data.type === 'video_understanding_complete') {
+      // 发送通知
+      if (notificationEnabled) {
+        notificationManager.sendNotification(
+          '🎬 视频理解完成',
+          '视频分析已完成，SOP草稿已生成，可以进行解析',
+          undefined,
+          true
+        );
+      }
+
+      // 添加视频理解记录
+      const videoRecord: OperationRecord = {
+        id: `video-${Date.now()}`,
+        type: 'video_understanding',
+        timestamp: new Date(),
+        status: 'success',
+        message: data.message || '视频理解已执行',
+        data: {
+          video_result: typeof data.result === 'string' ? data.result : String(data.result),
+          fps: data.fps,
+          has_audio_context: data.has_audio_context
+        }
+      };
+      setOperationRecords(prev => [...prev, videoRecord]);
+      
+      // 保存视频理解结果
+      if (typeof data.result === 'string') {
+        setVideoUnderstandingResult(data.result);
+      }
+    } else if (data.type === 'sop_parse_complete') {
+      // 发送通知
+      if (notificationEnabled) {
+        notificationManager.sendNotification(
+          '📋 SOP解析完成',
+          'SOP文档已解析为结构化区块，可以进行编辑和精修',
+          undefined,
+          true
+        );
+      }
+
+      // 添加SOP解析记录
+      const parseRecord: OperationRecord = {
+        id: `parse-${Date.now()}`,
+        type: 'sop_parse',
+        timestamp: new Date(),
+        status: 'success',
+        message: data.message || 'SOP解析完成',
+        data: {
+          blocks_count: data.blocks_count
+        }
+      };
+      setOperationRecords(prev => [...prev, parseRecord]);
+    } else if (data.type === 'sop_refine_complete') {
+      // 发送通知
+      if (notificationEnabled) {
+        notificationManager.sendNotification(
+          '✨ SOP精修完成',
+          'AI精修已完成，文档质量已提升，可以导出最终版本',
+          undefined,
+          true
+        );
+      }
+
+      // 添加SOP精修记录
+      const refineRecord: OperationRecord = {
+        id: `refine-${Date.now()}`,
+        type: 'sop_refine',
+        timestamp: new Date(),
+        status: 'success',
+        message: data.message || 'SOP精修完成',
+        data: {
+          blocks_count: data.blocks_count,
+          has_user_notes: data.has_user_notes
+        }
+      };
+      setOperationRecords(prev => [...prev, refineRecord]);
+    }
+  }, [notificationEnabled]);
 
   // WebSocket 连接用于接收操作记录
   const { isConnected: wsConnected, sendMessage: sendWebSocketMessage } = useWebSocket({
-    onMessage: (data) => {
-      if (data.type === 'upload_complete') {
-        // 更新当前上传结果状态
-        setCurrentUploadResult({
-          video_url: data.video_url || '',
-          audio_url: data.audio_url || '',
-          session_id: data.session_id || ''
-        });
-        
-        // 添加上传记录
-        const uploadRecord: OperationRecord = {
-          id: `upload-${Date.now()}`,
-          type: 'upload',
-          timestamp: new Date(),
-          status: 'success',
-          message: data.message || '视频和音频上传完成！',
-          data: {
-            video_url: data.video_url,
-            audio_url: data.audio_url,
-            session_id: data.session_id
-          }
-        };
-        setOperationRecords(prev => [...prev, uploadRecord]);
-      } else if (data.type === 'file_removed') {
-        // 清空当前上传结果状态
-        setCurrentUploadResult(null);
-        
-        // 添加删除记录
-        const removeRecord: OperationRecord = {
-          id: `remove-${Date.now()}`,
-          type: 'file_removed',
-          timestamp: new Date(),
-          status: 'success',
-          message: data.message || '上传的文件已从服务器删除',
-          data: {
-            session_id: data.session_id,
-            deleted_count: data.deleted_count
-          }
-        };
-        setOperationRecords(prev => [...prev, removeRecord]);
-      } else if (data.type === 'speech_recognition_complete') {
-        // 添加语音识别记录
-        const speechRecord: OperationRecord = {
-          id: `speech-${Date.now()}`,
-          type: 'speech_recognition',
-          timestamp: new Date(),
-          status: 'success',
-          message: data.message || '语音识别已执行',
-          data: {
-            speech_result: data.result
-          }
-        };
-        setOperationRecords(prev => [...prev, speechRecord]);
-      } else if (data.type === 'video_understanding_complete') {
-        // 添加视频理解记录
-        const videoRecord: OperationRecord = {
-          id: `video-${Date.now()}`,
-          type: 'video_understanding',
-          timestamp: new Date(),
-          status: 'success',
-          message: data.message || '视频理解已执行',
-          data: {
-            video_result: typeof data.result === 'string' ? data.result : String(data.result),
-            fps: data.fps,
-            has_audio_context: data.has_audio_context
-          }
-        };
-        setOperationRecords(prev => [...prev, videoRecord]);
-        
-        // 保存视频理解结果
-        if (typeof data.result === 'string') {
-          setVideoUnderstandingResult(data.result);
-        }
-      } else if (data.type === 'sop_parse_complete') {
-        // 添加SOP解析记录
-        const parseRecord: OperationRecord = {
-          id: `parse-${Date.now()}`,
-          type: 'sop_parse',
-          timestamp: new Date(),
-          status: 'success',
-          message: data.message || 'SOP解析完成',
-          data: {
-            blocks_count: data.blocks_count
-          }
-        };
-        setOperationRecords(prev => [...prev, parseRecord]);
-      } else if (data.type === 'sop_refine_complete') {
-        // 添加SOP精修记录
-        const refineRecord: OperationRecord = {
-          id: `refine-${Date.now()}`,
-          type: 'sop_refine',
-          timestamp: new Date(),
-          status: 'success',
-          message: data.message || 'SOP精修完成',
-          data: {
-            blocks_count: data.blocks_count,
-            has_user_notes: data.has_user_notes
-          }
-        };
-        setOperationRecords(prev => [...prev, refineRecord]);
-      }
-    }
+    onMessage: handleWebSocketMessage
   });
+
+  // 初始化通知权限
+  React.useEffect(() => {
+    const initNotifications = async () => {
+      const enabled = await notificationManager.initialize();
+      setNotificationEnabled(enabled);
+    };
+    
+    initNotifications();
+
+    // 监听页面可见性变化
+    notificationManager.onVisibilityChange((visible) => {
+      console.log('页面可见性变化:', visible);
+    });
+
+    // 监听窗口焦点变化
+    notificationManager.onFocusChange((focused) => {
+      console.log('窗口焦点变化:', focused);
+    });
+
+  }, []);
 
   // 处理VideoUploader的WebSocket消息
   const handleVideoUploaderWebSocketMessage = (message: Record<string, unknown>) => {
@@ -262,16 +338,97 @@ export default function Home() {
 
   return (
     <ResizableLayout
-      defaultSidebarWidth={400}
+      defaultSidebarWidth={240}
       minSidebarWidth={200}
       maxSidebarWidth={600}
       sidebar={<OperationHistory records={operationRecords} isConnected={wsConnected} />}
     >
-      <div className="w-full max-w-6xl mx-auto px-4">
+      <div className="w-full max-w-6xl mx-auto px-4 relative">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-6">
             Video2SOP：将仪器教学视频转化为SOP
           </h1>
+        </div>
+
+        {/* 通知设置 - 右上角 */}
+        <div className="absolute top-4 right-4 z-10">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm">🔔</span>
+              <span className="text-xs text-gray-600">
+                {notificationEnabled ? '已启用' : '未启用'}
+              </span>
+              <span className="text-xs text-gray-400">·</span>
+              <span className="text-xs text-orange-600">通知不一定发挥效果</span>
+              {notificationEnabled ? (
+                <>
+                  <button
+                    onClick={() => {
+                      notificationManager.sendNotification(
+                        '🔔 通知测试',
+                        '这是一条测试通知，证明通知功能正常工作！'
+                      );
+                    }}
+                    className="px-1 py-0.5 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors"
+                    title="测试通知"
+                  >
+                    测试
+                  </button>
+                  <button
+                    onClick={() => {
+                      notificationManager.disable();
+                      setNotificationEnabled(false);
+                    }}
+                    className="px-1 py-0.5 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition-colors"
+                    title="禁用通知"
+                  >
+                    禁用
+                  </button>
+                  <button
+                    onClick={() => {
+                      // 强制发送通知，模拟实际处理完成时的通知
+                      notificationManager.sendNotification(
+                        '🎬 视频理解完成',
+                        '视频分析已完成，SOP草稿已生成，可以进行解析',
+                        undefined,
+                        true // force参数
+                      );
+                    }}
+                    className="px-1 py-0.5 bg-purple-500 text-white rounded text-xs hover:bg-purple-600 transition-colors"
+                    title="模拟通知"
+                  >
+                    模拟
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={async () => {
+                    try {
+                      console.log('点击启用通知按钮');
+                      const enabled = await notificationManager.initialize();
+                      console.log('通知权限状态:', enabled);
+                      setNotificationEnabled(enabled);
+                      
+                      if (enabled) {
+                        // 测试通知
+                        notificationManager.sendNotification(
+                          '🔔 通知测试',
+                          '浏览器通知功能已启用！'
+                        );
+                      }
+                    } catch (error) {
+                      console.error('启用通知失败:', error);
+                      alert('启用通知失败，请检查浏览器设置');
+                    }
+                  }}
+                  className="px-1 py-0.5 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
+                  title="启用通知"
+                >
+                  启用
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* 视频上传组件 */}
@@ -325,7 +482,7 @@ export default function Home() {
             onSpeechRecognition={handleSpeechRecognition}
           />
         </div>
-
+        
         {/* 视频理解面板 */}
         <div className="mb-6">
           <VideoUnderstandingPanel
@@ -346,13 +503,14 @@ export default function Home() {
         </div>
         
         {/* 技术栈 */}
-        <div className="w-full max-w-4xl mx-auto mb-6">
+        <div className="w-full max-w-7xl mx-auto mb-6">
           <div className="bg-white p-4 rounded-lg shadow-sm border">
             <h3 className="text-base font-semibold text-gray-800 mb-2">🚀 技术栈</h3>
             <ul className="space-y-1 text-sm text-gray-600">
-              <li>• LangGraph Agent</li>
-              <li>• FastAPI + WebSocket</li>
-              <li>• Next.js + TypeScript</li>
+              <li>• <strong>AI模型</strong>: Qwen3-VL-Plus (视频理解) + Paraformer-V2 (语音识别) + Qwen-Max (文本处理)</li>
+              <li>• <strong>后端</strong>: FastAPI + WebSocket + LangGraph Agent</li>
+              <li>• <strong>前端</strong>: Next.js 15 + TypeScript + React 19 + Tailwind CSS</li>
+              <li>• <strong>存储</strong>: 阿里云OSS + 实时音频提取</li>
             </ul>
           </div>
         </div>

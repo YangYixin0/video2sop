@@ -91,7 +91,7 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = ({
     }
   }, [localContent, isEditing]);
 
-  const typeConfig = BLOCK_TYPE_CONFIGS[block.type];
+  const typeConfig = BLOCK_TYPE_CONFIGS[block.type] || BLOCK_TYPE_CONFIGS.unknown;
   const canPlay = videoUrl && block.start_time !== undefined && localShowPlayButton;
 
   return (
@@ -143,7 +143,7 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = ({
               </span>
             )}
             {localShowPlayButton && (
-              <span className="px-2 py-1 bg-green-50 text-green-700 rounded">播放</span>
+              <span className="px-2 py-1 bg-green-50 text-green-700 rounded">可播放</span>
             )}
           </div>
           

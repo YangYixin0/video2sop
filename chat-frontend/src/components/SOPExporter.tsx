@@ -4,19 +4,22 @@ import React, { useState } from 'react';
 import { SOPBlock, ExportFormat } from '@/types/sop';
 
 interface SOPExporterProps {
-  blocks: SOPBlock[];
+  blocksA: SOPBlock[];
+  blocksB?: SOPBlock[];
   videoUrl?: string;
   fileName?: string;
   onExport?: (format: ExportFormat, content: string) => void;
 }
 
 const SOPExporter: React.FC<SOPExporterProps> = ({
-  blocks,
+  blocksA,
+  blocksB,
   videoUrl,
   fileName = 'sop_document',
   onExport
 }) => {
   const [isExporting, setIsExporting] = useState(false);
+  const [selectedBlocks, setSelectedBlocks] = useState<'A' | 'B'>('A');
 
   // 格式化时间显示
   const formatTime = (seconds: number): string => {
@@ -25,11 +28,17 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // 获取当前选中的区块
+  const getCurrentBlocks = (): SOPBlock[] => {
+    return selectedBlocks === 'A' ? blocksA : (blocksB || []);
+  };
+
   // 生成纯文本SOP
   const generateTxtContent = (): string => {
     let content = '';
+    const currentBlocks = getCurrentBlocks();
     
-    blocks.forEach((block, index) => {
+    currentBlocks.forEach((block, index) => {
       // 添加区块标题
       const blockTypeNames: Record<SOPBlock['type'], string> = {
         title: '标题',
@@ -187,7 +196,8 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
             📋 SOP 标准操作流程文档
         </h1>`;
 
-    blocks.forEach((block, index) => {
+    const currentBlocks = getCurrentBlocks();
+    currentBlocks.forEach((block, index) => {
       const blockTypeNames: Record<SOPBlock['type'], string> = {
         title: '标题',
         abstract: '摘要',
@@ -475,12 +485,46 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
     }
   };
 
+  const currentBlocks = getCurrentBlocks();
+  
   return (
     <div className="bg-white rounded-lg shadow-sm border p-4">
       <div className="mb-4">
         <h3 className="text-lg font-semibold text-gray-800 mb-2">📤 导出SOP文档</h3>
+        
+        {/* 区块选择 */}
+        <div className="mb-3">
+          <label className="block text-sm font-medium text-gray-700 mb-2">选择导出区域：</label>
+          <div className="flex space-x-4">
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="blockSelection"
+                value="A"
+                checked={selectedBlocks === 'A'}
+                onChange={(e) => setSelectedBlocks(e.target.value as 'A' | 'B')}
+                className="mr-2"
+              />
+              <span className="text-sm">编辑区 ({blocksA.length} 个区块)</span>
+            </label>
+            {blocksB && blocksB.length > 0 && (
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="blockSelection"
+                  value="B"
+                  checked={selectedBlocks === 'B'}
+                  onChange={(e) => setSelectedBlocks(e.target.value as 'A' | 'B')}
+                  className="mr-2"
+                />
+                <span className="text-sm">精修区 ({blocksB.length} 个区块)</span>
+              </label>
+            )}
+          </div>
+        </div>
+        
         <div className="text-sm text-gray-600">
-          当前共有 <span className="font-medium text-blue-600">{blocks.length}</span> 个区块
+          当前选中区域共有 <span className="font-medium text-blue-600">{currentBlocks.length}</span> 个区块
         </div>
       </div>
 
@@ -494,7 +538,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
             </div>
             <button
               onClick={() => handleExport('txt')}
-              disabled={isExporting || blocks.length === 0}
+              disabled={isExporting || currentBlocks.length === 0}
               className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-lg transition-colors"
             >
               {isExporting ? '导出中...' : '导出TXT'}
@@ -511,7 +555,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
             </div>
             <button
               onClick={() => handleExport('html')}
-              disabled={isExporting || blocks.length === 0}
+              disabled={isExporting || currentBlocks.length === 0}
               className="px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white rounded-lg transition-colors"
             >
               {isExporting ? '导出中...' : '导出HTML'}

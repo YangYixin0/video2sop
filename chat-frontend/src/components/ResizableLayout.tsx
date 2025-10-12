@@ -19,12 +19,15 @@ export default function ResizableLayout({
 }: ResizableLayoutProps) {
   // 始终使用默认宽度作为初始状态，避免 SSR/客户端不匹配
   const [sidebarWidth, setSidebarWidth] = useState(defaultSidebarWidth);
+  const [hasInitialized, setHasInitialized] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // 客户端挂载后从 localStorage 读取保存的宽度
+  // 客户端挂载后从 localStorage 读取保存的宽度，只执行一次
   useEffect(() => {
+    if (hasInitialized) return;
+    
     setIsClient(true);
     const saved = localStorage.getItem('sidebar-width');
     if (saved) {
@@ -32,8 +35,12 @@ export default function ResizableLayout({
       if (width >= minSidebarWidth && width <= maxSidebarWidth) {
         setSidebarWidth(width);
       }
+    } else {
+      // 如果没有保存的宽度，使用传入的defaultSidebarWidth
+      setSidebarWidth(defaultSidebarWidth);
     }
-  }, [minSidebarWidth, maxSidebarWidth]);
+    setHasInitialized(true);
+  }, [defaultSidebarWidth, minSidebarWidth, maxSidebarWidth, hasInitialized]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();

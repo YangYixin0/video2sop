@@ -13,6 +13,8 @@ interface WebSocketMessage {
   has_audio_context?: boolean;
   deleted_count?: number;
   tool_name?: string;
+  blocks_count?: number;
+  has_user_notes?: boolean;
 }
 
 interface UseWebSocketOptions {
