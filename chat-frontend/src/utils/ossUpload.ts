@@ -180,7 +180,7 @@ export async function uploadFileViaProxy(
           } else {
             reject(new Error(data.error || 'Proxy upload failed'));
           }
-        } catch (error) {
+        } catch {
           reject(new Error('Failed to parse response'));
         }
       } else {

@@ -8,7 +8,7 @@ interface SOPBlockItemProps {
   isEditing?: boolean;
   isSelected?: boolean;
   videoUrl?: string;
-  onEdit?: (blockId: string, field: keyof SOPBlock, value: any) => void;
+  onEdit?: (blockId: string, field: keyof SOPBlock, value: string | number | boolean) => void;
   onDelete?: (blockId: string) => void;
   onPlay?: (startTime: number, endTime?: number) => void;
   onSelect?: (blockId: string, selected: boolean) => void;
@@ -58,7 +58,7 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = ({
 
   // 处理时间编辑
   const handleTimeChange = (field: 'start_time' | 'end_time', value: string) => {
-    const numValue = value ? parseInt(value, 10) : undefined;
+    const numValue = value ? parseInt(value, 10) : 0;
     
     if (field === 'start_time') {
       setLocalStartTime(value);
@@ -154,7 +154,7 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = ({
               <button
                 onClick={handlePlay}
                 className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
-                title={`播放 ${formatTime(block.start_time)}${block.end_time ? ` - ${formatTime(block.end_time)}` : ''}`}
+                title={`播放 ${block.start_time !== undefined ? formatTime(block.start_time) : ''}${block.end_time ? ` - ${formatTime(block.end_time)}` : ''}`}
               >
                 <span className="text-sm">▶️</span>
               </button>

@@ -268,7 +268,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
 
     const currentBlocks = getCurrentBlocks();
     let stepCounter = 1; // 操作步骤计数器
-    currentBlocks.forEach((block, index) => {
+    currentBlocks.forEach((block) => {
       const blockTypeNames: Record<SOPBlock['type'], string> = {
         title: '标题',
         abstract: '摘要',
@@ -293,7 +293,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
                 <div class="block-title">${blockTitle}</div>
                 ${canPlay ? `
                 <button class="play-button" onclick="playSegment(${block.start_time}, ${block.end_time || 'null'})">
-                    ▶️ 播放 (${formatTime(block.start_time)}${block.end_time ? ` - ${formatTime(block.end_time)}` : ''})
+                    ▶️ 播放 (${block.start_time !== undefined ? formatTime(block.start_time) : ''}${block.end_time ? ` - ${formatTime(block.end_time)}` : ''})
                 </button>
                 ` : ''}
             </div>

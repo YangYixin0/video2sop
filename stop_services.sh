@@ -36,5 +36,7 @@ fi
 pkill -f "python main.py" 2>/dev/null
 pkill -f "next dev" 2>/dev/null
 pkill -f "npm run dev" 2>/dev/null
+pkill -f "npm run start" 2>/dev/null
+pkill -f "next start" 2>/dev/null
 
 echo "🎉 所有服务已停止"

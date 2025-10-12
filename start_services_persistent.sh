@@ -13,6 +13,8 @@ echo "📋 停止旧进程..."
 pkill -f "python main.py" 2>/dev/null
 pkill -f "next dev" 2>/dev/null
 pkill -f "npm run dev" 2>/dev/null
+pkill -f "npm run start" 2>/dev/null
+pkill -f "next start" 2>/dev/null
 
 # 等待进程完全停止
 sleep 2
@@ -38,12 +40,25 @@ fi
 # 启动前端服务
 echo "🎨 启动前端服务..."
 cd /root/app/chat-frontend
-nohup npm run dev > ../logs/frontend.log 2>&1 &
-FRONTEND_PID=$!
-echo "   前端服务PID: $FRONTEND_PID"
+
+# 构建生产版本
+echo "📦 构建生产版本..."
+if npm run build; then
+    # 构建成功，启动生产服务器
+    echo "🚀 启动生产服务器..."
+    nohup npm run start > ../logs/frontend.log 2>&1 &
+    FRONTEND_PID=$!
+    echo "   前端服务PID: $FRONTEND_PID (生产模式)"
+else
+    # 构建失败，回退到开发模式
+    echo "⚠️  生产构建失败，回退到开发模式..."
+    nohup npm run dev > ../logs/frontend.log 2>&1 &
+    FRONTEND_PID=$!
+    echo "   前端服务PID: $FRONTEND_PID (开发模式)"
+fi
 
 # 等待前端启动
-sleep 5
+sleep 8
 
 # 创建日志目录
 mkdir -p /root/app/logs

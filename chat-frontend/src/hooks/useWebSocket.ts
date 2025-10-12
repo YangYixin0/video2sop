@@ -15,6 +15,7 @@ interface WebSocketMessage {
   tool_name?: string;
   blocks_count?: number;
   has_user_notes?: boolean;
+  [key: string]: unknown;
 }
 
 interface UseWebSocketOptions {
@@ -33,7 +34,6 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 1;
-  const reconnectDelay = 10000;
   const isConnectingRef = useRef(false);
 
   const connect = useCallback(() => {

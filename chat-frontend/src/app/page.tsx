@@ -41,7 +41,10 @@ export default function Home() {
   const [notificationEnabled, setNotificationEnabled] = useState(false);
 
   // WebSocket消息处理函数
-  const handleWebSocketMessage = useCallback((data: any) => {
+  const handleWebSocketMessage = useCallback((data: { 
+    type: string; 
+    [key: string]: unknown;
+  }) => {
     if (data.type === 'upload_complete') {
       // 发送通知
       if (notificationEnabled) {
@@ -55,9 +58,9 @@ export default function Home() {
 
       // 更新当前上传结果状态
       setCurrentUploadResult({
-        video_url: data.video_url || '',
-        audio_url: data.audio_url || '',
-        session_id: data.session_id || ''
+        video_url: (data.video_url as string) || '',
+        audio_url: (data.audio_url as string) || '',
+        session_id: (data.session_id as string) || ''
       });
       
       // 注意：不在这里添加操作记录，因为onUploadComplete回调已经处理了
@@ -85,9 +88,9 @@ export default function Home() {
         type: 'speech_recognition',
         timestamp: new Date(),
         status: 'success',
-        message: data.message || '语音识别已执行',
+        message: (data.message as string) || '语音识别已执行',
         data: {
-          speech_result: data.result
+          speech_result: data.result as string
         }
       };
       setOperationRecords(prev => [...prev, speechRecord]);
@@ -108,11 +111,11 @@ export default function Home() {
         type: 'video_understanding',
         timestamp: new Date(),
         status: 'success',
-        message: data.message || '视频理解已执行',
+        message: (data.message as string) || '视频理解已执行',
         data: {
           video_result: typeof data.result === 'string' ? data.result : String(data.result),
-          fps: data.fps,
-          has_audio_context: data.has_audio_context
+          fps: data.fps as number | undefined,
+          has_audio_context: data.has_audio_context as boolean | undefined
         }
       };
       setOperationRecords(prev => [...prev, videoRecord]);
@@ -138,9 +141,9 @@ export default function Home() {
         type: 'sop_parse',
         timestamp: new Date(),
         status: 'success',
-        message: data.message || 'SOP解析完成',
+        message: (data.message as string) || 'SOP解析完成',
         data: {
-          blocks_count: data.blocks_count
+          blocks_count: data.blocks_count as number
         }
       };
       setOperationRecords(prev => [...prev, parseRecord]);
@@ -161,10 +164,10 @@ export default function Home() {
         type: 'sop_refine',
         timestamp: new Date(),
         status: 'success',
-        message: data.message || 'SOP精修完成',
+        message: (data.message as string) || 'SOP精修完成',
         data: {
-          blocks_count: data.blocks_count,
-          has_user_notes: data.has_user_notes
+          blocks_count: data.blocks_count as number,
+          has_user_notes: data.has_user_notes as boolean
         }
       };
       setOperationRecords(prev => [...prev, refineRecord]);

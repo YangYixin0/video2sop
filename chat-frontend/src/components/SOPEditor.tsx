@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { SOPBlock, BLOCK_TYPE_CONFIGS } from '@/types/sop';
+import { SOPBlock } from '@/types/sop';
 import SOPBlockItem from './SOPBlockItem';
 import SOPVideoPlayer from './SOPVideoPlayer';
 import SOPExporter from './SOPExporter';
@@ -77,7 +77,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
   };
 
   // 区块编辑处理
-  const handleBlockEdit = useCallback((blockId: string, field: keyof SOPBlock, value: any) => {
+  const handleBlockEdit = useCallback((blockId: string, field: keyof SOPBlock, value: string | number | boolean) => {
     setBlocksA(prev => prev.map(block => 
       block.id === blockId ? { ...block, [field]: value } : block
     ));
@@ -200,7 +200,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
     }
 
     // 创建拆分后的区块
-    const splitBlocks: SOPBlock[] = paragraphs.map((paragraph, index) => ({
+    const splitBlocks: SOPBlock[] = paragraphs.map((paragraph) => ({
       id: generateId(),
       type: blockToSplit.type,
       content: paragraph.trim(),
@@ -220,15 +220,6 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
     setEditingBlocks(new Set());
   }, [selectedBlocks, blocksA, generateId]);
 
-  // 拖拽排序（简化版，不使用第三方库）
-  const handleMoveBlock = useCallback((fromIndex: number, toIndex: number) => {
-    setBlocksA(prev => {
-      const newBlocks = [...prev];
-      const [movedBlock] = newBlocks.splice(fromIndex, 1);
-      newBlocks.splice(toIndex, 0, movedBlock);
-      return newBlocks;
-    });
-  }, []);
 
   return (
     <div className="w-full max-w-7xl mx-auto">
