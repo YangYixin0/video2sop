@@ -86,7 +86,9 @@ def setup_oss_routes(app, connection_manager=None):
     async def cleanup_sessions(hours: int = 2) -> Dict[str, Any]:
         """清理旧的会话文件"""
         try:
-            result = cleanup_old_sessions(hours)
+            # 从main.py导入keep_sessions
+            from main import keep_sessions
+            result = cleanup_old_sessions(hours, keep_sessions)
             return {
                 "success": True,
                 "result": result

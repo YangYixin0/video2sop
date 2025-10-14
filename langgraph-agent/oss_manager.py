@@ -151,12 +151,13 @@ def delete_session_files(session_id: str) -> Dict:
         "session_id": session_id
     }
 
-def cleanup_old_sessions(hours: int = 2) -> Dict:
+def cleanup_old_sessions(hours: int = 2, keep_sessions: set = None) -> Dict:
     """
     清理超过指定小时的会话文件
     
     Args:
         hours: 清理多少小时前的文件
+        keep_sessions: 需要保留的会话ID集合
     
     Returns:
         清理结果统计
@@ -165,6 +166,9 @@ def cleanup_old_sessions(hours: int = 2) -> Dict:
     cleaned_sessions = []
     total_deleted = 0
     
+    if keep_sessions is None:
+        keep_sessions = set()
+    
     try:
         # 获取所有对象
         bucket = get_bucket()
@@ -172,6 +176,11 @@ def cleanup_old_sessions(hours: int = 2) -> Dict:
             # 解析会话ID（格式: session_xxxxxxxx_timestamp）
             if obj.key.startswith("session_") and "/" in obj.key:
                 session_id = obj.key.split("/")[0]
+                
+                # 检查是否在保留列表中
+                if session_id in keep_sessions:
+                    print(f"跳过保留的会话: {session_id}")
+                    continue
                 
                 # 从会话ID中提取时间戳
                 if "_" in session_id:
@@ -240,5 +249,5 @@ if __name__ == "__main__":
     print(f"上传签名: {signature}")
     
     # 测试清理功能
-    cleanup_result = cleanup_old_sessions(1)  # 清理1小时前的文件
+    cleanup_result = cleanup_old_sessions(1, set())  # 清理1小时前的文件
     print(f"清理结果: {cleanup_result}")

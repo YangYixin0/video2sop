@@ -1,6 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import FeedbackModal from './FeedbackModal';
+import SubscribeModal from './SubscribeModal';
+import { SOPBlock } from '@/types/sop';
 
 export interface OperationRecord {
   id: string;
@@ -26,10 +29,51 @@ interface OperationHistoryProps {
   records: OperationRecord[];
   isConnected?: boolean;
   onReconnect?: () => void;
+  notificationEnabled?: boolean;
+  onNotificationToggle?: () => void;
+  onNotificationTest?: () => void;
+  onNotificationDisable?: () => void;
+  onNotificationSimulate?: () => void;
+  currentUploadResult?: {
+    video_url: string;
+    audio_url: string;
+    session_id: string;
+  } | null;
+  speechRecognitionResult?: {
+    sentence_id: number;
+    text: string;
+  }[] | null;
+  videoUnderstandingResult?: string;
+  videoUnderstandingPrompt?: string;
+  clientSessionId?: string;
+  sopBlocks?: SOPBlock[];
+  refinedSopBlocks?: SOPBlock[];
+  sopParsePrompt?: string;
+  sopRefinePrompt?: string;
 }
 
-export default function OperationHistory({ records, isConnected = true, onReconnect }: OperationHistoryProps) {
+export default function OperationHistory({ 
+  records, 
+  isConnected = true, 
+  onReconnect,
+  notificationEnabled = false,
+  onNotificationToggle,
+  onNotificationTest,
+  onNotificationDisable,
+  onNotificationSimulate,
+  currentUploadResult,
+  speechRecognitionResult,
+  videoUnderstandingResult,
+  videoUnderstandingPrompt,
+  clientSessionId,
+  sopBlocks,
+  refinedSopBlocks,
+  sopParsePrompt,
+  sopRefinePrompt
+}: OperationHistoryProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [showSubscribe, setShowSubscribe] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -38,6 +82,30 @@ export default function OperationHistory({ records, isConnected = true, onReconn
   useEffect(() => {
     scrollToBottom();
   }, [records]);
+
+  const handleMarkVideoKeep = async (sessionId: string) => {
+    try {
+      const response = await fetch('http://127.0.0.1:8123/mark_session_keep_video', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          session_id: sessionId,
+          client_session_id: clientSessionId
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('标记视频保留失败');
+      }
+
+      console.log('视频已标记为保留');
+    } catch (error) {
+      console.error('标记视频保留失败:', error);
+      alert('标记视频保留失败，请重试');
+    }
+  };
 
   const formatTimestamp = (timestamp: Date) => {
     return timestamp.toLocaleTimeString('zh-CN', {
@@ -95,29 +163,98 @@ export default function OperationHistory({ records, isConnected = true, onReconn
   return (
     <div className="flex flex-col h-full bg-white border-l border-gray-200">
       {/* 头部 */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50">
-        <h2 className="text-lg font-semibold text-gray-800">操作记录</h2>
-        <div className="flex items-center space-x-3">
-          {/* 连接状态指示器 */}
-          <div className="flex items-center space-x-2">
-            <div className="flex items-center space-x-1">
-              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'} ${isConnected ? 'animate-pulse' : ''}`}></div>
-              <span className={`text-xs ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
-                {isConnected ? '已连接' : '未连接'}
-              </span>
+      <div className="p-4 border-b border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-gray-800">操作记录</h2>
+          <div className="flex items-center space-x-3">
+            {/* 连接状态指示器 */}
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1">
+                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'} ${isConnected ? 'animate-pulse' : ''}`}></div>
+                <span className={`text-xs ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
+                  {isConnected ? '已连接' : '未连接'}
+                </span>
+              </div>
+              {!isConnected && onReconnect && (
+                <button
+                  onClick={onReconnect}
+                  className="text-xs px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                >
+                  重连
+                </button>
+              )}
             </div>
-            {!isConnected && onReconnect && (
+            <div className="text-sm text-gray-500">
+              {records.length} 条记录
+            </div>
+          </div>
+        </div>
+        
+        {/* 通知设置 */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <span className="text-sm">🔔</span>
+            <span className="text-xs text-gray-600">
+              {notificationEnabled ? '已启用' : '浏览器通知未启用'}
+            </span>
+            {notificationEnabled && (
+              <>
+                <span className="text-xs text-gray-400">·</span>
+                <span className="text-xs text-orange-600">通知不一定发挥效果</span>
+              </>
+            )}
+          </div>
+          <div className="flex items-center space-x-1">
+            {notificationEnabled ? (
+              <>
+                <button
+                  onClick={onNotificationTest}
+                  className="px-1 py-0.5 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors"
+                  title="测试通知"
+                >
+                  测试
+                </button>
+                <button
+                  onClick={onNotificationDisable}
+                  className="px-1 py-0.5 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition-colors"
+                  title="禁用通知"
+                >
+                  禁用
+                </button>
+                <button
+                  onClick={onNotificationSimulate}
+                  className="px-1 py-0.5 bg-purple-500 text-white rounded text-xs hover:bg-purple-600 transition-colors"
+                  title="模拟通知"
+                >
+                  模拟
+                </button>
+              </>
+            ) : (
               <button
-                onClick={onReconnect}
-                className="text-xs px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                onClick={onNotificationToggle}
+                className="px-1 py-0.5 bg-blue-400 text-white rounded text-xs hover:bg-blue-600 transition-colors"
+                title="启用通知"
               >
-                重连
+                启用
               </button>
             )}
           </div>
-          <div className="text-sm text-gray-500">
-            {records.length} 条记录
-          </div>
+        </div>
+        
+        {/* 反馈和订阅按钮 */}
+        <div className="mt-2 flex space-x-2">
+          <button 
+            onClick={() => setShowFeedback(true)} 
+            className="flex-2 px-3 py-1.5 bg-blue-400 text-white rounded text-sm hover:bg-blue-600 transition-colors"
+          >
+            报告异常或建议
+          </button>
+          <button 
+            onClick={() => setShowSubscribe(true)}
+            className="flex-1 px-3 py-1.5 bg-blue-400 text-white rounded text-sm hover:bg-blue-600 transition-colors"
+          >
+            订阅更新
+          </button>
         </div>
       </div>
 
@@ -179,6 +316,33 @@ export default function OperationHistory({ records, isConnected = true, onReconn
         
         <div ref={messagesEndRef} />
       </div>
+      
+      {/* 反馈Modal */}
+      <FeedbackModal
+        isOpen={showFeedback}
+        onClose={() => setShowFeedback(false)}
+        onMarkVideoKeep={handleMarkVideoKeep}
+        sessionData={{
+          includeVideoLinks: false,
+          sessionId: currentUploadResult?.session_id,
+          clientSessionId: clientSessionId,
+          uploadResult: currentUploadResult,
+          speechRecognitionResult: speechRecognitionResult,
+          videoUnderstandingResult: videoUnderstandingResult,
+          videoUnderstandingPrompt: videoUnderstandingPrompt,
+          operationRecords: records,
+          sopBlocks: sopBlocks || [],
+          refinedSopBlocks: refinedSopBlocks || [],
+          sopParsePrompt: sopParsePrompt,
+          sopRefinePrompt: sopRefinePrompt
+        }}
+      />
+      
+      {/* 订阅Modal */}
+      <SubscribeModal
+        isOpen={showSubscribe}
+        onClose={() => setShowSubscribe(false)}
+      />
     </div>
   );
 }

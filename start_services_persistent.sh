@@ -41,6 +41,22 @@ fi
 echo "🎨 启动前端服务..."
 cd /root/app/chat-frontend
 
+# 智能处理 .env.local 文件，保留用户自定义配置
+echo "🔧 配置前端环境变量..."
+if [ ! -f .env.local ]; then
+    echo "📝 创建新的 .env.local 文件"
+    echo "NEXT_PUBLIC_WS_URL=ws://127.0.0.1:8123/ws" > .env.local
+else
+    echo "📝 检查现有 .env.local 文件"
+    # 检查是否已存在 NEXT_PUBLIC_WS_URL，如果不存在则追加
+    if ! grep -q "NEXT_PUBLIC_WS_URL" .env.local; then
+        echo "NEXT_PUBLIC_WS_URL=ws://127.0.0.1:8123/ws" >> .env.local
+        echo "✅ 已添加 NEXT_PUBLIC_WS_URL 到现有 .env.local 文件"
+    else
+        echo "✅ .env.local 文件已包含 NEXT_PUBLIC_WS_URL，保持现有配置"
+    fi
+fi
+
 # 构建生产版本
 echo "📦 构建生产版本..."
 if npm run build; then

@@ -38,6 +38,11 @@ export default function Home() {
   }[] | null>(null);
   
   const [videoUnderstandingResult, setVideoUnderstandingResult] = useState<string>('');
+  const [videoUnderstandingPrompt, setVideoUnderstandingPrompt] = useState<string>('');
+  const [sopBlocks, setSopBlocks] = useState<SOPBlock[]>([]);
+  const [refinedSopBlocks, setRefinedSopBlocks] = useState<SOPBlock[]>([]);
+  const [sopParsePrompt, setSopParsePrompt] = useState<string>('');
+  const [sopRefinePrompt, setSopRefinePrompt] = useState<string>('');
   const [notificationEnabled, setNotificationEnabled] = useState(false);
 
   // WebSocket消息处理函数
@@ -45,7 +50,7 @@ export default function Home() {
     type: string; 
     [key: string]: unknown;
   }) => {
-    if (data.type === 'upload_complete') {
+      if (data.type === 'upload_complete') {
       // 发送通知
       if (notificationEnabled) {
         notificationManager.sendNotification(
@@ -56,8 +61,8 @@ export default function Home() {
         );
       }
 
-      // 更新当前上传结果状态
-      setCurrentUploadResult({
+        // 更新当前上传结果状态
+        setCurrentUploadResult({
         video_url: (data.video_url as string) || '',
         audio_url: (data.audio_url as string) || '',
         session_id: (data.session_id as string) || ''
@@ -65,10 +70,10 @@ export default function Home() {
       
       // 注意：不在这里添加操作记录，因为onUploadComplete回调已经处理了
       // 这避免了重复的操作记录
-    } else if (data.type === 'file_removed') {
-      // 清空当前上传结果状态
-      setCurrentUploadResult(null);
-      
+      } else if (data.type === 'file_removed') {
+        // 清空当前上传结果状态
+        setCurrentUploadResult(null);
+        
       // 注意：不在这里添加操作记录，因为onFileRemoved回调已经处理了
       // 这避免了重复的操作记录
     } else if (data.type === 'speech_recognition_complete') {
@@ -82,12 +87,12 @@ export default function Home() {
         );
       }
 
-      // 添加语音识别记录
-      const speechRecord: OperationRecord = {
-        id: `speech-${Date.now()}`,
-        type: 'speech_recognition',
-        timestamp: new Date(),
-        status: 'success',
+        // 添加语音识别记录
+        const speechRecord: OperationRecord = {
+          id: `speech-${Date.now()}`,
+          type: 'speech_recognition',
+          timestamp: new Date(),
+          status: 'success',
         message: (data.message as string) || '语音识别已执行',
         data: {
           speech_result: data.result as string
@@ -142,7 +147,7 @@ export default function Home() {
         timestamp: new Date(),
         status: 'success',
         message: (data.message as string) || 'SOP解析完成',
-        data: {
+          data: {
           blocks_count: data.blocks_count as number
         }
       };
@@ -251,6 +256,9 @@ export default function Home() {
     audio_transcript?: string;
   }) => {
     try {
+      // 保存用户提示词
+      setVideoUnderstandingPrompt(params.prompt);
+      
       const response = await fetch('http://127.0.0.1:8123/video_understanding', {
         method: 'POST',
         headers: {
@@ -282,6 +290,9 @@ export default function Home() {
   // SOP解析处理函数
   const handleParseSOP = async (manuscript: string) => {
     try {
+      // 保存解析提示词（使用默认提示词）
+      setSopParsePrompt('解析SOP草稿为结构化区块');
+      
       const response = await fetch('http://127.0.0.1:8123/parse_sop', {
         method: 'POST',
         headers: {
@@ -311,6 +322,9 @@ export default function Home() {
   // SOP精修处理函数
   const handleRefineSOP = async (blocks: SOPBlock[], userNotes: string) => {
     try {
+      // 保存精修提示词
+      setSopRefinePrompt(userNotes || 'AI精修SOP内容');
+      
       const response = await fetch('http://127.0.0.1:8123/refine_sop', {
         method: 'POST',
         headers: {
@@ -331,6 +345,11 @@ export default function Home() {
       }
 
       const result = await response.json();
+      const refinedBlocks = result.result?.blocks || [];
+      
+      // 保存精修结果
+      setRefinedSopBlocks(refinedBlocks);
+      
       return result.result;
     } catch (error) {
       console.error('SOP精修失败:', error);
@@ -340,102 +359,70 @@ export default function Home() {
 
   return (
     <ResizableLayout
-      defaultSidebarWidth={240}
+      defaultSidebarWidth={320}
       minSidebarWidth={200}
       maxSidebarWidth={600}
-      sidebar={<OperationHistory records={operationRecords} isConnected={wsConnected} onReconnect={reconnectWebSocket} />}
+      sidebar={
+        <OperationHistory 
+          records={operationRecords} 
+          isConnected={wsConnected} 
+          onReconnect={reconnectWebSocket}
+          notificationEnabled={notificationEnabled}
+          onNotificationToggle={async () => {
+            try {
+              console.log('点击启用通知按钮');
+              const enabled = await notificationManager.initialize();
+              console.log('通知权限状态:', enabled);
+              setNotificationEnabled(enabled);
+              
+              if (enabled) {
+                notificationManager.sendNotification(
+                  '🔔 通知测试',
+                  '浏览器通知功能已启用！'
+                );
+              }
+            } catch (error) {
+              console.error('启用通知失败:', error);
+              alert('启用通知失败，请检查浏览器设置');
+            }
+          }}
+          onNotificationTest={() => {
+            notificationManager.sendNotification(
+              '🔔 通知测试',
+              '这是一条测试通知，证明通知功能正常工作！'
+            );
+          }}
+          onNotificationDisable={() => {
+            notificationManager.disable();
+            setNotificationEnabled(false);
+          }}
+          onNotificationSimulate={() => {
+            notificationManager.sendNotification(
+              '🎬 视频理解完成',
+              '视频分析已完成，SOP草稿已生成，可以进行解析',
+              undefined,
+              true // force参数
+            );
+          }}
+          currentUploadResult={currentUploadResult}
+          speechRecognitionResult={speechRecognitionResult}
+          videoUnderstandingResult={videoUnderstandingResult}
+          videoUnderstandingPrompt={videoUnderstandingPrompt}
+          clientSessionId={clientSessionId}
+          sopBlocks={sopBlocks}
+          refinedSopBlocks={refinedSopBlocks}
+          sopParsePrompt={sopParsePrompt}
+          sopRefinePrompt={sopRefinePrompt}
+        />
+      }
     >
-      <div className="w-full max-w-6xl mx-auto px-4 relative">
+      <div className="w-full max-w-6xl mx-auto px-4">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-6">
             Video2SOP：将仪器教学视频转化为SOP
           </h1>
         </div>
 
-        {/* 通知设置 - 右上角 */}
-        <div className="absolute top-4 right-4 z-10">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm">🔔</span>
-              <span className="text-xs text-gray-600">
-                {notificationEnabled ? '已启用' : '浏览器通知未启用'}
-              </span>
-              {notificationEnabled && (
-                <>
-                  <span className="text-xs text-gray-400">·</span>
-                  <span className="text-xs text-orange-600">通知不一定发挥效果</span>
-                </>
-              )}
-              {notificationEnabled ? (
-                <>
-                  <button
-                    onClick={() => {
-                      notificationManager.sendNotification(
-                        '🔔 通知测试',
-                        '这是一条测试通知，证明通知功能正常工作！'
-                      );
-                    }}
-                    className="px-1 py-0.5 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors"
-                    title="测试通知"
-                  >
-                    测试
-                  </button>
-                  <button
-                    onClick={() => {
-                      notificationManager.disable();
-                      setNotificationEnabled(false);
-                    }}
-                    className="px-1 py-0.5 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition-colors"
-                    title="禁用通知"
-                  >
-                    禁用
-                  </button>
-                  <button
-                    onClick={() => {
-                      // 强制发送通知，模拟实际处理完成时的通知
-                      notificationManager.sendNotification(
-                        '🎬 视频理解完成',
-                        '视频分析已完成，SOP草稿已生成，可以进行解析',
-                        undefined,
-                        true // force参数
-                      );
-                    }}
-                    className="px-1 py-0.5 bg-purple-500 text-white rounded text-xs hover:bg-purple-600 transition-colors"
-                    title="模拟通知"
-                  >
-                    模拟
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={async () => {
-                    try {
-                      console.log('点击启用通知按钮');
-                      const enabled = await notificationManager.initialize();
-                      console.log('通知权限状态:', enabled);
-                      setNotificationEnabled(enabled);
-                      
-                      if (enabled) {
-                        // 测试通知
-                        notificationManager.sendNotification(
-                          '🔔 通知测试',
-                          '浏览器通知功能已启用！'
-                        );
-                      }
-                    } catch (error) {
-                      console.error('启用通知失败:', error);
-                      alert('启用通知失败，请检查浏览器设置');
-                    }
-                  }}
-                  className="px-1 py-0.5 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
-                  title="启用通知"
-                >
-                  启用
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
 
         {/* 视频上传组件 */}
         <div className="mb-6">
@@ -506,6 +493,7 @@ export default function Home() {
             videoUrl={currentUploadResult?.video_url}
             onParseSOP={handleParseSOP}
             onRefineSOP={handleRefineSOP}
+            onBlocksChange={(blocks) => setSopBlocks(blocks)}
           />
         </div>
         

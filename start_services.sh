@@ -54,8 +54,20 @@ cd /root/app/chat-frontend
 npm install > /dev/null 2>&1
 
 echo "🔧 配置环境变量..."
-# 确保使用正确的 WebSocket URL
-echo "NEXT_PUBLIC_WS_URL=ws://127.0.0.1:8123/ws" > .env.local
+# 智能处理 .env.local 文件，保留用户自定义配置
+if [ ! -f .env.local ]; then
+    echo "📝 创建新的 .env.local 文件"
+    echo "NEXT_PUBLIC_WS_URL=ws://127.0.0.1:8123/ws" > .env.local
+else
+    echo "📝 检查现有 .env.local 文件"
+    # 检查是否已存在 NEXT_PUBLIC_WS_URL，如果不存在则追加
+    if ! grep -q "NEXT_PUBLIC_WS_URL" .env.local; then
+        echo "NEXT_PUBLIC_WS_URL=ws://127.0.0.1:8123/ws" >> .env.local
+        echo "✅ 已添加 NEXT_PUBLIC_WS_URL 到现有 .env.local 文件"
+    else
+        echo "✅ .env.local 文件已包含 NEXT_PUBLIC_WS_URL，保持现有配置"
+    fi
+fi
 
 echo "🌐 启动后端服务 (端口 8123)..."
 cd /root/app/langgraph-agent

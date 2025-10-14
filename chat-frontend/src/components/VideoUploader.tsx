@@ -49,10 +49,52 @@ export default function VideoUploader({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
+  // 检查会话是否被保留，如果未保留则清理
+  const checkAndCleanup = useCallback(async (sessionId: string) => {
+    try {
+      // 检查会话是否被标记为保留
+      const checkResponse = await fetch(`http://127.0.0.1:8123/check_session_keep_video?session_id=${sessionId}`);
+      if (checkResponse.ok) {
+        const checkData = await checkResponse.json();
+        if (checkData.is_kept) {
+          console.log(`会话 ${sessionId} 被标记为保留，跳过清理`);
+          return;
+        }
+      }
+      
+      // 如果未保留，则清理文件
+      const deleteResponse = await fetch('http://127.0.0.1:8123/delete_session_files', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          session_id: sessionId,
+          client_session_id: clientSessionId
+        })
+      });
+      
+      if (deleteResponse.ok) {
+        console.log(`会话 ${sessionId} 的文件已清理`);
+      }
+    } catch (error) {
+      console.error('检查或清理文件时出错:', error);
+    }
+  }, [clientSessionId]);
+
   // 清理函数
   const cleanup = useCallback(async () => {
     if (sessionId && uploadResult) {
       try {
+        // 检查会话是否被标记为保留
+        const checkResponse = await fetch(`http://127.0.0.1:8123/check_session_keep_video?session_id=${sessionId}`);
+        if (checkResponse.ok) {
+          const checkData = await checkResponse.json();
+          if (checkData.is_kept) {
+            console.log(`会话 ${sessionId} 被标记为保留，跳过清理`);
+            return { deleted_count: 0 };
+          }
+        }
+        
+        // 如果未保留，则清理文件
         const response = await fetch('http://127.0.0.1:8123/delete_session_files', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -76,38 +118,24 @@ export default function VideoUploader({
   useEffect(() => {
     return () => {
       if (sessionId && uploadResult) {
-        // 直接调用API，避免依赖cleanup函数
-        fetch('http://127.0.0.1:8123/delete_session_files', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            session_id: sessionId,
-            client_session_id: clientSessionId
-          })
-        }).catch(console.error);
+        // 检查会话是否被标记为保留
+        checkAndCleanup(sessionId);
       }
     };
-  }, [sessionId, uploadResult, clientSessionId]);
+  }, [sessionId, uploadResult, clientSessionId, checkAndCleanup]);
 
   // 页面关闭时清理
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (sessionId && uploadResult) {
-        // 直接调用API，避免依赖cleanup函数
-        fetch('http://127.0.0.1:8123/delete_session_files', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            session_id: sessionId,
-            client_session_id: clientSessionId
-          })
-        }).catch(console.error);
+        // 检查会话是否被标记为保留
+        checkAndCleanup(sessionId);
       }
     };
     
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [sessionId, uploadResult, clientSessionId]);
+  }, [sessionId, uploadResult, clientSessionId, checkAndCleanup]);
 
   // 生成会话 ID
   const generateSessionId = useCallback(async () => {

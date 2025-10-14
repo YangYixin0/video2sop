@@ -60,8 +60,8 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
       content += `${blockTitle}：\n`;
       content += `${block.content}\n`;
       
-      // 如果有时间戳，添加时间信息
-      if (block.start_time !== undefined || block.end_time !== undefined) {
+      // 如果有时间戳且是播放区块，添加时间信息
+      if ((block.start_time !== undefined || block.end_time !== undefined) && block.show_play_button) {
         content += `时间范围：`;
         if (block.start_time !== undefined) {
           content += formatTime(block.start_time);
@@ -221,48 +221,48 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
             📋 SOP 标准操作流程文档
         </h1>
 
-        <!-- 视频文件配置区域 -->
-        <div class="video-config">
-            <h3 style="margin: 0 0 15px 0; color: #495057; display: flex; align-items: center;">
-                <span style="margin-right: 8px;">🎥</span>
-                视频文件配置
-            </h3>
-            <div style="margin-bottom: 15px;">
-                <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 0.9em;">
-                    <strong>当前视频文件：</strong><span id="currentVideoName" style="color: #007bff; font-weight: 500;">${videoFileName}</span>
-                </p>
-                <p style="margin: 0; color: #6c757d; font-size: 0.85em;">
+    <!-- 视频文件配置区域 -->
+    <div class="video-config">
+        <h3 style="margin: 0 0 15px 0; color: #495057; display: flex; align-items: center;">
+            <span style="margin-right: 8px;">🎥</span>
+            视频文件配置
+        </h3>
+        <div style="margin-bottom: 15px;">
+            <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 0.9em;">
+                <strong>当前视频文件：</strong><span id="currentVideoName" style="color: #007bff; font-weight: 500;">${videoFileName}</span>
+            </p>
+            <p style="margin: 0; color: #6c757d; font-size: 0.85em;">
                     💡 请确保视频文件与HTML文件在同一目录下
-                </p>
-            </div>
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <button onclick="selectVideoFile()" style="
-                    padding: 8px 16px; 
-                    background: #007bff; 
-                    color: white; 
-                    border: none; 
-                    border-radius: 4px; 
-                    cursor: pointer; 
-                    font-size: 0.9em;
-                    transition: background-color 0.2s;
-                " onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background='#007bff'">
-                    📁 选择视频文件
-                </button>
-                <button onclick="testVideoFile()" style="
-                    padding: 8px 16px; 
-                    background: #28a745; 
-                    color: white; 
-                    border: none; 
-                    border-radius: 4px; 
-                    cursor: pointer; 
-                    font-size: 0.9em;
-                    transition: background-color 0.2s;
-                " onmouseover="this.style.background='#1e7e34'" onmouseout="this.style.background='#28a745'">
-                    ▶️ 测试播放
-                </button>
-                <span id="videoStatus" style="font-size: 0.85em; color: #6c757d;"></span>
-            </div>
-            <input type="file" id="videoFileInput" accept="video/*" style="display: none;" onchange="handleVideoFileSelect(event)">
+            </p>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button onclick="selectVideoFile()" style="
+                padding: 8px 16px; 
+                background: #007bff; 
+                color: white; 
+                border: none; 
+                border-radius: 4px; 
+                cursor: pointer; 
+                font-size: 0.9em;
+                transition: background-color 0.2s;
+            " onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background='#007bff'">
+                📁 选择视频文件
+            </button>
+            <button onclick="testVideoFile()" style="
+                padding: 8px 16px; 
+                background: #28a745; 
+                color: white; 
+                border: none; 
+                border-radius: 4px; 
+                cursor: pointer; 
+                font-size: 0.9em;
+                transition: background-color 0.2s;
+            " onmouseover="this.style.background='#1e7e34'" onmouseout="this.style.background='#28a745'">
+                ▶️ 测试播放
+            </button>
+            <span id="videoStatus" style="font-size: 0.85em; color: #6c757d;"></span>
+        </div>
+        <input type="file" id="videoFileInput" accept="video/*" style="display: none;" onchange="handleVideoFileSelect(event)">
         </div>
     </div>`;
 
@@ -298,7 +298,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
                 ` : ''}
             </div>
             <div class="block-content" contenteditable="true">${block.content}</div>
-            ${block.start_time !== undefined || block.end_time !== undefined ? `
+            ${(block.start_time !== undefined || block.end_time !== undefined) && block.show_play_button ? `
             <div class="time-info">
                 时间范围：${block.start_time !== undefined ? formatTime(block.start_time) : '--'} 
                 ${block.end_time !== undefined && block.start_time !== block.end_time ? ` - ${formatTime(block.end_time)}` : ''}
@@ -526,7 +526,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
                 }, 300);
             }, 3000);
         }
-        
+
         // 页面加载完成后的提示
         window.addEventListener('load', () => {
             console.log('SOP文档已加载完成');
@@ -593,7 +593,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
   };
 
   const currentBlocks = getCurrentBlocks();
-  
+
   return (
     <div className="bg-white rounded-lg shadow-sm border p-4">
       <div className="mb-4">
@@ -691,7 +691,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
             <div>
               <h4 className="font-medium text-gray-800">🌐 HTML关联格式 (.html)</h4>
               <p className="text-sm text-gray-600 mb-1">
-                适合实验室内部使用，支持交互式视频播放和内容编辑
+                支持视频播放，适合实验室内部使用
               </p>
               <p className="text-sm text-gray-600">
                 视频文件需与HTML文件在同一目录下，然后在HTML文件开头配置视频文件
@@ -705,18 +705,6 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
               {isExporting ? '导出中...' : '导出HTML'}
             </button>
           </div>
-          
-          {videoUrl && (
-            <div className="mt-2 p-2 bg-green-50 rounded text-sm text-green-700">
-              ✅ 检测到视频文件，HTML将支持视频片段播放
-            </div>
-          )}
-          
-          {!videoUrl && (
-            <div className="mt-2 p-2 bg-blue-50 rounded text-sm text-blue-700">
-              💡 未检测到视频文件，HTML将提供视频文件选择功能
-            </div>
-          )}
         </div>
       </div>
 

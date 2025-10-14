@@ -11,6 +11,7 @@ interface SOPEditorProps {
   videoUrl?: string;
   onParseSOP?: (manuscript: string) => Promise<{ blocks: SOPBlock[] }>;
   onRefineSOP?: (blocks: SOPBlock[], userNotes: string) => Promise<{ blocks: SOPBlock[] }>;
+  onBlocksChange?: (blocks: SOPBlock[]) => void;
   initialBlocks?: SOPBlock[];
 }
 
@@ -19,6 +20,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
   videoUrl,
   onParseSOP,
   onRefineSOP,
+  onBlocksChange,
   initialBlocks = []
 }) => {
   // 状态管理
@@ -45,6 +47,8 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
     try {
       const result = await onParseSOP(manuscript);
       setBlocksA(result.blocks);
+      // 通知父组件blocks变化
+      onBlocksChange?.(result.blocks);
     } catch (error) {
       console.error('解析SOP失败:', error);
       alert('解析SOP失败，请重试');
@@ -348,12 +352,17 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-800">🤖 AI精修区</h3>
             {blocksB.length > 0 && (
-              <button
-                onClick={handleApplyRefinement}
-                className="px-3 py-1 text-sm bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
-              >
-                应用精修
-              </button>
+              <div className="flex items-center space-x-3">
+                <span className="text-sm text-gray-600">
+                  是否用精修结果替换当前编辑区的区块以迭代精修
+                </span>
+                <button
+                  onClick={handleApplyRefinement}
+                  className="px-3 py-1 text-sm bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
+                >
+                  替换
+                </button>
+              </div>
             )}
           </div>
 

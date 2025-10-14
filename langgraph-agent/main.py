@@ -56,6 +56,9 @@ session_histories: Dict[str, Dict[str, Any]] = {}
 # }
 SESSION_TIMEOUT_HOURS = 1  # 1小时超时
 
+# 视频保留标记集合
+keep_sessions: set = set()
+
 def update_session_activity(client_session_id: str):
     """更新会话活跃时间"""
     if client_session_id in session_histories:
@@ -267,7 +270,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     await manager.send_message(websocket, json.dumps({
                         "type": "register_error",
                         "message": "缺少 client_session_id"
-                    }))
+                }))
             
             elif message_data.get("type") == "upload_complete":
                 # 处理上传完成通知
@@ -521,7 +524,7 @@ async def parse_sop_endpoint(request: dict):
         print(error_msg)
         raise HTTPException(status_code=500, detail=error_msg)
 
-async def refine_sop_blocks(blocks, user_notes):
+def refine_sop_blocks(blocks, user_notes):
     """直接调用DashScope API进行SOP精修，避免LangChain工具包装问题"""
     try:
         # 构建提示词
@@ -692,6 +695,46 @@ async def get_session_stats():
             for sid, session in session_histories.items()
         ]
     }
+
+@app.post("/mark_session_keep_video")
+async def mark_session_keep_video(request: dict):
+    """标记会话视频保留"""
+    try:
+        session_id = request.get("session_id")
+        client_session_id = request.get("client_session_id")
+        
+        if not session_id:
+            raise HTTPException(status_code=400, detail="缺少 session_id 参数")
+        
+        # 将session_id添加到保留列表
+        keep_sessions.add(session_id)
+        print(f"会话 {session_id} 的视频已标记为保留")
+        
+        return {"success": True, "session_id": session_id}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = f"标记视频保留异常: {str(e)}"
+        print(error_msg)
+        raise HTTPException(status_code=500, detail=error_msg)
+
+@app.get("/check_session_keep_video")
+async def check_session_keep_video(session_id: str):
+    """检查会话视频是否被标记为保留"""
+    try:
+        if not session_id:
+            raise HTTPException(status_code=400, detail="缺少 session_id 参数")
+        
+        is_kept = session_id in keep_sessions
+        return {"success": True, "session_id": session_id, "is_kept": is_kept}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = f"检查视频保留状态异常: {str(e)}"
+        print(error_msg)
+        raise HTTPException(status_code=500, detail=error_msg)
 
 @app.get("/")
 async def root():

@@ -48,7 +48,7 @@
 
 编辑 `/root/app/.env` 文件：
 ```env
-# 必需的配置
+# 必需的大模型配置
 DASHSCOPE_API_KEY=your_dashscope_api_key_here
 
 # OSS 存储配置（用于视频和音频文件存储）
@@ -61,6 +61,15 @@ OSS_BUCKET_NAME=your_bucket_name
 LANGSMITH_API_KEY=your_langsmith_api_key_here
 LANGSMITH_TRACING=true
 LANGSMITH_PROJECT=video2sop
+```
+编辑 `/root/app/chat-frontend/.env.local` 文件：
+```env
+# WebSocket 地址，用于与后端实时通信
+NEXT_PUBLIC_WS_URL=ws://127.0.0.1:8123/ws
+
+# 联系方式
+NEXT_PUBLIC_AUTHOR_EMAIL=
+NEXT_PUBLIC_APP_GITHUB=
 ```
 
 ### 2. 一键启动
@@ -388,11 +397,14 @@ python test_connection.py
 
 ## 🔄 更新日志
 
+- **v1.4.0** - 视频保留功能和用户体验优化
+  - 实现视频保留功能，用户可选择保留视频用于分析
+  - 优化UI界面
+
 - **v1.3.0** - 并发性能优化和会话管理
   - 优化大模型API调用，实现异步并发处理，支持多会话同时操作
-  - 添加会话隔离和Agent实例池管理
-  - 实现1小时会话超时自动清理机制
-  - 新增会话统计端点 `/sessions/stats`
+  - 添加会话隔离和超时清理
+  - Agent实例池管理
 
 - **v1.2.0** - 会话隔离和生产模式优化
   - 实现浏览器标签页会话隔离
