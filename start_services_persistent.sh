@@ -19,23 +19,8 @@ pkill -f "next start" 2>/dev/null
 # 等待进程完全停止
 sleep 2
 
-# 启动后端服务
-echo "🔧 启动后端服务..."
-cd /root/app/langgraph-agent
-nohup python main.py > ../logs/backend.log 2>&1 &
-BACKEND_PID=$!
-echo "   后端服务PID: $BACKEND_PID"
-
-# 等待后端启动
-sleep 3
-
-# 检查后端是否正常启动
-if curl --noproxy '*' -s http://127.0.0.1:8123/health > /dev/null; then
-    echo "✅ 后端服务启动成功"
-else
-    echo "❌ 后端服务启动失败"
-    exit 1
-fi
+# 创建日志目录
+mkdir -p /root/app/logs
 
 # 启动前端服务
 echo "🎨 启动前端服务..."
@@ -62,13 +47,13 @@ echo "📦 构建生产版本..."
 if npm run build; then
     # 构建成功，启动生产服务器
     echo "🚀 启动生产服务器..."
-    nohup npm run start > ../logs/frontend.log 2>&1 &
+    npm run start > ../logs/frontend.log 2>&1 &
     FRONTEND_PID=$!
     echo "   前端服务PID: $FRONTEND_PID (生产模式)"
 else
     # 构建失败，回退到开发模式
     echo "⚠️  生产构建失败，回退到开发模式..."
-    nohup npm run dev > ../logs/frontend.log 2>&1 &
+    npm run dev > ../logs/frontend.log 2>&1 &
     FRONTEND_PID=$!
     echo "   前端服务PID: $FRONTEND_PID (开发模式)"
 fi
@@ -76,27 +61,25 @@ fi
 # 等待前端启动
 sleep 8
 
-# 创建日志目录
-mkdir -p /root/app/logs
-
-# 保存PID到文件
-echo "$BACKEND_PID" > /root/app/logs/backend.pid
+# 保存前端PID到文件
 echo "$FRONTEND_PID" > /root/app/logs/frontend.pid
+
+# 启动后端服务（作为主进程，保持脚本运行）
+echo "🔧 启动后端服务..."
+cd /root/app/langgraph-agent
 
 echo ""
 echo "🎉 App服务启动完成！"
 echo "📊 服务状态："
-echo "   后端: http://127.0.0.1:8123 (PID: $BACKEND_PID)"
 echo "   前端: http://127.0.0.1:50001 (PID: $FRONTEND_PID)"
+echo "   后端: http://127.0.0.1:8123 (即将启动)"
 echo ""
 echo "📝 日志文件："
-echo "   后端日志: /root/app/logs/backend.log"
 echo "   前端日志: /root/app/logs/frontend.log"
+echo "   后端日志: /root/app/logs/backend.log"
 echo ""
-echo "🛑 停止服务命令："
-echo "   /root/app/stop_services.sh"
-echo ""
-echo "🔄 重启服务命令："
-echo "   /root/app/start_services_persistent.sh"
-echo ""
-echo "✅ 现在您可以安全地断开远程连接，App将继续运行！"
+echo "✅ 后端服务将作为主进程运行，保持容器存活..."
+
+# 启动后端服务作为主进程（前台运行）
+# 这样脚本会一直运行，直到后端服务停止
+python main.py > ../logs/backend.log 2>&1
