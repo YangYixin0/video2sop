@@ -114,4 +114,4 @@ echo "✅ 后端服务将作为主进程运行，保持容器存活..."
 
 # 启动后端服务作为主进程（前台运行）
 # 这样脚本会一直运行，直到后端服务停止
-python main.py > ../logs/backend.log 2>&1
+python main.py
