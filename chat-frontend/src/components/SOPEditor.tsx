@@ -231,9 +231,14 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
         <h2 className="text-2xl font-bold text-gray-900 mb-4">📝 SOP编辑器</h2>
         
         {/* 解析按钮 */}
-        {manuscript && !blocksA.length && (
+        {manuscript && (
           <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-            <p className="text-blue-800 mb-3">检测到SOP草稿文本，点击按钮开始解析：</p>
+            <p className="text-blue-800 mb-3">
+              {blocksA.length > 0 
+                ? 'SOP草稿已解析，可以重新解析或继续编辑：' 
+                : '检测到SOP草稿文本，点击按钮开始解析：'
+              }
+            </p>
             <button
               onClick={handleParseSOP}
               disabled={isParsing}

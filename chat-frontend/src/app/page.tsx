@@ -10,6 +10,7 @@ import SOPEditor from '@/components/SOPEditor';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { SOPBlock } from '@/types/sop';
 import { notificationManager } from '@/utils/notifications';
+import { API_ENDPOINTS } from '@/config/api';
 
 export default function Home() {
   // 生成唯一的客户端会话ID
@@ -220,7 +221,7 @@ export default function Home() {
   // 语音识别处理函数
   const handleSpeechRecognition = async (audioUrl: string) => {
     try {
-      const response = await fetch('http://127.0.0.1:8123/speech_recognition', {
+      const response = await fetch(API_ENDPOINTS.SPEECH_RECOGNITION, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -259,7 +260,7 @@ export default function Home() {
       // 保存用户提示词
       setVideoUnderstandingPrompt(params.prompt);
       
-      const response = await fetch('http://127.0.0.1:8123/video_understanding', {
+      const response = await fetch(API_ENDPOINTS.VIDEO_UNDERSTANDING, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -293,7 +294,7 @@ export default function Home() {
       // 保存解析提示词（使用默认提示词）
       setSopParsePrompt('解析SOP草稿为结构化区块');
       
-      const response = await fetch('http://127.0.0.1:8123/parse_sop', {
+      const response = await fetch(API_ENDPOINTS.PARSE_SOP, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -325,7 +326,7 @@ export default function Home() {
       // 保存精修提示词
       setSopRefinePrompt(userNotes || 'AI精修SOP内容');
       
-      const response = await fetch('http://127.0.0.1:8123/refine_sop', {
+      const response = await fetch(API_ENDPOINTS.REFINE_SOP, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -32,6 +32,10 @@ else
     echo "⚠️  前端服务PID文件不存在"
 fi
 
+# 停止Nginx
+echo "🛑 停止Nginx..."
+nginx -s stop 2>/dev/null || true
+
 # 强制清理可能残留的进程
 pkill -f "python main.py" 2>/dev/null
 pkill -f "next dev" 2>/dev/null

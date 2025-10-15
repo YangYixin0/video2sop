@@ -32,9 +32,12 @@ app = FastAPI(title="LangGraph Agent Chat", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:50001", 
+        "http://localhost:50001",
         "http://127.0.0.1:50001",
-        "http://maqp1391303.bohrium.tech:50001"
+        "https://www.bohrium.com",
+        "http://www.bohrium.com",
+        "http://maqp1391303.bohrium.tech:50001",
+        "http://maqp1391303.bohrium.tech",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -162,7 +165,7 @@ manager = ConnectionManager()
 # 设置 OSS 相关路由
 setup_oss_routes(app, manager)
 
-@app.get("/health")
+@app.get("/api/health")
 async def health_check():
     """健康检查端点"""
     return {"status": "healthy", "service": "langgraph-agent-chat"}
@@ -314,7 +317,7 @@ async def websocket_endpoint(websocket: WebSocket):
         print(f"WebSocket 错误: {e}")
         manager.disconnect(websocket)
 
-@app.post("/load_example_video")
+@app.post("/api/load_example_video")
 async def load_example_video_endpoint():
     """加载示例视频API端点"""
     try:
@@ -377,7 +380,7 @@ async def load_example_video_endpoint():
         print(error_msg)
         raise HTTPException(status_code=500, detail=error_msg)
 
-@app.post("/speech_recognition")
+@app.post("/api/speech_recognition")
 async def speech_recognition_endpoint(request: dict):
     """语音识别API端点"""
     try:
@@ -419,7 +422,7 @@ async def speech_recognition_endpoint(request: dict):
         print(error_msg)
         raise HTTPException(status_code=500, detail=error_msg)
 
-@app.post("/video_understanding")
+@app.post("/api/video_understanding")
 async def video_understanding_endpoint(request: dict):
     """视频理解API端点"""
     try:
@@ -483,7 +486,7 @@ async def video_understanding_endpoint(request: dict):
         print(error_msg)
         raise HTTPException(status_code=500, detail=error_msg)
 
-@app.post("/parse_sop")
+@app.post("/api/parse_sop")
 async def parse_sop_endpoint(request: dict):
     """SOP解析API端点"""
     try:
@@ -632,7 +635,7 @@ def refine_sop_blocks(blocks, user_notes):
         # 发生错误时返回原始区块
         return {"error": str(e), "blocks": blocks}
 
-@app.post("/refine_sop")
+@app.post("/api/refine_sop")
 async def refine_sop_endpoint(request: dict):
     """SOP精修API端点"""
     try:
@@ -675,7 +678,7 @@ async def refine_sop_endpoint(request: dict):
         print(error_msg)
         raise HTTPException(status_code=500, detail=error_msg)
 
-@app.get("/sessions/stats")
+@app.get("/api/sessions/stats")
 async def get_session_stats():
     """获取会话统计信息"""
     cleanup_expired_sessions()  # 先清理过期会话
@@ -696,7 +699,7 @@ async def get_session_stats():
         ]
     }
 
-@app.post("/mark_session_keep_video")
+@app.post("/api/mark_session_keep_video")
 async def mark_session_keep_video(request: dict):
     """标记会话视频保留"""
     try:
@@ -719,7 +722,7 @@ async def mark_session_keep_video(request: dict):
         print(error_msg)
         raise HTTPException(status_code=500, detail=error_msg)
 
-@app.get("/check_session_keep_video")
+@app.get("/api/check_session_keep_video")
 async def check_session_keep_video(session_id: str):
     """检查会话视频是否被标记为保留"""
     try:

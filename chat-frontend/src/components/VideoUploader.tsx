@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { API_ENDPOINTS } from '@/config/api';
 
 interface UploadStatus {
   status: 'idle' | 'uploading' | 'extracting' | 'completed' | 'error';
@@ -53,7 +54,7 @@ export default function VideoUploader({
   const checkAndCleanup = useCallback(async (sessionId: string) => {
     try {
       // 检查会话是否被标记为保留
-      const checkResponse = await fetch(`http://127.0.0.1:8123/check_session_keep_video?session_id=${sessionId}`);
+      const checkResponse = await fetch(`${API_ENDPOINTS.CHECK_SESSION_KEEP_VIDEO}?session_id=${sessionId}`);
       if (checkResponse.ok) {
         const checkData = await checkResponse.json();
         if (checkData.is_kept) {
@@ -63,7 +64,7 @@ export default function VideoUploader({
       }
       
       // 如果未保留，则清理文件
-      const deleteResponse = await fetch('http://127.0.0.1:8123/delete_session_files', {
+      const deleteResponse = await fetch(API_ENDPOINTS.DELETE_SESSION_FILES, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -85,7 +86,7 @@ export default function VideoUploader({
     if (sessionId && uploadResult) {
       try {
         // 检查会话是否被标记为保留
-        const checkResponse = await fetch(`http://127.0.0.1:8123/check_session_keep_video?session_id=${sessionId}`);
+        const checkResponse = await fetch(`${API_ENDPOINTS.CHECK_SESSION_KEEP_VIDEO}?session_id=${sessionId}`);
         if (checkResponse.ok) {
           const checkData = await checkResponse.json();
           if (checkData.is_kept) {
@@ -95,7 +96,7 @@ export default function VideoUploader({
         }
         
         // 如果未保留，则清理文件
-        const response = await fetch('http://127.0.0.1:8123/delete_session_files', {
+        const response = await fetch(API_ENDPOINTS.DELETE_SESSION_FILES, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -140,7 +141,7 @@ export default function VideoUploader({
   // 生成会话 ID
   const generateSessionId = useCallback(async () => {
     try {
-      const response = await fetch('http://127.0.0.1:8123/generate_session_id', {
+      const response = await fetch(API_ENDPOINTS.GENERATE_SESSION_ID, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -159,7 +160,7 @@ export default function VideoUploader({
   // 获取上传签名
   const getUploadSignature = useCallback(async (filename: string, sessionId: string) => {
     try {
-      const response = await fetch('http://127.0.0.1:8123/generate_upload_signature', {
+      const response = await fetch(API_ENDPOINTS.GENERATE_UPLOAD_SIGNATURE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -214,7 +215,7 @@ export default function VideoUploader({
       formData.append('client_session_id', clientSessionId);
     }
 
-    const response = await fetch('http://127.0.0.1:8123/upload_file_proxy', {
+    const response = await fetch(API_ENDPOINTS.UPLOAD_FILE_PROXY, {
       method: 'POST',
       body: formData
     });
@@ -229,7 +230,7 @@ export default function VideoUploader({
 
   // 提取音频
   const extractAudio = useCallback(async (videoUrl: string, sessionId: string) => {
-    const response = await fetch('http://127.0.0.1:8123/extract_audio', {
+    const response = await fetch(API_ENDPOINTS.EXTRACT_AUDIO, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -397,7 +398,7 @@ export default function VideoUploader({
       setUploadStatus({ status: 'uploading', message: '正在加载示例视频...', progress: 0 });
       
       // 从后端获取示例视频
-      const response = await fetch('http://127.0.0.1:8123/load_example_video', {
+      const response = await fetch(API_ENDPOINTS.LOAD_EXAMPLE_VIDEO, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });

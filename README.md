@@ -16,12 +16,18 @@
 
 ## 🏗️ 系统架构
 
+### 统一架构（开发和生产环境一致）
 ```
-┌─────────────────┐    WebSocket    ┌─────────────────┐
-│   Next.js       │ ←─────────────→ │   FastAPI       │
-│   Frontend      │                 │   Backend       │
-│   (端口 50001)  │                 │   (端口 8123)   │
-└─────────────────┘                 └─────────────────┘
+外部请求 (50001)
+    ↓
+┌─────────────────┐
+│   Nginx         │
+│   (反向代理)     │
+│   (端口 50001)  │
+└─────────────────┘
+    ├─→ / (静态文件) → Next.js (3000)
+    ├─→ /api/* (API) → FastAPI (8123)
+    └─→ /ws (WebSocket) → FastAPI (8123)
                                            │
                                            ▼
                                    ┌─────────────────┐
@@ -41,6 +47,11 @@
                                    │   (文件存储)     │
                                    └─────────────────┘
 ```
+
+**架构特点：**
+- 🌐 **统一入口**：所有请求通过 Nginx 在 50001 端口统一处理
+- 🔄 **反向代理**：Nginx 将请求路由到对应的内部服务
+- 🎯 **环境一致**：开发和生产环境使用完全相同的架构
 
 ## 🚀 快速开始
 
@@ -65,12 +76,22 @@ LANGSMITH_PROJECT=video2sop
 编辑 `/root/app/chat-frontend/.env.local` 文件：
 ```env
 # WebSocket 地址，用于与后端实时通信
-NEXT_PUBLIC_WS_URL=ws://127.0.0.1:8123/ws
+# 统一架构：开发和生产环境都通过 Nginx 代理
+NEXT_PUBLIC_WS_URL=ws://127.0.0.1:50001/ws
 
-# 联系方式
-NEXT_PUBLIC_AUTHOR_EMAIL=
-NEXT_PUBLIC_APP_GITHUB=
+# API 地址
+# 统一架构：开发和生产环境都通过 Nginx 代理
+NEXT_PUBLIC_API_URL=http://127.0.0.1:50001
+
+# 联系方式（可选）
+NEXT_PUBLIC_AUTHOR_EMAIL=your-email@example.com
+NEXT_PUBLIC_APP_GITHUB=https://github.com/your-repo/video2sop
 ```
+
+**环境变量说明：**
+- 🌐 **统一配置**：开发和生产环境使用相同的环境变量配置
+- 🔄 **自动管理**：启动脚本会自动创建和更新 `.env.local` 文件
+- 🚀 **无需切换**：代码修改后可直接部署，无需修改环境变量
 
 ### 2. 一键启动
 
@@ -88,16 +109,19 @@ cd /root/app
 
 ### 📊 启动方式对比
 
-| 特性 | 标准启动 | 容器化部署后启动（见下文） |
-|------|----------|------------|
-| **运行模式** | 开发模式 | 智能选择（生产优先） |
+| 特性 | 开发环境启动 | 生产环境启动 |
+|------|-------------|-------------|
+| **运行模式** | 开发模式 (`npm run dev`) | 生产模式 (`npm run start`) |
 | **开发工具** | 包含热重载、开发辅助按钮 | 生产模式无开发工具 |
 | **性能** | 适合开发调试 | 生产模式性能更优 |
 | **连接断开** | 服务会停止 | 服务继续运行 |
 | **适用场景** | 开发调试 | 容器化部署（玻尔平台等） |
 | **启动速度** | 快速 | 稍慢（需构建） |
-| **容器兼容** | 不适合容器部署 | 专为容器化设计 |
+| **容器兼容** | 适合容器部署 | 专为容器化设计 |
 | **主进程管理** | 脚本持续运行监控服务 | 后端服务作为主进程保持运行 |
+| **反向代理** | Nginx统一代理 | Nginx统一代理 |
+| **端口暴露** | 仅50001端口对外 | 仅50001端口对外 |
+| **架构一致性** | ✅ 与生产环境完全一致 | ✅ 与开发环境完全一致 |
 
 ### 3. 手动启动
 
@@ -132,12 +156,23 @@ cd /root/app && ./start_services_persistent.sh
 - 🐳 **容器化设计**: 后端服务作为主进程，确保容器不会退出
 - 🔧 **智能构建**: 自动尝试生产构建，失败时回退到开发模式
 - 📝 **日志管理**: 所有日志输出到 `/root/app/logs/` 目录
+- 🌐 **环境变量配置**: 支持通过环境变量配置API地址，适应不同部署环境
+
+**环境变量配置:**
+```bash
+# 前端环境变量（自动配置）
+NEXT_PUBLIC_WS_URL=ws://127.0.0.1:50001/ws    # WebSocket地址（通过Nginx）
+NEXT_PUBLIC_API_URL=http://127.0.0.1:50001    # API地址（通过Nginx）
+NEXT_PUBLIC_AUTHOR_EMAIL=your-email@example.com  # 作者邮箱
+NEXT_PUBLIC_APP_GITHUB=https://github.com/your-repo/video2sop  # GitHub仓库
+```
 
 ### 5. 访问应用
 
 - 🌐 前端界面: http://127.0.0.1:50001
-- 🔧 后端 API: http://127.0.0.1:8123
-- 📊 健康检查: http://127.0.0.1:8123/health
+- 🔧 后端 API: http://127.0.0.1:50001/api/*
+- 📊 健康检查: http://127.0.0.1:50001/api/health
+- 🔌 WebSocket: ws://127.0.0.1:50001/ws
 
 ## 📁 项目结构
 
@@ -203,10 +238,10 @@ cd /root/app && ./start_services_persistent.sh
 
 ### 监控会话状态
 
-访问 `/sessions/stats` 端点查看当前活跃会话：
+访问 `/api/sessions/stats` 端点查看当前活跃会话：
 
 ```bash
-curl http://127.0.0.1:8123/sessions/stats
+curl http://127.0.0.1:50001/api/sessions/stats
 ```
 
 返回信息包括：
@@ -227,7 +262,7 @@ curl http://127.0.0.1:8123/sessions/stats
 
 ### WebSocket 端点
 
-**连接地址:** `ws://127.0.0.1:8123/ws`
+**连接地址:** `ws://127.0.0.1:50001/ws`
 
 **接收消息格式:**
 ```json
@@ -294,16 +329,16 @@ curl http://127.0.0.1:8123/sessions/stats
 ### HTTP 端点
 
 - `GET /` - 根路径信息
-- `GET /health` - 健康检查
-- `GET /sessions/stats` - 会话统计信息
-- `POST /load_example_video` - 加载示例视频
-- `POST /video_upload` - 视频上传
-- `POST /speech_recognition` - 语音识别
-- `POST /video_understanding` - 视频理解
-- `POST /parse_sop` - SOP解析
-- `POST /refine_sop` - SOP精修
-- `POST /delete_session_files` - 删除会话文件
-- `POST /cleanup_files` - 清理文件
+- `GET /api/health` - 健康检查
+- `GET /api/sessions/stats` - 会话统计信息
+- `POST /api/load_example_video` - 加载示例视频
+- `POST /api/video_upload` - 视频上传
+- `POST /api/speech_recognition` - 语音识别
+- `POST /api/video_understanding` - 视频理解
+- `POST /api/parse_sop` - SOP解析
+- `POST /api/refine_sop` - SOP精修
+- `POST /api/delete_session_files` - 删除会话文件
+- `POST /api/cleanup_files` - 清理文件
 
 ## 🔄 工作流程
 
@@ -328,20 +363,62 @@ curl http://127.0.0.1:8123/sessions/stats
 
 如果遇到问题，请查看 [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) 文件。
 
-常见问题：
-1. **WebSocket 连接失败** - 检查代理设置，使用 `127.0.0.1` 而不是 `localhost`
-2. **API 密钥错误** - 确保在 `.env` 文件中设置了有效的 `DASHSCOPE_API_KEY`
-3. **OSS配置错误** - 确保正确配置了 OSS 存储参数
-4. **端口冲突** - 检查端口 8123 和 50001 是否被占用
-5. **视频格式不支持** - 确保上传的视频格式为 MP4, MOV, AVI, MKV, WEBM
-6. **服务无法停止** - 使用 `./stop_services.sh` 强制停止所有相关进程
-7. **容器化部署失败** - 使用 `./start_services_persistent.sh` 启动，确保后端服务作为主进程运行
-8. **生产构建失败** - 检查TypeScript错误，或脚本会自动回退到开发模式
-9. **开发辅助按钮消失** - 这是正常的，生产环境启动使用生产模式时会隐藏开发工具
-10. **多标签页性能慢** - 已优化为并发处理，多标签页可同时处理请求
-11. **会话超时** - 会话1小时无活动会自动清理，重新操作即可
-12. **玻尔平台部署失败** - 确保使用正确的启动命令：`cd /root/app && ./start_services_persistent.sh`
-13. **容器退出** - 检查后端服务是否正常启动，查看 `/root/app/logs/backend.log` 日志
+### 常见问题
+
+1. **WebSocket 连接失败** 
+   - 开发环境：检查代理设置，使用 `127.0.0.1` 而不是 `localhost`
+   - 容器化部署：确认Nginx正确代理WebSocket请求
+
+2. **API 密钥错误** 
+   - 确保在 `.env` 文件中设置了有效的 `DASHSCOPE_API_KEY`
+
+3. **OSS配置错误** 
+   - 确保正确配置了 OSS 存储参数
+
+4. **端口冲突** 
+   - 统一架构：检查端口 50001, 3000, 8123 是否被占用
+
+5. **视频格式不支持** 
+   - 确保上传的视频格式为 MP4, MOV, AVI, MKV, WEBM
+
+6. **Nginx相关问题**
+   ```bash
+   # 检查Nginx配置
+   nginx -t
+   
+   # 查看Nginx日志
+   tail -f /var/log/nginx/error.log
+   tail -f /var/log/nginx/access.log
+   
+   # 重启Nginx
+   nginx -s reload
+   ```
+
+7. **统一架构部署问题**
+   - 确认容器内所有服务都在运行（Nginx、前端、后端）
+   - 检查Nginx是否正确代理请求
+   - 确认环境变量指向正确的端口（50001）
+   - 检查玻尔平台的代理设置
+
+8. **服务无法停止** - 使用 `./stop_services.sh` 强制停止所有相关进程
+
+9. **容器化部署失败** - 使用 `./start_services_persistent.sh` 启动，确保后端服务作为主进程运行
+
+10. **生产构建失败** - 检查TypeScript错误，或脚本会自动回退到开发模式
+
+11. **开发辅助按钮消失** - 这是正常的，生产环境启动使用生产模式时会隐藏开发工具
+
+12. **多标签页性能慢** - 已优化为并发处理，多标签页可同时处理请求
+
+13. **会话超时** - 会话1小时无活动会自动清理，重新操作即可
+
+14. **玻尔平台部署失败** - 确保使用正确的启动命令：`cd /root/app && ./start_services_persistent.sh`
+
+15. **容器退出** - 检查后端服务是否正常启动，查看 `/root/app/logs/backend.log` 日志
+
+16. **前端连接不到后端** - 检查环境变量配置，确保 `NEXT_PUBLIC_API_URL` 和 `NEXT_PUBLIC_WS_URL` 正确设置为50001端口
+
+17. **统一架构API连接失败** - 使用Nginx反向代理后，所有请求都通过50001端口，无需修改API地址
 
 ## 🧪 测试
 
@@ -354,7 +431,7 @@ import websockets
 import json
 
 async def test_ws():
-    uri = 'ws://127.0.0.1:8123/ws'
+    uri = 'ws://127.0.0.1:50001/ws'
     async with websockets.connect(uri) as websocket:
         print('WebSocket 连接成功')
         # 监听消息
@@ -373,12 +450,14 @@ asyncio.run(test_ws())
 
 ### 测试 HTTP 健康检查
 ```bash
-curl --noproxy '*' http://127.0.0.1:8123/health
+# 统一架构（开发和生产环境）
+curl --noproxy '*' http://127.0.0.1:50001/api/health
 ```
 
 ### 测试会话统计
 ```bash
-curl --noproxy '*' http://127.0.0.1:8123/sessions/stats
+# 统一架构（开发和生产环境）
+curl --noproxy '*' http://127.0.0.1:50001/api/sessions/stats
 ```
 
 ### 完整连接测试
@@ -410,6 +489,16 @@ python test_connection.py
 - 严格的TypeScript类型检查
 
 ## 🔄 更新日志
+
+- **v1.5.0** - Nginx反向代理配置
+  - 添加Nginx反向代理，解决玻尔平台WebSocket代理拦截问题
+  - 统一开发和生产环境架构，都使用Nginx反向代理
+  - 前端端口从50001改为3000，通过Nginx在50001端口统一代理
+  - 统一端口暴露（仅50001端口对外），前端和后端通过内部端口通信
+  - 为所有API端点添加 `/api` 前缀，便于Nginx路由管理
+  - 更新CORS配置，支持玻尔平台域名访问
+  - 环境变量配置统一，开发和生产环境使用相同的配置
+  - 优化启动脚本，自动安装和配置Nginx
 
 - **v1.4.0** - 视频保留功能和容器化部署优化
   - 实现视频保留功能，用户可选择保留视频用于分析

@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import FeedbackModal from './FeedbackModal';
 import SubscribeModal from './SubscribeModal';
+import { API_ENDPOINTS } from '@/config/api';
 import { SOPBlock } from '@/types/sop';
 
 export interface OperationRecord {
@@ -85,7 +86,7 @@ export default function OperationHistory({
 
   const handleMarkVideoKeep = async (sessionId: string) => {
     try {
-      const response = await fetch('http://127.0.0.1:8123/mark_session_keep_video', {
+      const response = await fetch(API_ENDPOINTS.MARK_SESSION_KEEP_VIDEO, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -1,0 +1,42 @@
+/**
+ * API 配置
+ * 通过环境变量控制后端API地址，支持不同部署环境
+ */
+
+// API 基础地址
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8123';
+
+// WebSocket 地址
+const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://127.0.0.1:8123/ws';
+
+// 导出配置
+export { API_BASE_URL, WS_BASE_URL };
+
+// 导出常用的API端点
+export const API_ENDPOINTS = {
+  // 会话管理
+  GENERATE_SESSION_ID: `${API_BASE_URL}/api/generate_session_id`,
+  MARK_SESSION_KEEP_VIDEO: `${API_BASE_URL}/api/mark_session_keep_video`,
+  CHECK_SESSION_KEEP_VIDEO: `${API_BASE_URL}/api/check_session_keep_video`,
+  DELETE_SESSION_FILES: `${API_BASE_URL}/api/delete_session_files`,
+  
+  // 文件上传
+  GENERATE_UPLOAD_SIGNATURE: `${API_BASE_URL}/api/generate_upload_signature`,
+  UPLOAD_FILE_PROXY: `${API_BASE_URL}/api/upload_file_proxy`,
+  EXTRACT_AUDIO: `${API_BASE_URL}/api/extract_audio`,
+  LOAD_EXAMPLE_VIDEO: `${API_BASE_URL}/api/load_example_video`,
+  
+  // AI 处理
+  SPEECH_RECOGNITION: `${API_BASE_URL}/api/speech_recognition`,
+  VIDEO_UNDERSTANDING: `${API_BASE_URL}/api/video_understanding`,
+  PARSE_SOP: `${API_BASE_URL}/api/parse_sop`,
+  REFINE_SOP: `${API_BASE_URL}/api/refine_sop`,
+  
+  // 健康检查
+  HEALTH: `${API_BASE_URL}/api/health`,
+} as const;
+
+// WebSocket 端点
+export const WS_ENDPOINTS = {
+  MAIN: WS_BASE_URL,
+} as const;

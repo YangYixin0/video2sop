@@ -2,7 +2,7 @@
  * OSS 上传工具类
  */
 
-const API_BASE_URL = 'http://127.0.0.1:8123';
+import { API_BASE_URL } from '@/config/api';
 
 export interface UploadSignature {
   upload_url: string;

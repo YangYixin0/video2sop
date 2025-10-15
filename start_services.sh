@@ -21,6 +21,14 @@ if netstat -tlnp 2>/dev/null | grep -q ":50001 "; then
     fi
 fi
 
+if netstat -tlnp 2>/dev/null | grep -q ":3000 "; then
+    echo "⚠️  端口3000被占用，正在清理..."
+    PID=$(netstat -tlnp 2>/dev/null | grep ":3000 " | awk '{print $7}' | cut -d'/' -f1)
+    if [ ! -z "$PID" ]; then
+        kill -9 $PID 2>/dev/null || true
+    fi
+fi
+
 if netstat -tlnp 2>/dev/null | grep -q ":8123 "; then
     echo "⚠️  端口8123被占用，正在清理..."
     PID=$(netstat -tlnp 2>/dev/null | grep ":8123 " | awk '{print $7}' | cut -d'/' -f1)
@@ -57,16 +65,45 @@ echo "🔧 配置环境变量..."
 # 智能处理 .env.local 文件，保留用户自定义配置
 if [ ! -f .env.local ]; then
     echo "📝 创建新的 .env.local 文件"
-    echo "NEXT_PUBLIC_WS_URL=ws://127.0.0.1:8123/ws" > .env.local
+    cat > .env.local << EOF
+NEXT_PUBLIC_WS_URL=ws://127.0.0.1:50001/ws
+NEXT_PUBLIC_API_URL=http://127.0.0.1:50001
+EOF
 else
     echo "📝 检查现有 .env.local 文件"
-    # 检查是否已存在 NEXT_PUBLIC_WS_URL，如果不存在则追加
+    # 检查并添加必要的环境变量
     if ! grep -q "NEXT_PUBLIC_WS_URL" .env.local; then
-        echo "NEXT_PUBLIC_WS_URL=ws://127.0.0.1:8123/ws" >> .env.local
+        echo "NEXT_PUBLIC_WS_URL=ws://127.0.0.1:50001/ws" >> .env.local
         echo "✅ 已添加 NEXT_PUBLIC_WS_URL 到现有 .env.local 文件"
     else
         echo "✅ .env.local 文件已包含 NEXT_PUBLIC_WS_URL，保持现有配置"
     fi
+    
+    if ! grep -q "NEXT_PUBLIC_API_URL" .env.local; then
+        echo "NEXT_PUBLIC_API_URL=http://127.0.0.1:50001" >> .env.local
+        echo "✅ 已添加 NEXT_PUBLIC_API_URL 到现有 .env.local 文件"
+    else
+        echo "✅ .env.local 文件已包含 NEXT_PUBLIC_API_URL，保持现有配置"
+    fi
+fi
+
+# 安装和启动 Nginx（如果未安装）
+echo "🔧 安装和配置Nginx..."
+if ! command -v nginx &> /dev/null; then
+    echo "📦 安装Nginx..."
+    apt-get update -qq && apt-get install -y nginx > /dev/null 2>&1
+fi
+
+echo "📝 配置Nginx..."
+cp /root/app/nginx.conf /etc/nginx/nginx.conf
+
+echo "🚀 启动Nginx..."
+nginx -t && nginx
+if [ $? -eq 0 ]; then
+    echo "✅ Nginx启动成功"
+else
+    echo "❌ Nginx启动失败"
+    exit 1
 fi
 
 echo "🌐 启动后端服务 (端口 8123)..."
@@ -89,7 +126,7 @@ for i in {1..10}; do
     sleep 1
 done
 
-echo "🎨 启动前端服务 (端口 50001)..."
+echo "🎨 启动前端服务 (端口 3000)..."
 cd /root/app/chat-frontend
 npm run dev &
 FRONTEND_PID=$!
@@ -97,7 +134,7 @@ FRONTEND_PID=$!
 # 等待前端启动
 echo "⏳ 等待前端服务启动..."
 for i in {1..15}; do
-    if curl -s --noproxy '*' http://127.0.0.1:50001 > /dev/null 2>&1; then
+    if curl -s --noproxy '*' http://127.0.0.1:3000 > /dev/null 2>&1; then
         echo "✅ 前端服务启动成功"
         break
     fi
@@ -112,9 +149,11 @@ done
 echo ""
 echo "✅ 所有服务启动完成！"
 echo "=============================================="
-echo "🌐 前端地址: http://127.0.0.1:50001"
-echo "🔧 后端地址: http://127.0.0.1:8123"
-echo "📊 健康检查: http://127.0.0.1:8123/health"
+echo "🌐 访问地址: http://127.0.0.1:50001 (通过Nginx)"
+echo "🔧 内部服务:"
+echo "   - 前端: http://127.0.0.1:3000 (开发模式)"
+echo "   - 后端: http://127.0.0.1:8123"
+echo "📊 健康检查: http://127.0.0.1:50001/api/health"
 echo ""
 echo "💡 使用提示:"
 echo "   - 如果浏览器无法访问，请尝试使用 --no-proxy 参数"

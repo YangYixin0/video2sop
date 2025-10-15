@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { WS_ENDPOINTS } from '@/config/api';
 
 interface WebSocketMessage {
   type: string;
@@ -49,7 +50,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       wsRef.current = null;
     }
 
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://127.0.0.1:8123/ws';
+    const wsUrl = WS_ENDPOINTS.MAIN;
     console.log('尝试连接 WebSocket:', wsUrl);
     console.log('环境变量 NEXT_PUBLIC_WS_URL:', process.env.NEXT_PUBLIC_WS_URL);
     

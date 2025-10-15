@@ -39,7 +39,7 @@ class ExtractAudioRequest(BaseModel):
 def setup_oss_routes(app, connection_manager=None):
     """设置 OSS 相关的路由"""
     
-    @app.post("/generate_session_id")
+    @app.post("/api/generate_session_id")
     async def generate_new_session_id() -> Dict[str, Any]:
         """生成新的会话 ID"""
         try:
@@ -51,7 +51,7 @@ def setup_oss_routes(app, connection_manager=None):
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to generate session ID: {str(e)}")
 
-    @app.post("/generate_upload_signature")
+    @app.post("/api/generate_upload_signature")
     async def generate_signature(request: UploadSignatureRequest) -> Dict[str, Any]:
         """生成 OSS 上传签名"""
         try:
@@ -67,7 +67,7 @@ def setup_oss_routes(app, connection_manager=None):
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to generate signature: {str(e)}")
 
-    @app.post("/delete_session_files")
+    @app.post("/api/delete_session_files")
     async def delete_files(request: DeleteSessionRequest) -> Dict[str, Any]:
         """删除指定会话的所有文件"""
         try:
@@ -82,7 +82,7 @@ def setup_oss_routes(app, connection_manager=None):
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to delete files: {str(e)}")
 
-    @app.get("/cleanup_old_sessions")
+    @app.get("/api/cleanup_old_sessions")
     async def cleanup_sessions(hours: int = 2) -> Dict[str, Any]:
         """清理旧的会话文件"""
         try:
@@ -96,7 +96,7 @@ def setup_oss_routes(app, connection_manager=None):
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to cleanup sessions: {str(e)}")
 
-    @app.get("/file_info")
+    @app.get("/api/file_info")
     async def get_file_info_endpoint(oss_url: str) -> Dict[str, Any]:
         """获取文件信息"""
         try:
@@ -108,7 +108,7 @@ def setup_oss_routes(app, connection_manager=None):
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to get file info: {str(e)}")
 
-    @app.post("/extract_audio")
+    @app.post("/api/extract_audio")
     async def extract_audio_endpoint(request: ExtractAudioRequest) -> Dict[str, Any]:
         """从视频 URL 提取音频并上传到 OSS"""
         try:
@@ -153,7 +153,7 @@ def setup_oss_routes(app, connection_manager=None):
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Audio extraction failed: {str(e)}")
 
-    @app.get("/check_ffmpeg")
+    @app.get("/api/check_ffmpeg")
     async def check_ffmpeg_status() -> Dict[str, bool]:
         """检查 FFmpeg 是否可用"""
         return {
@@ -161,7 +161,7 @@ def setup_oss_routes(app, connection_manager=None):
             "ffmpeg_available": check_ffmpeg_available()
         }
 
-    @app.post("/upload_file_proxy")
+    @app.post("/api/upload_file_proxy")
     async def upload_file_proxy(
         file: UploadFile = File(...),
         session_id: str = Form(...),
