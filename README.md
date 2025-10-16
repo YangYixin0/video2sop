@@ -191,6 +191,9 @@ NEXT_PUBLIC_APP_GITHUB=https://github.com/your-repo/video2sop  # GitHub仓库
 # 运行状态检查脚本
 cd /root/video2sop
 ./check_deployment_status.sh
+
+# 运行WebSocket配置测试
+./test_websocket_config.sh
 ```
 
 **玻尔平台特殊配置:**
@@ -199,6 +202,7 @@ cd /root/video2sop
 - ✅ **容器持久化**: 后端服务作为主进程保持容器运行
 - ✅ **自动依赖安装**: 脚本自动安装Node.js、npm、FFmpeg等依赖
 - ✅ **环境变量检查**: 启动前验证DASHSCOPE_API_KEY和OSS配置
+- ✅ **部署诊断工具**: 提供check_deployment_status.sh和test_websocket_config.sh脚本
 
 ### 5. 访问应用
 
@@ -511,6 +515,10 @@ NEXT_PUBLIC_SOP_PARSE_TIMEOUT=1800000
 
 22. **玻尔平台代理拦截** - 所有请求通过Nginx在50001端口统一处理，避免直接访问内部端口
 
+23. **WebSocket配置优化** - v1.5.1已添加玻尔官方建议的proxy_cache_bypass $http_upgrade配置，如仍有问题请运行test_websocket_config.sh诊断
+
+24. **部署后状态检查** - 使用./check_deployment_status.sh脚本全面检查服务状态，包括进程、端口、健康检查等
+
 ## 🧪 测试
 
 ### 测试 WebSocket 连接
@@ -580,6 +588,12 @@ python tests/test_connection.py
 - 严格的TypeScript类型检查
 
 ## 🔄 更新日志
+
+- **v1.5.1** - 玻尔平台WebSocket连接优化和部署工具完善
+  - 按照玻尔官方建议优化Nginx WebSocket代理配置，添加proxy_cache_bypass $http_upgrade关键设置
+  - 统一Nginx代理超时配置为30分钟，确保长时间AI处理任务正常完成
+  - 新增部署后状态检查脚本check_deployment_status.sh，支持玻尔平台环境全面诊断
+  - 新增WebSocket配置测试脚本test_websocket_config.sh，便于WebSocket连接问题排查
 
 - **v1.5.0** - Nginx反向代理配置和项目结构优化
   - 添加Nginx反向代理，统一开发和生产环境架构，解决玻尔平台WebSocket代理拦截问题
