@@ -63,8 +63,8 @@ const handleReconnect = () => {
 ### 方法 3: 手动测试 WebSocket
 
 ```bash
-cd /root/app
-python test_connection.py
+cd /root/video2sop
+python tests/test_connection.py
 ```
 
 ## 🔧 故障排除
@@ -98,8 +98,8 @@ python test_connection.py
 
 2. **重启服务**:
    ```bash
-   cd /root/app
-   ./start_services_fixed.sh
+cd /root/video2sop
+./start_services_fixed.sh
    ```
 
 3. **检查防火墙**:
@@ -148,8 +148,8 @@ const connect = useCallback(() => {
 
 1. **启动服务**:
    ```bash
-   cd /root/app
-   ./start_services_fixed.sh
+cd /root/video2sop
+./start_services_fixed.sh
    ```
 
 2. **访问应用**: http://127.0.0.1:50001

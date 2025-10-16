@@ -84,7 +84,7 @@ INFO:     connection open
 
 ### 1. 启动服务
 ```bash
-cd /root/app
+cd /root/video2sop
 ./start_services_fixed.sh
 ```
 

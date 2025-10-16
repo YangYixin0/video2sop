@@ -150,7 +150,7 @@ WebSocket: ✅ 正常
 
 ### 推荐启动方式
 ```bash
-cd /root/app
+cd /root/video2sop
 ./start_services_fixed.sh
 ```
 

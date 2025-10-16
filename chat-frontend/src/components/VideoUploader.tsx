@@ -70,7 +70,9 @@ export default function VideoUploader({
         body: JSON.stringify({ 
           session_id: sessionId,
           client_session_id: clientSessionId
-        })
+        }),
+        mode: 'cors',
+        credentials: 'omit'
       });
       
       if (deleteResponse.ok) {
@@ -102,7 +104,9 @@ export default function VideoUploader({
           body: JSON.stringify({ 
             session_id: sessionId,
             client_session_id: clientSessionId
-          })
+          }),
+          mode: 'cors',
+          credentials: 'omit'
         });
         const result = await response.json();
         const deleteResult = result.result || { deleted_count: 0 };
@@ -143,7 +147,9 @@ export default function VideoUploader({
     try {
       const response = await fetch(API_ENDPOINTS.GENERATE_SESSION_ID, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        mode: 'cors',
+        credentials: 'omit'
       });
       const data = await response.json();
       if (data.success) {
@@ -167,7 +173,9 @@ export default function VideoUploader({
           filename,
           session_id: sessionId,
           file_type: 'video'
-        })
+        }),
+        mode: 'cors',
+        credentials: 'omit'
       });
       const data = await response.json();
       if (data.success) {
@@ -207,44 +215,92 @@ export default function VideoUploader({
 
   // 代理上传到后端
   const uploadViaProxy = useCallback(async (file: File, sessionId: string) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('session_id', sessionId);
-    formData.append('file_type', 'video');
-    if (clientSessionId) {
-      formData.append('client_session_id', clientSessionId);
-    }
+    // 从环境变量获取超时时间，默认10分钟
+    const timeoutMs = parseInt(process.env.NEXT_PUBLIC_VIDEO_UPLOAD_TIMEOUT || '600000', 10);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('session_id', sessionId);
+      formData.append('file_type', 'video');
+      if (clientSessionId) {
+        formData.append('client_session_id', clientSessionId);
+      }
 
-    const response = await fetch(API_ENDPOINTS.UPLOAD_FILE_PROXY, {
-      method: 'POST',
-      body: formData
-    });
+      // 创建AbortController用于超时控制
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      
+      const response = await fetch(API_ENDPOINTS.UPLOAD_FILE_PROXY, {
+        method: 'POST',
+        body: formData,
+        mode: 'cors',
+        credentials: 'omit',
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
 
-    const data = await response.json();
-    if (data.success) {
-      return data.file_url;
-    } else {
-      throw new Error('代理上传失败');
+      const data = await response.json();
+      if (data.success) {
+        return data.file_url;
+      } else {
+        throw new Error('代理上传失败');
+      }
+    } catch (error) {
+      console.error('视频上传失败:', error);
+      
+      // 检查是否是超时错误
+      if (error instanceof Error && error.name === 'AbortError') {
+        const timeoutMinutes = Math.round(timeoutMs / 60000);
+        throw new Error(`视频上传超时，超过（${timeoutMinutes}分钟），请报告给Video2SOP管理员。`);
+      }
+      
+      throw error;
     }
   }, [clientSessionId]);
 
   // 提取音频
   const extractAudio = useCallback(async (videoUrl: string, sessionId: string) => {
-    const response = await fetch(API_ENDPOINTS.EXTRACT_AUDIO, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        video_url: videoUrl,
-        session_id: sessionId,
-        client_session_id: clientSessionId
-      })
-    });
+    // 从环境变量获取超时时间，默认5分钟
+    const timeoutMs = parseInt(process.env.NEXT_PUBLIC_AUDIO_EXTRACT_TIMEOUT || '300000', 10);
+    
+    try {
+      // 创建AbortController用于超时控制
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      
+      const response = await fetch(API_ENDPOINTS.EXTRACT_AUDIO, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          video_url: videoUrl,
+          session_id: sessionId,
+          client_session_id: clientSessionId
+        }),
+        mode: 'cors',
+        credentials: 'omit',
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
 
-    const data = await response.json();
-    if (data.success) {
-      return data.audio_url;
-    } else {
-      throw new Error('音频提取失败');
+      const data = await response.json();
+      if (data.success) {
+        return data.audio_url;
+      } else {
+        throw new Error('音频提取失败');
+      }
+    } catch (error) {
+      console.error('音频提取失败:', error);
+      
+      // 检查是否是超时错误
+      if (error instanceof Error && error.name === 'AbortError') {
+        const timeoutMinutes = Math.round(timeoutMs / 60000);
+        throw new Error(`音频提取超时，超过（${timeoutMinutes}分钟），请报告给Video2SOP管理员。`);
+      }
+      
+      throw error;
     }
   }, [clientSessionId]);
 
@@ -400,7 +456,9 @@ export default function VideoUploader({
       // 从后端获取示例视频
       const response = await fetch(API_ENDPOINTS.LOAD_EXAMPLE_VIDEO, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        mode: 'cors',
+        credentials: 'omit'
       });
       
       const data = await response.json();

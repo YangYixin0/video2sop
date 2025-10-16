@@ -220,7 +220,14 @@ export default function Home() {
 
   // 语音识别处理函数
   const handleSpeechRecognition = async (audioUrl: string) => {
+    // 从环境变量获取超时时间，默认5分钟
+    const timeoutMs = parseInt(process.env.NEXT_PUBLIC_SPEECH_RECOGNITION_TIMEOUT || '300000', 10);
+    
     try {
+      // 创建AbortController用于超时控制
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      
       const response = await fetch(API_ENDPOINTS.SPEECH_RECOGNITION, {
         method: 'POST',
         headers: {
@@ -229,8 +236,13 @@ export default function Home() {
         body: JSON.stringify({
           audio_url: audioUrl,
           client_session_id: clientSessionId
-        })
+        }),
+        mode: 'cors',
+        credentials: 'omit',
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -245,6 +257,13 @@ export default function Home() {
       return speechResults;
     } catch (error) {
       console.error('语音识别失败:', error);
+      
+      // 检查是否是超时错误
+      if (error instanceof Error && error.name === 'AbortError') {
+        const timeoutMinutes = Math.round(timeoutMs / 60000);
+        throw new Error(`语音识别超时，超过（${timeoutMinutes}分钟），请报告给Video2SOP管理员。`);
+      }
+      
       throw error;
     }
   };
@@ -256,9 +275,16 @@ export default function Home() {
     fps: number;
     audio_transcript?: string;
   }) => {
+    // 从环境变量获取超时时间，默认30分钟
+    const timeoutMs = parseInt(process.env.NEXT_PUBLIC_VIDEO_UNDERSTANDING_TIMEOUT || '1800000', 10);
+    
     try {
       // 保存用户提示词
       setVideoUnderstandingPrompt(params.prompt);
+      
+      // 创建AbortController用于超时控制
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
       
       const response = await fetch(API_ENDPOINTS.VIDEO_UNDERSTANDING, {
         method: 'POST',
@@ -268,8 +294,13 @@ export default function Home() {
         body: JSON.stringify({
           ...params,
           client_session_id: clientSessionId
-        })
+        }),
+        mode: 'cors',
+        credentials: 'omit',
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -284,15 +315,34 @@ export default function Home() {
       return videoResult;
     } catch (error) {
       console.error('视频理解失败:', error);
+      
+      // 检查是否是超时错误
+      if (error instanceof Error && error.name === 'AbortError') {
+        const timeoutMinutes = Math.round(timeoutMs / 60000);
+        throw new Error(`视频理解超时，超过（${timeoutMinutes}分钟），请报告给Video2SOP管理员。复杂视频的理解可能需要更长时间。`);
+      }
+      
+      // 检查是否是网络错误
+      if (error instanceof Error && error.message.includes('Failed to fetch')) {
+        throw new Error('视频理解失败：网络连接问题或服务器错误。请检查网络连接后重试，或联系管理员。');
+      }
+      
       throw error;
     }
   };
 
   // SOP解析处理函数
   const handleParseSOP = async (manuscript: string) => {
+    // 从环境变量获取超时时间，默认20分钟
+    const timeoutMs = parseInt(process.env.NEXT_PUBLIC_SOP_PARSE_TIMEOUT || '1200000', 10);
+    
     try {
       // 保存解析提示词（使用默认提示词）
       setSopParsePrompt('解析SOP草稿为结构化区块');
+      
+      // 创建AbortController用于超时控制
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
       
       const response = await fetch(API_ENDPOINTS.PARSE_SOP, {
         method: 'POST',
@@ -305,8 +355,11 @@ export default function Home() {
         }),
         // 添加代理绕过设置
         mode: 'cors',
-        credentials: 'omit'
+        credentials: 'omit',
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -316,15 +369,29 @@ export default function Home() {
       return result.result;
     } catch (error) {
       console.error('SOP解析失败:', error);
+      
+      // 检查是否是超时错误
+      if (error instanceof Error && error.name === 'AbortError') {
+        const timeoutMinutes = Math.round(timeoutMs / 60000);
+        throw new Error(`SOP解析超时，超过（${timeoutMinutes}分钟），请报告给Video2SOP管理员。`);
+      }
+      
       throw error;
     }
   };
 
   // SOP精修处理函数
   const handleRefineSOP = async (blocks: SOPBlock[], userNotes: string) => {
+    // 从环境变量获取超时时间，默认20分钟
+    const timeoutMs = parseInt(process.env.NEXT_PUBLIC_SOP_REFINE_TIMEOUT || '1200000', 10);
+    
     try {
       // 保存精修提示词
       setSopRefinePrompt(userNotes || 'AI精修SOP内容');
+      
+      // 创建AbortController用于超时控制
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
       
       const response = await fetch(API_ENDPOINTS.REFINE_SOP, {
         method: 'POST',
@@ -338,8 +405,11 @@ export default function Home() {
         }),
         // 添加代理绕过设置
         mode: 'cors',
-        credentials: 'omit'
+        credentials: 'omit',
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -354,6 +424,13 @@ export default function Home() {
       return result.result;
     } catch (error) {
       console.error('SOP精修失败:', error);
+      
+      // 检查是否是超时错误
+      if (error instanceof Error && error.name === 'AbortError') {
+        const timeoutMinutes = Math.round(timeoutMs / 60000);
+        throw new Error(`SOP精修超时，超过（${timeoutMinutes}分钟），请报告给Video2SOP管理员。`);
+      }
+      
       throw error;
     }
   };

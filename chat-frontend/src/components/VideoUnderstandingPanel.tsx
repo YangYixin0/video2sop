@@ -288,7 +288,7 @@ export default function VideoUnderstandingPanel({
               className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             <span className="text-sm text-gray-600">
-              表示每隔 1/{fps} 秒抽取一帧，值越小分析越详细但处理时间越长
+              表示每1秒视频中抽取 {fps} 帧用于理解。FPS值越大，理解越可靠，但处理时间越长
             </span>
           </div>
         </div>

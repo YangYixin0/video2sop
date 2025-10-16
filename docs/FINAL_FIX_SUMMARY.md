@@ -84,8 +84,8 @@ WebSocket 连接已建立
 
 2. **连接测试**:
    ```bash
-   cd /root/app
-   python test_connection.py
+cd /root/video2sop
+python tests/test_connection.py
    ```
 
 3. **浏览器测试**:
@@ -113,8 +113,8 @@ WebSocket 连接已建立
 
 1. **启动服务**:
    ```bash
-   cd /root/app
-   ./start_services_fixed.sh
+cd /root/video2sop
+./start_services_fixed.sh
    ```
 
 2. **访问应用**: http://127.0.0.1:50001

@@ -57,7 +57,7 @@
 
 ### 1. 配置环境变量
 
-编辑 `/root/app/.env` 文件：
+编辑 `/root/video2sop/.env` 文件：
 ```env
 # 必需的大模型配置
 DASHSCOPE_API_KEY=your_dashscope_api_key_here
@@ -68,12 +68,15 @@ OSS_ACCESS_KEY_SECRET=your_oss_access_key_secret
 OSS_ENDPOINT=your_oss_endpoint
 OSS_BUCKET_NAME=your_bucket_name
 
+# 示例视频配置（可选，用于演示功能）
+EXAMPLE_VIDEO_PATH=/root/video2sop/temp/video_example/pressing_operation.mp4
+
 # 可选的 LangSmith 调试配置
 LANGSMITH_API_KEY=your_langsmith_api_key_here
 LANGSMITH_TRACING=true
 LANGSMITH_PROJECT=video2sop
 ```
-编辑 `/root/app/chat-frontend/.env.local` 文件：
+编辑 `/root/video2sop/chat-frontend/.env.local` 文件：
 ```env
 # WebSocket 地址，用于与后端实时通信
 # 统一架构：开发和生产环境都通过 Nginx 代理
@@ -82,6 +85,20 @@ NEXT_PUBLIC_WS_URL=ws://127.0.0.1:50001/ws
 # API 地址
 # 统一架构：开发和生产环境都通过 Nginx 代理
 NEXT_PUBLIC_API_URL=http://127.0.0.1:50001
+
+# 各功能超时时间配置（毫秒，可选）
+# 视频理解超时时间，默认1800000（30分钟）
+NEXT_PUBLIC_VIDEO_UNDERSTANDING_TIMEOUT=1800000
+# 语音识别超时时间，默认300000（5分钟）
+NEXT_PUBLIC_SPEECH_RECOGNITION_TIMEOUT=300000
+# SOP解析超时时间，默认1200000（20分钟）
+NEXT_PUBLIC_SOP_PARSE_TIMEOUT=1200000
+# SOP精修超时时间，默认1200000（20分钟）
+NEXT_PUBLIC_SOP_REFINE_TIMEOUT=1200000
+# 视频上传超时时间，默认600000（10分钟）
+NEXT_PUBLIC_VIDEO_UPLOAD_TIMEOUT=600000
+# 音频提取超时时间，默认300000（5分钟）
+NEXT_PUBLIC_AUDIO_EXTRACT_TIMEOUT=300000
 
 # 联系方式（可选）
 NEXT_PUBLIC_AUTHOR_EMAIL=your-email@example.com
@@ -92,18 +109,19 @@ NEXT_PUBLIC_APP_GITHUB=https://github.com/your-repo/video2sop
 - 🌐 **统一配置**：开发和生产环境使用相同的环境变量配置
 - 🔄 **自动管理**：启动脚本会自动创建和更新 `.env.local` 文件
 - 🚀 **无需切换**：代码修改后可直接部署，无需修改环境变量
+- ⏱️ **超时控制**：各功能的超时时间可通过环境变量灵活配置，Nginx代理超时已优化为30分钟以支持长时间AI处理
 
 ### 2. 一键启动
 
 **开发模式启动:**
 ```bash
-cd /root/app
+cd /root/video2sop
 ./start_services.sh
 ```
 
 **停止服务:**
 ```bash
-cd /root/app
+cd /root/video2sop
 ./stop_services.sh
 ```
 
@@ -127,14 +145,14 @@ cd /root/app
 
 **启动后端服务:**
 ```bash
-cd /root/app/langgraph-agent
+cd /root/video2sop/langgraph-agent
 pip install -r requirements.txt
 python main.py
 ```
 
 **启动前端服务:**
 ```bash
-cd /root/app/chat-frontend
+cd /root/video2sop/chat-frontend
 npm install
 npm run dev
 ```
@@ -145,18 +163,19 @@ npm run dev
 
 ```bash
 # 启动命令
-cd /root/app && ./start_services_persistent.sh
+cd /root/video2sop && ./start_services_persistent.sh
 
 # 服务端口配置
-前端服务: 50001
-后端服务: 8123
+前端服务: 50001 (通过Nginx代理)
+后端服务: 8123 (内部)
 ```
 
 **部署特点:**
 - 🐳 **容器化设计**: 后端服务作为主进程，确保容器不会退出
 - 🔧 **智能构建**: 自动尝试生产构建，失败时回退到开发模式
-- 📝 **日志管理**: 所有日志输出到 `/root/app/logs/` 目录
+- 📝 **日志管理**: 所有日志输出到 `/root/video2sop/logs/` 目录
 - 🌐 **环境变量配置**: 支持通过环境变量配置API地址，适应不同部署环境
+- 🔌 **WebSocket支持**: 通过Nginx代理WebSocket连接，解决玻尔平台代理拦截问题
 
 **环境变量配置:**
 ```bash
@@ -166,6 +185,20 @@ NEXT_PUBLIC_API_URL=http://127.0.0.1:50001    # API地址（通过Nginx）
 NEXT_PUBLIC_AUTHOR_EMAIL=your-email@example.com  # 作者邮箱
 NEXT_PUBLIC_APP_GITHUB=https://github.com/your-repo/video2sop  # GitHub仓库
 ```
+
+**部署后状态检查:**
+```bash
+# 运行状态检查脚本
+cd /root/video2sop
+./check_deployment_status.sh
+```
+
+**玻尔平台特殊配置:**
+- ✅ **端口限制**: 仅50001端口对外开放，内部有一定代理拦截
+- ✅ **代理拦截**: Nginx反向代理尝试解决WebSocket连接问题
+- ✅ **容器持久化**: 后端服务作为主进程保持容器运行
+- ✅ **自动依赖安装**: 脚本自动安装Node.js、npm、FFmpeg等依赖
+- ✅ **环境变量检查**: 启动前验证DASHSCOPE_API_KEY和OSS配置
 
 ### 5. 访问应用
 
@@ -177,7 +210,7 @@ NEXT_PUBLIC_APP_GITHUB=https://github.com/your-repo/video2sop  # GitHub仓库
 ## 📁 项目结构
 
 ```
-/root/app/
+/root/video2sop/
 ├── langgraph-agent/                    # 后端服务
 │   ├── main.py                        # FastAPI 主应用
 │   ├── agent.py                       # LangGraph Agent
@@ -210,9 +243,16 @@ NEXT_PUBLIC_APP_GITHUB=https://github.com/your-repo/video2sop  # GitHub仓库
 │   │   ├── qwen3_vl_plus_video.py  # 视频理解参考实现
 │   │   └── paraformer-v2.py        # 语音识别参考实现
 │   └── manuscript_video_understanding/  # 生成的文档示例
+├── tests/                          # 测试文件
+│   ├── test_*.py                   # Python测试脚本
+│   └── test_*.html                 # HTML测试页面
+├── docs/                           # 文档文件
+│   └── *.md                        # 技术文档
 ├── start_services.sh                # 标准启动脚本
 ├── start_services_persistent.sh     # 持久化启动脚本
 ├── stop_services.sh                 # 停止服务脚本
+├── nginx.conf                       # Nginx配置文件
+├── app.service                      # 系统服务配置
 ├── TROUBLESHOOTING.md               # 故障排除指南
 └── .env                            # 环境变量配置
 ```
@@ -257,6 +297,43 @@ curl http://127.0.0.1:50001/api/sessions/stats
 - **Agent实例池**：3个独立的QwenAgent实例，轮流分配给新会话
 - **自动清理**：创建新会话时自动清理1小时未活动的过期会话
 - **并发安全**：使用asyncio.to_thread确保同步API调用不阻塞事件循环
+
+## ⏱️ 超时配置说明
+
+### 超时配置策略
+
+系统采用**分层超时控制**策略，确保长时间运行的AI处理任务能够正常完成：
+
+| 层级 | 配置位置 | 超时时间 | 说明 |
+|------|----------|----------|------|
+| **前端控制** | `.env.local` | 各功能独立配置 | 精确控制每个功能的超时时间 |
+| **Nginx代理** | `nginx.conf` | 30分钟 (1800s) | 统一代理超时，支持所有API请求 |
+| **后端处理** | 无限制 | 无限制 | 后端服务无超时限制 |
+
+### 当前超时配置
+
+| 功能 | 前端超时 | 设计理由 |
+|------|----------|----------|
+| **视频理解** | 30分钟 | 调用Qwen3-VL-Plus，处理复杂视频内容 |
+| **SOP解析** | 20分钟 | 调用qwen-plus，处理长视频内容 |
+| **SOP精修** | 20分钟 | 调用qwen-plus，处理长视频内容 |
+| **视频上传** | 10分钟 | 大文件上传，通常较快完成 |
+| **语音识别** | 5分钟 | 调用Paraformer-V2，处理较快 |
+| **音频提取** | 5分钟 | FFmpeg处理，通常很快 |
+
+### 自定义超时配置
+
+如需调整超时时间，修改 `chat-frontend/.env.local` 文件：
+
+```env
+# 例如：将视频理解超时改为45分钟
+NEXT_PUBLIC_VIDEO_UNDERSTANDING_TIMEOUT=2700000
+
+# 例如：将SOP解析超时改为30分钟
+NEXT_PUBLIC_SOP_PARSE_TIMEOUT=1800000
+```
+
+**注意**：Nginx代理超时已设置为30分钟，如需更长的处理时间，请同时调整Nginx配置。
 
 ## 🔧 API 文档
 
@@ -392,6 +469,10 @@ curl http://127.0.0.1:50001/api/sessions/stats
    
    # 重启Nginx
    nginx -s reload
+   
+   # 完全重启Nginx（应用新配置）
+   nginx -s stop
+   nginx
    ```
 
 7. **统一架构部署问题**
@@ -412,19 +493,29 @@ curl http://127.0.0.1:50001/api/sessions/stats
 
 13. **会话超时** - 会话1小时无活动会自动清理，重新操作即可
 
-14. **玻尔平台部署失败** - 确保使用正确的启动命令：`cd /root/app && ./start_services_persistent.sh`
+14. **玻尔平台部署失败** - 确保使用正确的启动命令：`cd /root/video2sop && ./start_services_persistent.sh`
 
-15. **容器退出** - 检查后端服务是否正常启动，查看 `/root/app/logs/backend.log` 日志
+15. **容器退出** - 检查后端服务是否正常启动，查看 `/root/video2sop/logs/backend.log` 日志
 
 16. **前端连接不到后端** - 检查环境变量配置，确保 `NEXT_PUBLIC_API_URL` 和 `NEXT_PUBLIC_WS_URL` 正确设置为50001端口
 
 17. **统一架构API连接失败** - 使用Nginx反向代理后，所有请求都通过50001端口，无需修改API地址
 
+18. **视频理解超时问题** - Nginx代理超时已优化为30分钟，支持长时间AI处理；可通过环境变量调整各功能超时时间
+
+19. **API请求超时** - 如果遇到"upstream timed out"错误，检查Nginx配置中的proxy_read_timeout设置
+
+20. **玻尔平台WebSocket连接失败** - 使用Nginx反向代理解决，确保WebSocket通过50001端口访问
+
+21. **容器部署后无法访问** - 运行 `./check_deployment_status.sh` 检查服务状态，确保所有服务正常运行
+
+22. **玻尔平台代理拦截** - 所有请求通过Nginx在50001端口统一处理，避免直接访问内部端口
+
 ## 🧪 测试
 
 ### 测试 WebSocket 连接
 ```bash
-cd /root/app/langgraph-agent
+cd /root/video2sop/langgraph-agent
 python -c "
 import asyncio
 import websockets
@@ -462,8 +553,8 @@ curl --noproxy '*' http://127.0.0.1:50001/api/sessions/stats
 
 ### 完整连接测试
 ```bash
-cd /root/app
-python test_connection.py
+cd /root/video2sop
+python tests/test_connection.py
 ```
 
 ## 📝 开发说明
@@ -490,15 +581,15 @@ python test_connection.py
 
 ## 🔄 更新日志
 
-- **v1.5.0** - Nginx反向代理配置
-  - 添加Nginx反向代理，解决玻尔平台WebSocket代理拦截问题
-  - 统一开发和生产环境架构，都使用Nginx反向代理
-  - 前端端口从50001改为3000，通过Nginx在50001端口统一代理
-  - 统一端口暴露（仅50001端口对外），前端和后端通过内部端口通信
-  - 为所有API端点添加 `/api` 前缀，便于Nginx路由管理
-  - 更新CORS配置，支持玻尔平台域名访问
-  - 环境变量配置统一，开发和生产环境使用相同的配置
-  - 优化启动脚本，自动安装和配置Nginx
+- **v1.5.0** - Nginx反向代理配置和项目结构优化
+  - 添加Nginx反向代理，统一开发和生产环境架构，解决玻尔平台WebSocket代理拦截问题
+  - 重构端口配置：前端3000端口，通过Nginx在50001端口统一代理，仅50001端口对外暴露
+  - 为所有API端点添加 `/api` 前缀，更新CORS配置支持玻尔平台域名访问
+  - 重新组织项目结构，创建tests和docs文件夹，统一项目路径从/root/app到/root/video2sop
+  - 优化启动脚本，自动安装Nginx、Node.js、npm、FFmpeg等依赖，增强环境变量检查
+  - 修复前端CORS配置问题，优化超时处理：支持环境变量配置各功能超时时间
+  - 修复Nginx代理超时问题，将API代理超时从60秒优化为30分钟。所有功能的时间限制都受此限制。
+  - 优化示例视频功能，支持环境变量配置示例视频路径
 
 - **v1.4.0** - 视频保留功能和容器化部署优化
   - 实现视频保留功能，用户可选择保留视频用于分析

@@ -8,7 +8,7 @@ import os
 import json
 
 # 添加langgraph-agent目录到Python路径
-sys.path.append('/root/app/langgraph-agent')
+sys.path.append('/root/video2sop/langgraph-agent')
 
 from sop_parser_tool import sop_parser
 

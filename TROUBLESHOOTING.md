@@ -32,7 +32,7 @@ curl -I --noproxy '*' http://127.0.0.1:50001
 **解决方案 A: 使用 127.0.0.1 而不是 localhost**
 ```bash
 # 修改前端环境变量
-echo "NEXT_PUBLIC_WS_URL=ws://127.0.0.1:8123/ws" > /root/app/chat-frontend/.env.local
+echo "NEXT_PUBLIC_WS_URL=ws://127.0.0.1:8123/ws" > /root/video2sop/chat-frontend/.env.local
 ```
 
 **解决方案 B: 在浏览器中禁用代理**
@@ -60,7 +60,7 @@ firewall-cmd --reload
 
 #### 5. 手动测试 WebSocket 连接
 ```bash
-cd /root/app/langgraph-agent
+cd /root/video2sop/langgraph-agent
 python -c "
 import asyncio
 import websockets
@@ -84,7 +84,7 @@ asyncio.run(test_ws())
 ## 环境变量配置
 
 ### 必需的配置
-在 `/root/app/.env` 文件中：
+在 `/root/video2sop/.env` 文件中：
 ```env
 DASHSCOPE_API_KEY=your_dashscope_api_key_here
 ```
@@ -129,7 +129,7 @@ LANGSMITH_PROJECT=langgraph-agent-chat
 
 **推荐方式（修复版）**:
 ```bash
-cd /root/app
+cd /root/video2sop
 ./start_services_fixed.sh
 ```
 
@@ -140,7 +140,7 @@ pkill -f "uvicorn main:app"
 pkill -f "next dev"
 
 # 重新启动
-cd /root/app
+cd /root/video2sop
 ./start_services.sh
 ```
 
@@ -148,8 +148,8 @@ cd /root/app
 
 使用测试工具检查连接状态：
 ```bash
-cd /root/app
-python test_connection.py
+cd /root/video2sop
+python tests/test_connection.py
 ```
 
 测试工具会检查：

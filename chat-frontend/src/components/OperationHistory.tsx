@@ -94,7 +94,9 @@ export default function OperationHistory({
         body: JSON.stringify({
           session_id: sessionId,
           client_session_id: clientSessionId
-        })
+        }),
+        mode: 'cors',
+        credentials: 'omit'
       });
 
       if (!response.ok) {

@@ -5,9 +5,9 @@ After=network.target
 [Service]
 Type=forking
 User=root
-WorkingDirectory=/root/app
-ExecStart=/root/app/start_services_persistent.sh
-ExecStop=/root/app/stop_services.sh
+WorkingDirectory=/root/video2sop
+ExecStart=/root/video2sop/start_services_persistent.sh
+ExecStop=/root/video2sop/stop_services.sh
 Restart=always
 RestartSec=10
 

@@ -4,10 +4,10 @@
 """
 import sys
 import os
-sys.path.append('/root/app/langgraph-agent')
+sys.path.append('/root/video2sop/langgraph-agent')
 
 from dotenv import load_dotenv
-load_dotenv('/root/app/.env')
+load_dotenv('/root/video2sop/.env')
 
 def test_generate_session_id():
     """测试生成会话 ID"""

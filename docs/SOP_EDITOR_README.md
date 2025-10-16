@@ -99,8 +99,8 @@ langgraph-agent/
 
 ### 1. 测试功能
 ```bash
-cd /root/app
-python test_sop_functionality.py
+cd /root/video2sop
+python tests/test_sop_functionality.py
 ```
 
 ### 2. 启动服务

@@ -4,11 +4,11 @@
 """
 import sys
 import os
-sys.path.append('/root/app/langgraph-agent')
+sys.path.append('/root/video2sop/langgraph-agent')
 
 # 加载环境变量
 from dotenv import load_dotenv
-load_dotenv('/root/app/.env')
+load_dotenv('/root/video2sop/.env')
 
 from oss_manager import generate_session_id, check_oss_config
 

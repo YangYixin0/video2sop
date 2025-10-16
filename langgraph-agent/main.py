@@ -38,6 +38,11 @@ app.add_middleware(
         "http://www.bohrium.com",
         "http://maqp1391303.bohrium.tech:50001",
         "http://maqp1391303.bohrium.tech",
+        "http://pdtd1393499.bohrium.tech",
+        "https://pdtd1393499.bohrium.tech",
+        "http://pdtd1393499.bohrium.tech:50001",
+        "https://pdtd1393499.bohrium.tech:50001",
+        "*",  # 临时允许所有源，用于调试
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -326,8 +331,8 @@ async def load_example_video_endpoint():
         import shutil
         from pathlib import Path
         
-        # 示例视频路径
-        example_video_path = "/root/app/temp/video_example/pressing_operation.mp4"
+        # 示例视频路径（从环境变量读取）
+        example_video_path = os.getenv('EXAMPLE_VIDEO_PATH')
         
         # 检查示例视频文件是否存在
         if not os.path.exists(example_video_path):
@@ -436,6 +441,15 @@ async def video_understanding_endpoint(request: dict):
             raise HTTPException(status_code=400, detail="缺少 video_url 参数")
         if not prompt:
             raise HTTPException(status_code=400, detail="缺少 prompt 参数")
+        
+        # 验证视频URL是否可访问
+        try:
+            import requests
+            response = requests.head(video_url, timeout=10)
+            if response.status_code != 200:
+                raise HTTPException(status_code=400, detail=f"视频文件无法访问，状态码: {response.status_code}")
+        except requests.RequestException as e:
+            raise HTTPException(status_code=400, detail=f"视频URL验证失败: {str(e)}")
         
         # 确保fps是整数且在合理范围内
         try:
