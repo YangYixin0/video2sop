@@ -651,19 +651,12 @@ python tests/test_connection.py
 
 ## 🔄 更新日志
 
-- **v1.5.2** - 玻尔平台相对路径配置优化
+- **v1.6.0** - 玻尔平台相对路径配置优化
   - 修改生产环境启动脚本使用相对路径配置，解决玻尔平台WebSocket连接失败问题
   - 前端环境变量改为相对路径：`NEXT_PUBLIC_WS_URL=/ws` 和 `NEXT_PUBLIC_API_URL=./api`
   - 重构API端点配置：移除API端点中的 `/api` 前缀，通过环境变量统一控制
   - 修复API路径解析问题：使用 `./api` 避免相对路径被错误解析为 `https://api/...`
-  - 移除服务器IP地址硬编码，适配玻尔平台反向代理机制
   - 实现多环境配置文件管理：创建 `.env.development` 和 `.env.production` 文件并加入git跟踪
-  - 自动环境选择：启动脚本根据环境自动选择正确的配置文件
-  - 增强诊断脚本：check_deployment_status.sh和test_websocket_config.sh支持环境自动检测
-  - 区分开发和生产环境配置：开发环境使用本地地址，生产环境使用相对路径
-  - 修复启动脚本语法错误：清理冗余的环境变量检查代码
-  - 重要说明补充：明确启动脚本会覆盖 `.env.local` 文件的行为
-  - 更新文档：添加玻尔平台部署配置说明和相对路径架构说明
 
 - **v1.5.1** - 玻尔平台WebSocket连接优化和部署工具完善
   - 按照玻尔官方建议优化Nginx WebSocket代理配置，添加proxy_cache_bypass $http_upgrade关键设置
