@@ -162,22 +162,44 @@ else
 fi
 
 # 检查前端环境变量
+echo -e "\n${BLUE}📁 环境配置文件检查${NC}"
+echo "--------------------------------"
+
+# 检查环境配置文件
+if [ -f "/root/video2sop/chat-frontend/.env.production" ]; then
+    echo -e ".env.production: ${GREEN}✅ 存在${NC}"
+else
+    echo -e ".env.production: ${YELLOW}⚠️  不存在${NC}"
+fi
+
+if [ -f "/root/video2sop/chat-frontend/.env.development" ]; then
+    echo -e ".env.development: ${GREEN}✅ 存在${NC}"
+else
+    echo -e ".env.development: ${YELLOW}⚠️  不存在${NC}"
+fi
+
 if [ -f "/root/video2sop/chat-frontend/.env.local" ]; then
-    echo -e ".env.local文件: ${GREEN}✅ 存在${NC}"
+    echo -e ".env.local: ${GREEN}✅ 存在${NC}"
     
-    if grep -q "NEXT_PUBLIC_WS_URL=ws://127.0.0.1:50001/ws" /root/video2sop/chat-frontend/.env.local; then
-        echo -e "  WebSocket URL: ${GREEN}✅ 正确配置${NC}"
+    # 检查WebSocket URL配置
+    if grep -q "NEXT_PUBLIC_WS_URL=/ws" /root/video2sop/chat-frontend/.env.local; then
+        echo -e "  WebSocket URL: ${GREEN}✅ 相对路径配置 (生产环境)${NC}"
+    elif grep -q "NEXT_PUBLIC_WS_URL=ws://127.0.0.1:50001/ws" /root/video2sop/chat-frontend/.env.local; then
+        echo -e "  WebSocket URL: ${GREEN}✅ 本地配置 (开发环境)${NC}"
     else
         echo -e "  WebSocket URL: ${RED}❌ 配置错误${NC}"
     fi
     
-    if grep -q "NEXT_PUBLIC_API_URL=http://127.0.0.1:50001" /root/video2sop/chat-frontend/.env.local; then
-        echo -e "  API URL: ${GREEN}✅ 正确配置${NC}"
+    # 检查API URL配置
+    if grep -q "NEXT_PUBLIC_API_URL=/" /root/video2sop/chat-frontend/.env.local; then
+        echo -e "  API URL: ${GREEN}✅ 相对路径配置 (生产环境)${NC}"
+    elif grep -q "NEXT_PUBLIC_API_URL=http://127.0.0.1:50001" /root/video2sop/chat-frontend/.env.local; then
+        echo -e "  API URL: ${GREEN}✅ 本地配置 (开发环境)${NC}"
     else
         echo -e "  API URL: ${RED}❌ 配置错误${NC}"
     fi
 else
-    echo -e ".env.local文件: ${RED}❌ 不存在${NC}"
+    echo -e ".env.local: ${RED}❌ 不存在${NC}"
 fi
 
 # 6. 检查日志文件

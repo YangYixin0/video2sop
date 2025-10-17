@@ -13,6 +13,27 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# 检测环境类型
+echo -e "\n${BLUE}🔍 环境检测${NC}"
+echo "--------------------------------"
+
+# 检查环境变量配置
+if [ -f "/root/video2sop/chat-frontend/.env.local" ]; then
+    if grep -q "NEXT_PUBLIC_WS_URL=/ws" /root/video2sop/chat-frontend/.env.local; then
+        ENV_TYPE="production"
+        echo -e "环境类型: ${GREEN}生产环境 (相对路径配置)${NC}"
+    elif grep -q "NEXT_PUBLIC_WS_URL=ws://127.0.0.1:50001/ws" /root/video2sop/chat-frontend/.env.local; then
+        ENV_TYPE="development"
+        echo -e "环境类型: ${GREEN}开发环境 (本地配置)${NC}"
+    else
+        ENV_TYPE="unknown"
+        echo -e "环境类型: ${YELLOW}未知配置${NC}"
+    fi
+else
+    ENV_TYPE="unknown"
+    echo -e "环境类型: ${YELLOW}无法检测 (.env.local不存在)${NC}"
+fi
+
 # 测试WebSocket连接
 echo -e "\n${BLUE}🧪 WebSocket连接测试${NC}"
 echo "--------------------------------"
@@ -86,4 +107,19 @@ echo "  3. 玻尔平台的代理设置"
 echo ""
 echo "🔧 重新加载Nginx配置："
 echo "  nginx -s reload"
+echo ""
+echo "📝 环境特定说明："
+if [ "$ENV_TYPE" = "production" ]; then
+    echo -e "  ${GREEN}生产环境${NC}: 使用相对路径配置，通过玻尔平台反向代理访问"
+    echo "  - WebSocket: wss://域名/ws"
+    echo "  - API: https://域名/api/..."
+    echo "  - 确保玻尔平台端口映射配置为50001"
+elif [ "$ENV_TYPE" = "development" ]; then
+    echo -e "  ${GREEN}开发环境${NC}: 使用本地配置，直接访问127.0.0.1:50001"
+    echo "  - WebSocket: ws://127.0.0.1:50001/ws"
+    echo "  - API: http://127.0.0.1:50001/api/..."
+    echo "  - 确保本地服务正常运行"
+else
+    echo -e "  ${YELLOW}未知环境${NC}: 请检查.env.local文件配置"
+fi
 

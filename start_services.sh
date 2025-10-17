@@ -142,10 +142,15 @@ else
     exit 1
 fi
 
-echo "🔧 配置环境变量..."
-# 智能处理 .env.local 文件，保留用户自定义配置
-if [ ! -f .env.local ]; then
-    echo "📝 创建新的 .env.local 文件"
+echo "🔧 配置环境变量（开发环境）..."
+# 检查是否存在开发环境配置文件
+if [ -f .env.development ]; then
+    echo "📝 使用开发环境配置文件 .env.development"
+    # 复制开发环境配置到 .env.local（Next.js 会优先使用 .env.local）
+    cp .env.development .env.local
+    echo "✅ 已应用开发环境配置"
+else
+    echo "⚠️  开发环境配置文件 .env.development 不存在，创建默认配置"
     cat > .env.local << EOF
 NEXT_PUBLIC_WS_URL=ws://127.0.0.1:50001/ws
 NEXT_PUBLIC_API_URL=http://127.0.0.1:50001
@@ -156,64 +161,6 @@ NEXT_PUBLIC_VIDEO_UNDERSTANDING_TIMEOUT=1800000
 NEXT_PUBLIC_SOP_PARSE_TIMEOUT=1200000
 NEXT_PUBLIC_SOP_REFINE_TIMEOUT=1200000
 EOF
-else
-    echo "📝 检查现有 .env.local 文件"
-    # 检查并添加必要的环境变量
-    if ! grep -q "NEXT_PUBLIC_WS_URL" .env.local; then
-        echo "NEXT_PUBLIC_WS_URL=ws://127.0.0.1:50001/ws" >> .env.local
-        echo "✅ 已添加 NEXT_PUBLIC_WS_URL 到现有 .env.local 文件"
-    else
-        echo "✅ .env.local 文件已包含 NEXT_PUBLIC_WS_URL，保持现有配置"
-    fi
-    
-    if ! grep -q "NEXT_PUBLIC_API_URL" .env.local; then
-        echo "NEXT_PUBLIC_API_URL=http://127.0.0.1:50001" >> .env.local
-        echo "✅ 已添加 NEXT_PUBLIC_API_URL 到现有 .env.local 文件"
-    else
-        echo "✅ .env.local 文件已包含 NEXT_PUBLIC_API_URL，保持现有配置"
-    fi
-    
-    if ! grep -q "NEXT_PUBLIC_VIDEO_UNDERSTANDING_TIMEOUT" .env.local; then
-        echo "NEXT_PUBLIC_VIDEO_UNDERSTANDING_TIMEOUT=1800000" >> .env.local
-        echo "✅ 已添加 NEXT_PUBLIC_VIDEO_UNDERSTANDING_TIMEOUT 到现有 .env.local 文件"
-    else
-        echo "✅ .env.local 文件已包含 NEXT_PUBLIC_VIDEO_UNDERSTANDING_TIMEOUT，保持现有配置"
-    fi
-    
-    if ! grep -q "NEXT_PUBLIC_SPEECH_RECOGNITION_TIMEOUT" .env.local; then
-        echo "NEXT_PUBLIC_SPEECH_RECOGNITION_TIMEOUT=300000" >> .env.local
-        echo "✅ 已添加 NEXT_PUBLIC_SPEECH_RECOGNITION_TIMEOUT 到现有 .env.local 文件"
-    else
-        echo "✅ .env.local 文件已包含 NEXT_PUBLIC_SPEECH_RECOGNITION_TIMEOUT，保持现有配置"
-    fi
-    
-    if ! grep -q "NEXT_PUBLIC_SOP_PARSE_TIMEOUT" .env.local; then
-        echo "NEXT_PUBLIC_SOP_PARSE_TIMEOUT=1200000" >> .env.local
-        echo "✅ 已添加 NEXT_PUBLIC_SOP_PARSE_TIMEOUT 到现有 .env.local 文件"
-    else
-        echo "✅ .env.local 文件已包含 NEXT_PUBLIC_SOP_PARSE_TIMEOUT，保持现有配置"
-    fi
-    
-    if ! grep -q "NEXT_PUBLIC_SOP_REFINE_TIMEOUT" .env.local; then
-        echo "NEXT_PUBLIC_SOP_REFINE_TIMEOUT=1200000" >> .env.local
-        echo "✅ 已添加 NEXT_PUBLIC_SOP_REFINE_TIMEOUT 到现有 .env.local 文件"
-    else
-        echo "✅ .env.local 文件已包含 NEXT_PUBLIC_SOP_REFINE_TIMEOUT，保持现有配置"
-    fi
-    
-    if ! grep -q "NEXT_PUBLIC_VIDEO_UPLOAD_TIMEOUT" .env.local; then
-        echo "NEXT_PUBLIC_VIDEO_UPLOAD_TIMEOUT=600000" >> .env.local
-        echo "✅ 已添加 NEXT_PUBLIC_VIDEO_UPLOAD_TIMEOUT 到现有 .env.local 文件"
-    else
-        echo "✅ .env.local 文件已包含 NEXT_PUBLIC_VIDEO_UPLOAD_TIMEOUT，保持现有配置"
-    fi
-    
-    if ! grep -q "NEXT_PUBLIC_AUDIO_EXTRACT_TIMEOUT" .env.local; then
-        echo "NEXT_PUBLIC_AUDIO_EXTRACT_TIMEOUT=300000" >> .env.local
-        echo "✅ 已添加 NEXT_PUBLIC_AUDIO_EXTRACT_TIMEOUT 到现有 .env.local 文件"
-    else
-        echo "✅ .env.local 文件已包含 NEXT_PUBLIC_AUDIO_EXTRACT_TIMEOUT，保持现有配置"
-    fi
 fi
 
 # 安装 Node.js 和 npm（如果未安装）

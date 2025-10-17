@@ -71,12 +71,12 @@ OSS_BUCKET_NAME=your_bucket_name
 # 示例视频配置（可选，用于演示功能）
 EXAMPLE_VIDEO_PATH=/root/video2sop/temp/video_example/pressing_operation.mp4
 
-# 可选的 LangSmith 调试配置
+# LangSmith 调试配置（可选，用于LangGraph测试）
 LANGSMITH_API_KEY=your_langsmith_api_key_here
 LANGSMITH_TRACING=true
 LANGSMITH_PROJECT=video2sop
 ```
-编辑 `/root/video2sop/chat-frontend/.env.local` 文件：
+编辑 `/root/video2sop/chat-frontend/.env.development` 文件：
 ```env
 # WebSocket 地址，用于与后端实时通信
 # 统一架构：开发和生产环境都通过 Nginx 代理
@@ -125,6 +125,12 @@ cd /root/video2sop
 ./stop_services.sh
 ```
 
+**⚠️ 重要提醒**：
+- 启动脚本会**覆盖** `.env.local` 文件，使用预定义的环境配置
+- 如果手动修改了 `.env.local`，使用启动脚本会覆盖这些修改
+- 直接运行 `npm run dev` 或 `npm run start` 会使用现有的 `.env.local` 配置
+- 建议：要么使用启动脚本（自动配置），要么手动管理 `.env.local`（保留修改）
+
 ### 📊 启动方式对比
 
 | 特性 | 开发环境启动 | 生产环境启动 |
@@ -141,7 +147,61 @@ cd /root/video2sop
 | **端口暴露** | 仅50001端口对外 | 仅50001端口对外 |
 | **架构一致性** | ✅ 与生产环境完全一致 | ✅ 与开发环境完全一致 |
 
-### 3. 手动启动
+### 3. 玻尔平台部署配置
+
+#### 关键配置说明
+- **端口映射**: 在玻尔平台配置中明确指定端口映射为 `50001`
+- **反向代理**: 玻尔平台会自动将请求转发到容器的50001端口
+- **协议转换**: 玻尔平台自动处理HTTPS→HTTP和WSS→WS的协议转换
+- **相对路径**: 前端使用相对路径配置，无需硬编码服务器IP
+
+#### 前端环境变量配置
+
+系统使用多环境配置文件管理不同环境的配置：
+
+**环境文件结构**：
+```
+chat-frontend/
+├── .env.development    # 开发环境配置（提交到版本控制）
+├── .env.production     # 生产环境配置（提交到版本控制）
+└── .env.local          # 运行时配置（自动生成，不提交）
+```
+
+**生产环境配置** (`.env.production`)：
+```bash
+NEXT_PUBLIC_WS_URL=/ws          # WebSocket相对路径
+NEXT_PUBLIC_API_URL=./api       # API基础路径（使用./api避免相对路径解析问题）
+```
+
+**开发环境配置** (`.env.development`)：
+```bash
+NEXT_PUBLIC_WS_URL=ws://127.0.0.1:50001/ws    # WebSocket本地地址
+NEXT_PUBLIC_API_URL=http://127.0.0.1:50001    # API本地地址
+```
+
+**自动环境选择**：
+- 开发环境启动：自动使用 `.env.development` 配置
+- 生产环境启动：自动使用 `.env.production` 配置
+- 启动脚本会将对应环境配置复制到 `.env.local` 供 Next.js 使用
+
+**重要说明**：
+- 启动脚本会**覆盖** `.env.local` 文件，使用预定义的环境配置
+- 如果手动修改了 `.env.local` 文件，使用启动脚本会覆盖这些修改
+- 直接运行 `npm run dev` 或 `npm run start` 会使用现有的 `.env.local` 配置
+- 建议：要么使用启动脚本（自动配置），要么手动管理 `.env.local`（保留修改）
+
+#### 服务架构
+```
+用户浏览器 → 玻尔平台反向代理 → 容器50001端口(Nginx) → 后端服务
+```
+
+#### 部署步骤
+1. 构建Docker镜像
+2. 在玻尔平台配置端口映射为50001
+3. 部署容器
+4. 系统自动使用相对路径配置，无需手动设置IP地址
+
+### 4. 手动启动
 
 **启动后端服务:**
 ```bash
@@ -503,21 +563,23 @@ NEXT_PUBLIC_SOP_PARSE_TIMEOUT=1800000
 
 16. **前端连接不到后端** - 检查环境变量配置，确保 `NEXT_PUBLIC_API_URL` 和 `NEXT_PUBLIC_WS_URL` 正确设置为50001端口
 
-17. **统一架构API连接失败** - 使用Nginx反向代理后，所有请求都通过50001端口，无需修改API地址
+17. **环境配置不生效** - 启动脚本会覆盖 `.env.local` 文件；如果手动修改了配置，需要选择：使用启动脚本（覆盖修改）或直接运行npm（保留修改）
 
-18. **视频理解超时问题** - Nginx代理超时已优化为30分钟，支持长时间AI处理；可通过环境变量调整各功能超时时间
+18. **统一架构API连接失败** - 使用Nginx反向代理后，所有请求都通过50001端口，无需修改API地址
 
-19. **API请求超时** - 如果遇到"upstream timed out"错误，检查Nginx配置中的proxy_read_timeout设置
+19. **视频理解超时问题** - Nginx代理超时已优化为30分钟，支持长时间AI处理；可通过环境变量调整各功能超时时间
 
-20. **玻尔平台WebSocket连接失败** - 使用Nginx反向代理解决，确保WebSocket通过50001端口访问
+20. **API请求超时** - 如果遇到"upstream timed out"错误，检查Nginx配置中的proxy_read_timeout设置
 
-21. **容器部署后无法访问** - 运行 `./check_deployment_status.sh` 检查服务状态，确保所有服务正常运行
+21. **玻尔平台WebSocket连接失败** - 使用Nginx反向代理解决，确保WebSocket通过50001端口访问
 
-22. **玻尔平台代理拦截** - 所有请求通过Nginx在50001端口统一处理，避免直接访问内部端口
+22. **容器部署后无法访问** - 运行 `./check_deployment_status.sh` 检查服务状态，确保所有服务正常运行
 
-23. **WebSocket配置优化** - v1.5.1已添加玻尔官方建议的proxy_cache_bypass $http_upgrade配置，如仍有问题请运行test_websocket_config.sh诊断
+23. **玻尔平台代理拦截** - 所有请求通过Nginx在50001端口统一处理，避免直接访问内部端口
 
-24. **部署后状态检查** - 使用./check_deployment_status.sh脚本全面检查服务状态，包括进程、端口、健康检查等
+24. **WebSocket配置优化** - v1.5.1已添加玻尔官方建议的proxy_cache_bypass $http_upgrade配置，如仍有问题请运行test_websocket_config.sh诊断
+
+25. **部署后状态检查** - 使用./check_deployment_status.sh脚本全面检查服务状态，包括进程、端口、健康检查等
 
 ## 🧪 测试
 
@@ -588,6 +650,20 @@ python tests/test_connection.py
 - 严格的TypeScript类型检查
 
 ## 🔄 更新日志
+
+- **v1.5.2** - 玻尔平台相对路径配置优化
+  - 修改生产环境启动脚本使用相对路径配置，解决玻尔平台WebSocket连接失败问题
+  - 前端环境变量改为相对路径：`NEXT_PUBLIC_WS_URL=/ws` 和 `NEXT_PUBLIC_API_URL=./api`
+  - 重构API端点配置：移除API端点中的 `/api` 前缀，通过环境变量统一控制
+  - 修复API路径解析问题：使用 `./api` 避免相对路径被错误解析为 `https://api/...`
+  - 移除服务器IP地址硬编码，适配玻尔平台反向代理机制
+  - 实现多环境配置文件管理：创建 `.env.development` 和 `.env.production` 文件并加入git跟踪
+  - 自动环境选择：启动脚本根据环境自动选择正确的配置文件
+  - 增强诊断脚本：check_deployment_status.sh和test_websocket_config.sh支持环境自动检测
+  - 区分开发和生产环境配置：开发环境使用本地地址，生产环境使用相对路径
+  - 修复启动脚本语法错误：清理冗余的环境变量检查代码
+  - 重要说明补充：明确启动脚本会覆盖 `.env.local` 文件的行为
+  - 更新文档：添加玻尔平台部署配置说明和相对路径架构说明
 
 - **v1.5.1** - 玻尔平台WebSocket连接优化和部署工具完善
   - 按照玻尔官方建议优化Nginx WebSocket代理配置，添加proxy_cache_bypass $http_upgrade关键设置

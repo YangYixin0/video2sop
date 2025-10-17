@@ -15,25 +15,25 @@ export { API_BASE_URL, WS_BASE_URL };
 // 导出常用的API端点
 export const API_ENDPOINTS = {
   // 会话管理
-  GENERATE_SESSION_ID: `${API_BASE_URL}/api/generate_session_id`,
-  MARK_SESSION_KEEP_VIDEO: `${API_BASE_URL}/api/mark_session_keep_video`,
-  CHECK_SESSION_KEEP_VIDEO: `${API_BASE_URL}/api/check_session_keep_video`,
-  DELETE_SESSION_FILES: `${API_BASE_URL}/api/delete_session_files`,
+  GENERATE_SESSION_ID: `${API_BASE_URL}/generate_session_id`,
+  MARK_SESSION_KEEP_VIDEO: `${API_BASE_URL}/mark_session_keep_video`,
+  CHECK_SESSION_KEEP_VIDEO: `${API_BASE_URL}/check_session_keep_video`,
+  DELETE_SESSION_FILES: `${API_BASE_URL}/delete_session_files`,
   
   // 文件上传
-  GENERATE_UPLOAD_SIGNATURE: `${API_BASE_URL}/api/generate_upload_signature`,
-  UPLOAD_FILE_PROXY: `${API_BASE_URL}/api/upload_file_proxy`,
-  EXTRACT_AUDIO: `${API_BASE_URL}/api/extract_audio`,
-  LOAD_EXAMPLE_VIDEO: `${API_BASE_URL}/api/load_example_video`,
+  GENERATE_UPLOAD_SIGNATURE: `${API_BASE_URL}/generate_upload_signature`,
+  UPLOAD_FILE_PROXY: `${API_BASE_URL}/upload_file_proxy`,
+  EXTRACT_AUDIO: `${API_BASE_URL}/extract_audio`,
+  LOAD_EXAMPLE_VIDEO: `${API_BASE_URL}/load_example_video`,
   
   // AI 处理
-  SPEECH_RECOGNITION: `${API_BASE_URL}/api/speech_recognition`,
-  VIDEO_UNDERSTANDING: `${API_BASE_URL}/api/video_understanding`,
-  PARSE_SOP: `${API_BASE_URL}/api/parse_sop`,
-  REFINE_SOP: `${API_BASE_URL}/api/refine_sop`,
+  SPEECH_RECOGNITION: `${API_BASE_URL}/speech_recognition`,
+  VIDEO_UNDERSTANDING: `${API_BASE_URL}/video_understanding`,
+  PARSE_SOP: `${API_BASE_URL}/parse_sop`,
+  REFINE_SOP: `${API_BASE_URL}/refine_sop`,
   
   // 健康检查
-  HEALTH: `${API_BASE_URL}/api/health`,
+  HEALTH: `${API_BASE_URL}/health`,
 } as const;
 
 // WebSocket 端点
