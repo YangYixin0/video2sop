@@ -86,3 +86,4 @@ echo "  3. 玻尔平台的代理设置"
 echo ""
 echo "🔧 重新加载Nginx配置："
 echo "  nginx -s reload"
+

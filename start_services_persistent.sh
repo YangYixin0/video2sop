@@ -15,9 +15,70 @@ pkill -f "next dev" 2>/dev/null
 pkill -f "npm run dev" 2>/dev/null
 pkill -f "npm run start" 2>/dev/null
 pkill -f "next start" 2>/dev/null
+pkill -f "uvicorn main:app" 2>/dev/null
+pkill -f "next-server" 2>/dev/null
+
+# 强制清理端口占用
+echo "🔍 检查端口占用..."
+if netstat -tlnp 2>/dev/null | grep -q ":50001 "; then
+    echo "⚠️  端口50001被占用，正在清理..."
+    PID=$(netstat -tlnp 2>/dev/null | grep ":50001 " | awk '{print $7}' | cut -d'/' -f1)
+    if [ -z "$PID" ] || [ "$PID" = "-" ]; then
+        if command -v fuser >/dev/null 2>&1; then
+            PID=$(fuser 50001/tcp 2>/dev/null)
+        elif command -v lsof >/dev/null 2>&1; then
+            PID=$(lsof -ti:50001 2>/dev/null)
+        fi
+    fi
+    if [ ! -z "$PID" ] && [ "$PID" != "-" ]; then
+        echo "🔧 终止进程 $PID"
+        kill -9 $PID 2>/dev/null || true
+    else
+        echo "⚠️  无法获取端口50001的进程ID，尝试强制清理nginx进程"
+        pkill -f nginx 2>/dev/null || true
+    fi
+fi
+
+if netstat -tlnp 2>/dev/null | grep -q ":3000 "; then
+    echo "⚠️  端口3000被占用，正在清理..."
+    PID=$(netstat -tlnp 2>/dev/null | grep ":3000 " | awk '{print $7}' | cut -d'/' -f1)
+    if [ -z "$PID" ] || [ "$PID" = "-" ]; then
+        if command -v fuser >/dev/null 2>&1; then
+            PID=$(fuser 3000/tcp 2>/dev/null)
+        elif command -v lsof >/dev/null 2>&1; then
+            PID=$(lsof -ti:3000 2>/dev/null)
+        fi
+    fi
+    if [ ! -z "$PID" ] && [ "$PID" != "-" ]; then
+        echo "🔧 终止进程 $PID"
+        kill -9 $PID 2>/dev/null || true
+    else
+        echo "⚠️  无法获取端口3000的进程ID，尝试强制清理前端进程"
+        pkill -f "next" 2>/dev/null || true
+    fi
+fi
+
+if netstat -tlnp 2>/dev/null | grep -q ":8123 "; then
+    echo "⚠️  端口8123被占用，正在清理..."
+    PID=$(netstat -tlnp 2>/dev/null | grep ":8123 " | awk '{print $7}' | cut -d'/' -f1)
+    if [ -z "$PID" ] || [ "$PID" = "-" ]; then
+        if command -v fuser >/dev/null 2>&1; then
+            PID=$(fuser 8123/tcp 2>/dev/null)
+        elif command -v lsof >/dev/null 2>&1; then
+            PID=$(lsof -ti:8123 2>/dev/null)
+        fi
+    fi
+    if [ ! -z "$PID" ] && [ "$PID" != "-" ]; then
+        echo "🔧 终止进程 $PID"
+        kill -9 $PID 2>/dev/null || true
+    else
+        echo "⚠️  无法获取端口8123的进程ID，尝试强制清理后端进程"
+        pkill -f "uvicorn" 2>/dev/null || true
+    fi
+fi
 
 # 等待进程完全停止
-sleep 2
+sleep 3
 
 # 创建日志目录
 mkdir -p /root/video2sop/logs
