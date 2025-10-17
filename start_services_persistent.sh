@@ -189,17 +189,33 @@ echo "🚀 启动Nginx..."
 nginx -t && nginx
 echo "✅ Nginx启动成功"
 
+# 获取生产服务器IP地址
+echo "🌐 获取生产服务器IP地址..."
+SERVER_IP=$(hostname -I | awk '{print $1}')
+if [ -z "$SERVER_IP" ]; then
+    echo "⚠️  无法获取服务器IP，使用默认地址 127.0.0.1"
+    SERVER_IP="127.0.0.1"
+else
+    echo "✅ 检测到服务器IP: $SERVER_IP"
+fi
+
+# 配置安全协议（玻尔平台使用HTTPS，所以使用WSS/HTTPS）
+echo "🔒 配置安全协议..."
+WS_PROTOCOL="wss"
+HTTP_PROTOCOL="https"
+echo "✅ 使用安全协议 (WSS/HTTPS) - 兼容玻尔平台HTTPS环境"
+
 # 启动前端服务
 echo "🎨 启动前端服务..."
 cd /root/video2sop/chat-frontend
 
-# 智能处理 .env.local 文件，保留用户自定义配置
-echo "🔧 配置前端环境变量..."
+# 智能处理 .env.local 文件，使用生产服务器IP地址和安全协议
+echo "🔧 配置前端环境变量（使用生产服务器IP: $SERVER_IP，协议: $WS_PROTOCOL/$HTTP_PROTOCOL）..."
 if [ ! -f .env.local ]; then
-    echo "📝 创建新的 .env.local 文件"
+    echo "📝 创建新的 .env.local 文件（使用生产服务器IP: $SERVER_IP，安全协议）"
     cat > .env.local << EOF
-NEXT_PUBLIC_WS_URL=ws://127.0.0.1:50001/ws
-NEXT_PUBLIC_API_URL=http://127.0.0.1:50001
+NEXT_PUBLIC_WS_URL=$WS_PROTOCOL://$SERVER_IP:50001/ws
+NEXT_PUBLIC_API_URL=$HTTP_PROTOCOL://$SERVER_IP:50001
 NEXT_PUBLIC_VIDEO_UNDERSTANDING_TIMEOUT=1800000
 NEXT_PUBLIC_SPEECH_RECOGNITION_TIMEOUT=300000
 NEXT_PUBLIC_SOP_PARSE_TIMEOUT=1200000
@@ -208,20 +224,27 @@ NEXT_PUBLIC_VIDEO_UPLOAD_TIMEOUT=600000
 NEXT_PUBLIC_AUDIO_EXTRACT_TIMEOUT=300000
 EOF
 else
-    echo "📝 检查现有 .env.local 文件"
-    # 检查并添加必要的环境变量
-    if ! grep -q "NEXT_PUBLIC_WS_URL" .env.local; then
-        echo "NEXT_PUBLIC_WS_URL=ws://127.0.0.1:50001/ws" >> .env.local
-        echo "✅ 已添加 NEXT_PUBLIC_WS_URL 到现有 .env.local 文件"
+    echo "📝 更新现有 .env.local 文件（使用生产服务器IP: $SERVER_IP，安全协议）"
+    
+    # 创建临时文件来更新配置
+    cp .env.local .env.local.backup
+    
+    # 更新或添加 NEXT_PUBLIC_WS_URL
+    if grep -q "NEXT_PUBLIC_WS_URL" .env.local; then
+        sed -i "s|NEXT_PUBLIC_WS_URL=.*|NEXT_PUBLIC_WS_URL=$WS_PROTOCOL://$SERVER_IP:50001/ws|" .env.local
+        echo "✅ 已更新 NEXT_PUBLIC_WS_URL 为 $WS_PROTOCOL://$SERVER_IP:50001/ws"
     else
-        echo "✅ .env.local 文件已包含 NEXT_PUBLIC_WS_URL，保持现有配置"
+        echo "NEXT_PUBLIC_WS_URL=$WS_PROTOCOL://$SERVER_IP:50001/ws" >> .env.local
+        echo "✅ 已添加 NEXT_PUBLIC_WS_URL 到现有 .env.local 文件"
     fi
     
-    if ! grep -q "NEXT_PUBLIC_API_URL" .env.local; then
-        echo "NEXT_PUBLIC_API_URL=http://127.0.0.1:50001" >> .env.local
-        echo "✅ 已添加 NEXT_PUBLIC_API_URL 到现有 .env.local 文件"
+    # 更新或添加 NEXT_PUBLIC_API_URL
+    if grep -q "NEXT_PUBLIC_API_URL" .env.local; then
+        sed -i "s|NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=$HTTP_PROTOCOL://$SERVER_IP:50001|" .env.local
+        echo "✅ 已更新 NEXT_PUBLIC_API_URL 为 $HTTP_PROTOCOL://$SERVER_IP:50001"
     else
-        echo "✅ .env.local 文件已包含 NEXT_PUBLIC_API_URL，保持现有配置"
+        echo "NEXT_PUBLIC_API_URL=$HTTP_PROTOCOL://$SERVER_IP:50001" >> .env.local
+        echo "✅ 已添加 NEXT_PUBLIC_API_URL 到现有 .env.local 文件"
     fi
     
     if ! grep -q "NEXT_PUBLIC_VIDEO_UNDERSTANDING_TIMEOUT" .env.local; then

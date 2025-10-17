@@ -36,12 +36,11 @@ app.add_middleware(
         "http://127.0.0.1:50001",
         "https://www.bohrium.com",
         "http://www.bohrium.com",
-        "http://maqp1391303.bohrium.tech:50001",
-        "http://maqp1391303.bohrium.tech",
-        "http://pdtd1393499.bohrium.tech",
-        "https://pdtd1393499.bohrium.tech",
-        "http://pdtd1393499.bohrium.tech:50001",
-        "https://pdtd1393499.bohrium.tech:50001",
+        # 移除开发服务器域名，确保生产环境独立运行
+        # "http://pdtd1393499.bohrium.tech",
+        # "https://pdtd1393499.bohrium.tech",
+        # "http://pdtd1393499.bohrium.tech:50001",
+        # "https://pdtd1393499.bohrium.tech:50001",
         "*",  # 临时允许所有源，用于调试
     ],
     allow_credentials=True,
