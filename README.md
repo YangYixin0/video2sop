@@ -84,7 +84,7 @@ NEXT_PUBLIC_WS_URL=ws://127.0.0.1:50001/ws
 
 # API 地址
 # 统一架构：开发和生产环境都通过 Nginx 代理
-NEXT_PUBLIC_API_URL=http://127.0.0.1:50001
+NEXT_PUBLIC_API_URL=http://127.0.0.1:50001/api
 
 # 各功能超时时间配置（毫秒，可选）
 # 视频理解超时时间，默认1800000（30分钟）
@@ -176,7 +176,7 @@ NEXT_PUBLIC_API_URL=./api       # API基础路径（使用./api避免相对路�
 **开发环境配置** (`.env.development`)：
 ```bash
 NEXT_PUBLIC_WS_URL=ws://127.0.0.1:50001/ws    # WebSocket本地地址
-NEXT_PUBLIC_API_URL=http://127.0.0.1:50001    # API本地地址
+NEXT_PUBLIC_API_URL=http://127.0.0.1:50001/api    # API本地地址
 ```
 
 **自动环境选择**：
@@ -241,7 +241,7 @@ cd /root/video2sop && ./start_services_persistent.sh
 ```bash
 # 前端环境变量（自动配置）
 NEXT_PUBLIC_WS_URL=ws://127.0.0.1:50001/ws    # WebSocket地址（通过Nginx）
-NEXT_PUBLIC_API_URL=http://127.0.0.1:50001    # API地址（通过Nginx）
+NEXT_PUBLIC_API_URL=http://127.0.0.1:50001/api    # API地址（通过Nginx）
 NEXT_PUBLIC_AUTHOR_EMAIL=your-email@example.com  # 作者邮箱
 NEXT_PUBLIC_APP_GITHUB=https://github.com/your-repo/video2sop  # GitHub仓库
 ```
