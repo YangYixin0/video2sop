@@ -349,7 +349,7 @@ export async function uploadVideoWithAudio(
  */
 export function validateVideoFile(
   file: File,
-  maxSize: number = 500 * 1024 * 1024, // 500MB
+  maxSize: number = 800 * 1024 * 1024, // 800MB
   allowedTypes: string[] = ['video/mp4', 'video/mov', 'video/avi', 'video/mkv', 'video/webm']
 ): string | null {
   if (file.size > maxSize) {

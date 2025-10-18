@@ -114,6 +114,8 @@ interface SpeechResult {
   text: string;
   begin_time: number;
   end_time: number;
+  isEdited?: boolean;
+  editedText?: string;
 }
 
 interface UploadResult {
@@ -180,9 +182,9 @@ export default function VideoUnderstandingPanel({
     setResult('');
 
     try {
-      // 将语音识别结果转换为文本
+      // 将语音识别结果转换为文本，使用编辑后的文本
       const audioTranscript = speechRecognitionResult
-        .map((item, index) => `${index + 1}. ${item.text}`)
+        .map((item, index) => `${index + 1}. ${item.editedText || item.text}`)
         .join('\n');
 
       const markdownResult = await onVideoUnderstanding({
@@ -201,6 +203,9 @@ export default function VideoUnderstandingPanel({
   };
 
   const isReady = uploadResult && speechRecognitionResult && speechRecognitionResult.length > 0;
+  
+  // 检查是否有编辑过的语音内容
+  const hasEditedSpeech = speechRecognitionResult?.some(item => item.isEdited) || false;
 
   return (
     <div className="w-full max-w-7xl mx-auto bg-white rounded-lg shadow-sm border">
@@ -325,6 +330,16 @@ export default function VideoUnderstandingPanel({
             )}
           </button>
         </div>
+
+        {/* 编辑提示 */}
+        {hasEditedSpeech && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <span className="text-blue-500">✏️</span>
+              <span className="text-blue-700 text-sm">将使用编辑后的语音内容进行视频理解</span>
+            </div>
+          </div>
+        )}
 
         {/* 错误提示 */}
         {error && (

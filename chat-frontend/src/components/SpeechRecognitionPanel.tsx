@@ -7,6 +7,8 @@ interface SpeechResult {
   text: string;
   begin_time: number;
   end_time: number;
+  isEdited?: boolean;
+  editedText?: string;
 }
 
 interface UploadResult {
@@ -18,15 +20,21 @@ interface UploadResult {
 interface SpeechRecognitionPanelProps {
   uploadResult: UploadResult | null;
   onSpeechRecognition: (audioUrl: string) => Promise<SpeechResult[]>;
+  onResultsChange?: (results: SpeechResult[]) => void;
 }
 
 export default function SpeechRecognitionPanel({ 
   uploadResult, 
-  onSpeechRecognition 
+  onSpeechRecognition,
+  onResultsChange
 }: SpeechRecognitionPanelProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [results, setResults] = useState<SpeechResult[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingText, setEditingText] = useState<string>('');
+  const [editingBeginTime, setEditingBeginTime] = useState<number>(0);
+  const [editingEndTime, setEditingEndTime] = useState<number>(0);
 
   const handleSpeechRecognition = async () => {
     if (!uploadResult?.audio_url) return;
@@ -58,6 +66,61 @@ export default function SpeechRecognitionPanel({
     } else {
       return `${secs} s`;
     }
+  };
+
+  // 开始编辑
+  const handleStartEdit = (index: number) => {
+    const result = results[index];
+    setEditingIndex(index);
+    setEditingText(result.editedText || result.text);
+    setEditingBeginTime(result.begin_time);
+    setEditingEndTime(result.end_time);
+  };
+
+  // 保存编辑
+  const handleSaveEdit = () => {
+    if (editingIndex === null) return;
+    
+    const newResults = [...results];
+    newResults[editingIndex] = {
+      ...newResults[editingIndex],
+      editedText: editingText,
+      begin_time: editingBeginTime,
+      end_time: editingEndTime,
+      isEdited: true
+    };
+    
+    setResults(newResults);
+    setEditingIndex(null);
+    setEditingText('');
+    setEditingBeginTime(0);
+    setEditingEndTime(0);
+    
+    // 通知父组件结果变化
+    onResultsChange?.(newResults);
+  };
+
+  // 取消编辑
+  const handleCancelEdit = () => {
+    setEditingIndex(null);
+    setEditingText('');
+    setEditingBeginTime(0);
+    setEditingEndTime(0);
+  };
+
+  // 获取显示的文本（编辑后的或原始文本）
+  const getDisplayText = (result: SpeechResult) => {
+    return result.editedText || result.text;
+  };
+
+  // 将毫秒转换为秒（用于输入框）
+  const millisecondsToSeconds = (milliseconds: number) => {
+    return (milliseconds / 1000).toFixed(1);
+  };
+
+  // 将秒转换为毫秒（用于保存）
+  const secondsToMilliseconds = (seconds: string) => {
+    return Math.round(parseFloat(seconds) * 1000);
   };
 
   return (
@@ -145,16 +208,92 @@ export default function SpeechRecognitionPanel({
                   className="p-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
                 >
                   <div className="flex items-start justify-between mb-2">
-                    <span className="text-xs text-gray-500 font-mono">
-                      第 {index + 1} 句
-                    </span>
-                    <div className="text-xs text-gray-500 font-mono">
-                      {formatTime(result.begin_time)} - {formatTime(result.end_time)}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs text-gray-500 font-mono">
+                        第 {index + 1} 句
+                      </span>
+                      {result.isEdited && (
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                          ✏️ 已编辑
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {editingIndex === index ? (
+                        <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-1">
+                            <span className="text-xs text-gray-500">开始:</span>
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={millisecondsToSeconds(editingBeginTime)}
+                              onChange={(e) => setEditingBeginTime(secondsToMilliseconds(e.target.value))}
+                              className="w-16 px-1 py-0.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-400 focus:border-transparent"
+                              placeholder="0.0"
+                            />
+                            <span className="text-xs text-gray-500">s</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <span className="text-xs text-gray-500">结束:</span>
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={millisecondsToSeconds(editingEndTime)}
+                              onChange={(e) => setEditingEndTime(secondsToMilliseconds(e.target.value))}
+                              className="w-16 px-1 py-0.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-400 focus:border-transparent"
+                              placeholder="0.0"
+                            />
+                            <span className="text-xs text-gray-500">s</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-500 font-mono">
+                          {formatTime(result.begin_time)} - {formatTime(result.end_time)}
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <p className="text-sm text-gray-800 leading-relaxed">
-                    {result.text}
-                  </p>
+                  
+                  {editingIndex === index ? (
+                    <div className="space-y-2">
+                      <textarea
+                        value={editingText}
+                        onChange={(e) => setEditingText(e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded text-sm resize-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                        rows={3}
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') {
+                            handleCancelEdit();
+                          } else if (e.ctrlKey && e.key === 'Enter') {
+                            handleSaveEdit();
+                          }
+                        }}
+                      />
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={handleSaveEdit}
+                          className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+                        >
+                          保存
+                        </button>
+                        <button
+                          onClick={handleCancelEdit}
+                          className="px-3 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+                        >
+                          取消
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p 
+                      className="text-sm text-gray-800 leading-relaxed cursor-pointer hover:bg-blue-50 p-2 rounded transition-colors"
+                      onClick={() => handleStartEdit(index)}
+                      title="点击编辑文本和时间"
+                    >
+                      {getDisplayText(result)}
+                    </p>
+                  )}
                 </div>
               ))}
             </div>

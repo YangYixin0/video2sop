@@ -36,6 +36,8 @@ export default function Home() {
     text: string;
     begin_time: number;
     end_time: number;
+    isEdited?: boolean;
+    editedText?: string;
   }[] | null>(null);
   
   const [videoUnderstandingResult, setVideoUnderstandingResult] = useState<string>('');
@@ -45,6 +47,18 @@ export default function Home() {
   // 处理SOP区块变化
   const handleSopBlocksChange = useCallback((blocks: SOPBlock[]) => {
     setSopBlocks(blocks);
+  }, []);
+
+  // 处理语音识别结果变化
+  const handleSpeechResultsChange = useCallback((results: {
+    sentence_id: number;
+    text: string;
+    begin_time: number;
+    end_time: number;
+    isEdited?: boolean;
+    editedText?: string;
+  }[]) => {
+    setSpeechRecognitionResult(results);
   }, []);
   const [refinedSopBlocks, setRefinedSopBlocks] = useState<SOPBlock[]>([]);
   const [sopParsePrompt, setSopParsePrompt] = useState<string>('');
@@ -557,6 +571,7 @@ export default function Home() {
           <SpeechRecognitionPanel
             uploadResult={currentUploadResult}
             onSpeechRecognition={handleSpeechRecognition}
+            onResultsChange={handleSpeechResultsChange}
           />
         </div>
         
