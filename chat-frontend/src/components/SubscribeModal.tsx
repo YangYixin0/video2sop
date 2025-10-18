@@ -25,10 +25,10 @@ export default function SubscribeModal({ isOpen, onClose }: SubscribeModalProps)
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="订阅功能更新通知">
       <div className="space-y-4">
-        <div className="text-sm text-gray-600 leading-relaxed">
+        <div className="text-sm text-gray-700 leading-relaxed">
           <p className="mb-4">
-            如果你喜欢Video2SOP，或者觉得它有待改进不过“教学视频转化为SOP”是应有的工作流，
-            欢迎写信给我们，订阅Video2SOP功能更新或关注该项目的GitHub仓库！
+            如果你喜欢Video2SOP，或者觉得“教学视频转化为SOP”确实是一种实用的策略，只是这个工具有待改进，<br/>
+            那么欢迎写信给我们订阅Video2SOP功能更新，或关注该项目的GitHub仓库！
           </p>
         </div>
 

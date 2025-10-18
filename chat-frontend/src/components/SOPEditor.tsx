@@ -1,10 +1,25 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { SOPBlock } from '@/types/sop';
 import SOPBlockItem from './SOPBlockItem';
 import SOPVideoPlayer from './SOPVideoPlayer';
 import SOPExporter from './SOPExporter';
+import {
+  DndContext,
+  closestCenter,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface SOPEditorProps {
   manuscript?: string;
@@ -33,6 +48,86 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
   const [currentVideoTime, setCurrentVideoTime] = useState<{ start?: number; end?: number }>({});
   const [isParsing, setIsParsing] = useState(false);
   const [isVideoPlayerCollapsed, setIsVideoPlayerCollapsed] = useState(true); // 默认折叠
+
+  // 拖拽传感器配置
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+
+  // 可排序区块组件
+  const SortableBlockItem: React.FC<{
+    block: SOPBlock;
+    index: number;
+    videoUrl?: string;
+    editingBlocks: Set<string>;
+    selectedBlocks: Set<string>;
+    onBlockEdit: (blockId: string, field: keyof SOPBlock, value: string | number | boolean) => void;
+    onDeleteBlock: (blockId: string) => void;
+    onPlay: (startTime: number, endTime?: number) => void;
+    onSelectBlock: (blockId: string, selected: boolean) => void;
+    onToggleEdit: (blockId: string) => void;
+  }> = ({ block, index, videoUrl, editingBlocks, selectedBlocks, onBlockEdit, onDeleteBlock, onPlay, onSelectBlock, onToggleEdit }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: block.id });
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+    };
+
+    return (
+      <div ref={setNodeRef} style={style} className="relative">
+        <div className="absolute left-0 top-2 text-xs text-gray-400 font-mono">
+          {index + 1}
+        </div>
+        <div className="ml-6">
+          <SOPBlockItem
+            block={block}
+            isEditing={editingBlocks.has(block.id)}
+            isSelected={selectedBlocks.has(block.id)}
+            videoUrl={videoUrl}
+            onEdit={onBlockEdit}
+            onDelete={onDeleteBlock}
+            onPlay={onPlay}
+            onSelect={onSelectBlock}
+            onToggleEdit={onToggleEdit}
+            dragHandleProps={{ ...attributes, ...listeners }}
+            isDragging={isDragging}
+          />
+        </div>
+      </div>
+    );
+  };
+
+  // 拖拽结束处理
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (active.id !== over?.id) {
+      setBlocksA((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over?.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  }, []);
+
+  // 监听blocksA变化并通知父组件
+  useEffect(() => {
+    if (blocksA.length > 0) {
+      onBlocksChange?.(blocksA);
+    }
+  }, [blocksA, onBlocksChange]);
 
   // 生成唯一ID
   const generateId = useCallback(() => {
@@ -321,35 +416,38 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
             </div>
           </div>
 
-          <div className="space-y-3 max-h-[40rem] overflow-y-auto">
-            {blocksA.map((block, index) => (
-              <div key={block.id} className="relative">
-                <div className="absolute left-0 top-2 text-xs text-gray-400 font-mono">
-                  {index + 1}
-                </div>
-                <div className="ml-6">
-                  <SOPBlockItem
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext items={blocksA.map(block => block.id)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-3 max-h-[40rem] overflow-y-auto">
+                {blocksA.map((block, index) => (
+                  <SortableBlockItem
+                    key={block.id}
                     block={block}
-                    isEditing={editingBlocks.has(block.id)}
-                    isSelected={selectedBlocks.has(block.id)}
+                    index={index}
                     videoUrl={videoUrl}
-                    onEdit={handleBlockEdit}
-                    onDelete={handleDeleteBlock}
+                    editingBlocks={editingBlocks}
+                    selectedBlocks={selectedBlocks}
+                    onBlockEdit={handleBlockEdit}
+                    onDeleteBlock={handleDeleteBlock}
                     onPlay={handlePlay}
-                    onSelect={handleSelectBlock}
+                    onSelectBlock={handleSelectBlock}
                     onToggleEdit={handleToggleEdit}
                   />
-                </div>
-              </div>
-            ))}
+                ))}
             
-            {blocksA.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <div className="text-4xl mb-2">📝</div>
-                <div>暂无区块，请先解析SOP文档或添加新区块</div>
+                {blocksA.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="text-4xl mb-2">📝</div>
+                    <div>暂无区块，请先解析SOP文档或添加新区块</div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            </SortableContext>
+          </DndContext>
         </div>
 
         {/* 下方：AI精修区 */}
@@ -359,7 +457,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
             {blocksB.length > 0 && (
               <div className="flex items-center space-x-3">
                 <span className="text-sm text-gray-600">
-                  是否用精修结果替换当前编辑区的区块以迭代精修
+                  AI精修结果是只读的。如果想修改，请将精修结果替换当前编辑区的区块，随后甚至可以再次AI精修
                 </span>
                 <button
                   onClick={handleApplyRefinement}

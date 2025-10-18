@@ -14,6 +14,9 @@ interface SOPBlockItemProps {
   onSelect?: (blockId: string, selected: boolean) => void;
   onToggleEdit?: (blockId: string) => void;
   className?: string;
+  // 拖拽相关属性
+  dragHandleProps?: any;
+  isDragging?: boolean;
 }
 
 const SOPBlockItem: React.FC<SOPBlockItemProps> = ({
@@ -26,7 +29,9 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = ({
   onPlay,
   onSelect,
   onToggleEdit,
-  className = ''
+  className = '',
+  dragHandleProps,
+  isDragging = false
 }) => {
   const [localContent, setLocalContent] = useState(block.content);
   const [localStartTime, setLocalStartTime] = useState(block.start_time?.toString() || '');
@@ -101,11 +106,15 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = ({
         ${typeConfig.color}
         ${isSelected ? 'ring-2 ring-blue-400' : ''}
         ${isEditing ? 'shadow-md' : 'hover:shadow-sm'}
+        ${isDragging ? 'opacity-50' : ''}
         ${className}
       `}
     >
       {/* 紧凑的头部 - 包含类型、内容预览和操作按钮 */}
-      <div className="flex items-start justify-between p-3 border-b border-gray-100">
+      <div 
+        className="flex items-start justify-between p-3 border-b border-gray-100 cursor-grab active:cursor-grabbing"
+        {...dragHandleProps}
+      >
         {/* 左侧：类型图标和内容预览 */}
         <div className="flex-1 min-w-0 mr-3">
           <div className="flex items-center space-x-2 mb-1">

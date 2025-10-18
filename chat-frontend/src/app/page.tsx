@@ -41,6 +41,11 @@ export default function Home() {
   const [videoUnderstandingResult, setVideoUnderstandingResult] = useState<string>('');
   const [videoUnderstandingPrompt, setVideoUnderstandingPrompt] = useState<string>('');
   const [sopBlocks, setSopBlocks] = useState<SOPBlock[]>([]);
+
+  // 处理SOP区块变化
+  const handleSopBlocksChange = useCallback((blocks: SOPBlock[]) => {
+    setSopBlocks(blocks);
+  }, []);
   const [refinedSopBlocks, setRefinedSopBlocks] = useState<SOPBlock[]>([]);
   const [sopParsePrompt, setSopParsePrompt] = useState<string>('');
   const [sopRefinePrompt, setSopRefinePrompt] = useState<string>('');
@@ -571,7 +576,7 @@ export default function Home() {
             videoUrl={currentUploadResult?.video_url}
             onParseSOP={handleParseSOP}
             onRefineSOP={handleRefineSOP}
-            onBlocksChange={(blocks) => setSopBlocks(blocks)}
+            onBlocksChange={handleSopBlocksChange}
           />
         </div>
         
