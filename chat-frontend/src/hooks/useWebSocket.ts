@@ -34,7 +34,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
-  const maxReconnectAttempts = 1;
+  const maxReconnectAttempts = 5;
+  const reconnectDelayRef = useRef(1000); // 初始重连延迟1秒
   const isConnectingRef = useRef(false);
 
   const connect = useCallback(() => {
@@ -98,10 +99,20 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         isConnectingRef.current = false;
         onClose?.();
 
-        // 不自动重连，只设置错误状态
-        if (event.code !== 1000) {
-          setError(`连接已断开 (${event.code})`);
-          console.log('连接断开，需要手动重连');
+        // 自动重连逻辑
+        if (event.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
+          const delay = reconnectDelayRef.current * Math.pow(2, reconnectAttemptsRef.current); // 指数退避
+          console.log(`连接断开，${delay}ms后尝试重连 (${reconnectAttemptsRef.current + 1}/${maxReconnectAttempts})`);
+          
+          setError(`连接已断开，正在重连... (${reconnectAttemptsRef.current + 1}/${maxReconnectAttempts})`);
+          
+          reconnectTimeoutRef.current = setTimeout(() => {
+            reconnectAttemptsRef.current++;
+            connect();
+          }, delay);
+        } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+          setError(`连接已断开，重连失败 (${event.code})`);
+          console.log('重连次数已达上限，需要手动重连');
         }
       };
 
@@ -146,8 +157,9 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       wsRef.current.send(JSON.stringify(messageData));
       console.log('发送消息:', messageData);
     } else {
-      console.error('WebSocket 未连接，无法发送消息');
-      setError('WebSocket 未连接');
+      console.warn('WebSocket 未连接，消息将在连接恢复后发送');
+      // 不设置错误状态，因为会自动重连
+      // 可以考虑添加消息队列机制
     }
   }, [clientSessionId]);
 

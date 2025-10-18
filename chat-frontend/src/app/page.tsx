@@ -229,11 +229,16 @@ export default function Home() {
   // 处理VideoUploader的WebSocket消息
   const handleVideoUploaderWebSocketMessage = (message: Record<string, unknown>) => {
     console.log('handleVideoUploaderWebSocketMessage:', message, 'wsConnected:', wsConnected);
-    if (sendWebSocketMessage && wsConnected) {
-      console.log('发送WebSocket消息:', JSON.stringify(message));
-      sendWebSocketMessage(JSON.stringify(message));
+    if (sendWebSocketMessage) {
+      try {
+        console.log('发送WebSocket消息:', JSON.stringify(message));
+        sendWebSocketMessage(JSON.stringify(message));
+      } catch (error) {
+        console.warn('发送WebSocket消息失败:', error);
+        // 不显示错误给用户，因为会自动重连
+      }
     } else {
-      console.log('无法发送WebSocket消息 - 连接状态:', wsConnected, 'sendMessage函数:', !!sendWebSocketMessage);
+      console.log('WebSocket消息发送函数不可用');
     }
   };
 

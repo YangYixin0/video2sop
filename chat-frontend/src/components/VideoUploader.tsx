@@ -353,7 +353,7 @@ export default function VideoUploader({
         setUploadStatus({ status: 'uploading', message: '视频上传成功，正在提取音频...', progress: 50 });
       } catch (error) {
         console.warn('直接上传失败，尝试代理上传:', error);
-        setUploadStatus({ status: 'uploading', message: '直接上传失败，正在通过服务器上传...', progress: 25 });
+        setUploadStatus({ status: 'uploading', message: '后端上传中...（进度条不准）', progress: 25 });
         videoUrl = await uploadViaProxy(selectedFile, sessionId);
         setUploadStatus({ status: 'uploading', message: '视频上传成功，正在提取音频...', progress: 50 });
       }
