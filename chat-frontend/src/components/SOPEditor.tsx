@@ -321,7 +321,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
             </div>
           </div>
 
-          <div className="space-y-3 max-h-[32rem] overflow-y-auto">
+          <div className="space-y-3 max-h-[40rem] overflow-y-auto">
             {blocksA.map((block, index) => (
               <div key={block.id} className="relative">
                 <div className="absolute left-0 top-2 text-xs text-gray-400 font-mono">
@@ -398,7 +398,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
           </div>
 
           {/* 精修结果 */}
-          <div className="space-y-3 max-h-[28rem] overflow-y-auto">
+          <div className="space-y-3 max-h-[40rem] overflow-y-auto">
             {blocksB.map((block, index) => (
               <div key={block.id} className="relative">
                 <div className="absolute left-0 top-2 text-xs text-gray-400 font-mono">
