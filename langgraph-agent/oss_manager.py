@@ -74,21 +74,26 @@ def generate_upload_signature(filename: str, session_id: str, file_type: str = "
     Returns:
         包含上传URL和参数的字典
     """
+    import urllib.parse
+    
     # 生成OSS对象键
     file_extension = filename.split('.')[-1] if '.' in filename else 'mp4'
     oss_key = f"{session_id}/{file_type}.{file_extension}"
     
+    # 确保路径正确编码，避免403错误
+    encoded_oss_key = urllib.parse.quote(oss_key, safe='/')
+    
     # 生成上传URL（有效期1小时）
     bucket = get_bucket()
-    url = bucket.sign_url('PUT', oss_key, 3600)
+    url = bucket.sign_url('PUT', encoded_oss_key, 3600)
     
     # 生成完整的OSS URL
-    oss_url = f'https://{BUCKET_NAME}.{ENDPOINT.replace("https://", "")}/{oss_key}'
+    oss_url = f'https://{BUCKET_NAME}.{ENDPOINT.replace("https://", "")}/{encoded_oss_key}'
     
     return {
         "upload_url": url,
         "oss_url": oss_url,
-        "oss_key": oss_key,
+        "oss_key": oss_key,  # 返回原始key用于其他逻辑
         "expires_in": 3600
     }
 
