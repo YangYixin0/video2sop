@@ -129,6 +129,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
     }
   }, [blocksA, onBlocksChange]);
 
+
   // 生成唯一ID
   const generateId = useCallback(() => {
     return `block_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -175,11 +176,20 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
     setUserNotes('');
   };
 
-  // 区块编辑处理
+  // 区块编辑处理 - 使用更高效的状态更新
   const handleBlockEdit = useCallback((blockId: string, field: keyof SOPBlock, value: string | number | boolean) => {
-    setBlocksA(prev => prev.map(block => 
-      block.id === blockId ? { ...block, [field]: value } : block
-    ));
+    setBlocksA(prev => {
+      const newBlocks = prev.map(block => {
+        if (block.id === blockId) {
+          // 只有值真正改变时才创建新对象
+          if (block[field] !== value) {
+            return { ...block, [field]: value };
+          }
+        }
+        return block; // 返回原对象，避免不必要的重新渲染
+      });
+      return newBlocks;
+    });
   }, []);
 
   // 切换编辑模式
@@ -379,7 +389,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
                 videoUrl={videoUrl || ''}
                 currentStartTime={currentVideoTime.start}
                 currentEndTime={currentVideoTime.end}
-                onTimeUpdate={(time) => console.log('Current time:', time)}
+                onTimeUpdate={(time) => setCurrentVideoTime({ start: time, end: undefined })}
               />
             </div>
           )}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { SOPBlock, BLOCK_TYPE_CONFIGS } from '@/types/sop';
 
 interface SOPBlockItemProps {
@@ -15,11 +15,11 @@ interface SOPBlockItemProps {
   onToggleEdit?: (blockId: string) => void;
   className?: string;
   // 拖拽相关属性
-  dragHandleProps?: any;
+  dragHandleProps?: React.HTMLAttributes<HTMLDivElement>;
   isDragging?: boolean;
 }
 
-const SOPBlockItem: React.FC<SOPBlockItemProps> = ({
+const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
   block,
   isEditing = false,
   isSelected = false,
@@ -39,14 +39,26 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = ({
   const [localShowPlayButton, setLocalShowPlayButton] = useState(block.show_play_button);
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // 同步本地状态与props
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // 同步本地状态与props - 只在非编辑状态下同步，避免编辑时被覆盖
   useEffect(() => {
-    setLocalContent(block.content);
-    setLocalStartTime(block.start_time?.toString() || '');
-    setLocalEndTime(block.end_time?.toString() || '');
-    setLocalShowPlayButton(block.show_play_button);
-  }, [block]);
+    // 如果正在编辑，不要覆盖本地状态
+    if (!isEditing) {
+      setLocalContent(block.content);
+      setLocalStartTime(block.start_time?.toString() || '');
+      setLocalEndTime(block.end_time?.toString() || '');
+      setLocalShowPlayButton(block.show_play_button);
+    }
+  }, [block.content, block.start_time, block.end_time, block.show_play_button, isEditing]);
+
+  // 清理防抖定时器
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // 格式化时间显示
   const formatTime = (seconds: number): string => {
@@ -55,11 +67,22 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // 处理内容编辑
-  const handleContentChange = (value: string) => {
+  // 处理内容编辑 - 编辑状态下不调用onEdit，避免状态更新
+  const handleContentChange = useCallback((value: string) => {
     setLocalContent(value);
-    onEdit?.(block.id, 'content', value);
-  };
+    
+    // 清除之前的防抖定时器
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    
+    // 只在非编辑状态下才调用onEdit，避免编辑时状态更新导致重新渲染
+    if (!isEditing) {
+      debounceTimeoutRef.current = setTimeout(() => {
+        onEdit?.(block.id, 'content', value);
+      }, 1000);
+    }
+  }, [block.id, onEdit, isEditing]);
 
   // 处理时间编辑
   const handleTimeChange = (field: 'start_time' | 'end_time', value: string) => {
@@ -67,10 +90,13 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = ({
     
     if (field === 'start_time') {
       setLocalStartTime(value);
-      onEdit?.(block.id, 'start_time', numValue);
     } else {
       setLocalEndTime(value);
-      onEdit?.(block.id, 'end_time', numValue);
+    }
+    
+    // 只在非编辑状态下才调用onEdit
+    if (!isEditing) {
+      onEdit?.(block.id, field, numValue);
     }
   };
 
@@ -79,6 +105,22 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = ({
     const newValue = !localShowPlayButton;
     setLocalShowPlayButton(newValue);
     onEdit?.(block.id, 'show_play_button', newValue);
+  };
+
+  // 处理编辑状态切换 - 退出编辑时保存更改
+  const handleToggleEdit = () => {
+    if (isEditing) {
+      // 退出编辑状态时，保存所有本地更改
+      onEdit?.(block.id, 'content', localContent);
+      if (localStartTime) {
+        onEdit?.(block.id, 'start_time', parseInt(localStartTime, 10));
+      }
+      if (localEndTime) {
+        onEdit?.(block.id, 'end_time', parseInt(localEndTime, 10));
+      }
+      onEdit?.(block.id, 'show_play_button', localShowPlayButton);
+    }
+    onToggleEdit?.(block.id);
   };
 
   // 处理播放
@@ -91,10 +133,37 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = ({
   // 自动调整textarea高度
   useEffect(() => {
     if (textareaRef.current && isEditing) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+      const textarea = textareaRef.current;
+      const scrollContainer = textarea.closest('.overflow-y-auto');
+      
+      const adjustHeight = () => {
+        // 保存当前滚动位置
+        const scrollTop = scrollContainer?.scrollTop || 0;
+        
+        textarea.style.height = 'auto';
+        textarea.style.height = `${textarea.scrollHeight}px`;
+        
+        // 恢复滚动位置
+        if (scrollContainer && scrollTop > 0) {
+          scrollContainer.scrollTop = scrollTop;
+        }
+      };
+      
+      // 只在编辑模式开始时调整一次高度
+      adjustHeight();
+      
+      // 使用ResizeObserver监听内容变化
+      const resizeObserver = new ResizeObserver(() => {
+        adjustHeight();
+      });
+      
+      resizeObserver.observe(textarea);
+      
+      return () => {
+        resizeObserver.disconnect();
+      };
     }
-  }, [localContent, isEditing]);
+  }, [isEditing]); // 只依赖isEditing，不依赖localContent
 
   const typeConfig = BLOCK_TYPE_CONFIGS[block.type] || BLOCK_TYPE_CONFIGS.unknown;
   const canPlay = videoUrl && block.start_time !== undefined && localShowPlayButton;
@@ -171,7 +240,7 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = ({
             
             {/* 编辑按钮 */}
             <button
-              onClick={() => onToggleEdit?.(block.id)}
+              onClick={handleToggleEdit}
               className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
               title={isEditing ? '完成编辑' : '编辑区块'}
             >
@@ -277,6 +346,8 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = ({
       )}
     </div>
   );
-};
+});
+
+SOPBlockItem.displayName = 'SOPBlockItem';
 
 export default SOPBlockItem;
