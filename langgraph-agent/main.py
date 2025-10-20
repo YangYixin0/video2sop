@@ -11,6 +11,12 @@ from langchain_core.messages import BaseMessage
 from oss_api import setup_oss_routes
 from speech_tool import speech_recognition
 from video_understanding_tool import video_understanding
+from video_processor import (
+    get_video_duration,
+    add_timestamp_overlay,
+    split_video_segments,
+)
+from sop_integration_tool import integrate_sop_segments
 from sop_parser_tool import sop_parser
 from sop_refine_tool import sop_refine
 import dashscope
@@ -65,6 +71,10 @@ SESSION_TIMEOUT_HOURS = 1  # 1小时超时
 
 # 视频保留标记集合
 keep_sessions: set = set()
+
+# WebSocket断连追踪
+websocket_disconnect_tracker: Dict[str, datetime] = {}
+DISCONNECT_GRACE_PERIOD = timedelta(minutes=5)
 
 def update_session_activity(client_session_id: str):
     """更新会话活跃时间"""
@@ -127,15 +137,17 @@ class ConnectionManager:
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
         
-        # 清理会话映射
         client_session_id_to_remove = None
         for client_session_id, ws in self.client_sessions.items():
             if ws == websocket:
                 client_session_id_to_remove = client_session_id
                 break
+        
         if client_session_id_to_remove:
+            # 记录断连时间，而非立即清理
+            websocket_disconnect_tracker[client_session_id_to_remove] = datetime.now()
             del self.client_sessions[client_session_id_to_remove]
-            print(f"已清理客户端会话映射: {client_session_id_to_remove}")
+            print(f"客户端断开，开始5分钟宽限期: {client_session_id_to_remove}")
         
         print(f"客户端已断开，当前连接数: {len(self.active_connections)}")
     
@@ -198,6 +210,25 @@ async def websocket_endpoint(websocket: WebSocket):
                 
                 print(f"收到用户消息: {user_message} (会话: {client_session_id})")
                 
+                # 如果content是一个JSON并包含 upload_complete，则作为上传完成事件处理，避免触发Agent自动语音识别
+                try:
+                    parsed = json.loads(user_message)
+                    if isinstance(parsed, dict) and parsed.get("type") == "upload_complete":
+                        video_url = parsed.get("video_url", "")
+                        audio_url = parsed.get("audio_url", "")
+                        session_id = parsed.get("session_id", "")
+                        upload_notification = {
+                            "type": "upload_complete",
+                            "video_url": video_url,
+                            "audio_url": audio_url,
+                            "session_id": session_id,
+                            "message": f"视频和音频上传完成！视频链接：{video_url}，音频链接：{audio_url}"
+                        }
+                        await manager.send_message(websocket, json.dumps(upload_notification))
+                        continue
+                except Exception:
+                    pass
+
                 # 获取或创建会话
                 session = get_or_create_session(client_session_id)
                 session_history = session["history"]
@@ -269,6 +300,12 @@ async def websocket_endpoint(websocket: WebSocket):
                 client_session_id = message_data.get("client_session_id")
                 if client_session_id:
                     manager.register_client(client_session_id, websocket)
+                    
+                    # 检查是否在宽限期内重连
+                    if client_session_id in websocket_disconnect_tracker:
+                        del websocket_disconnect_tracker[client_session_id]
+                        print(f"客户端重连，取消清理: {client_session_id}")
+                    
                     await manager.send_message(websocket, json.dumps({
                         "type": "register_success",
                         "client_session_id": client_session_id
@@ -321,60 +358,71 @@ async def websocket_endpoint(websocket: WebSocket):
         print(f"WebSocket 错误: {e}")
         manager.disconnect(websocket)
 
-@app.post("/api/load_example_video")
-async def load_example_video_endpoint():
-    """加载示例视频API端点"""
+@app.get("/api/example_video_preview")
+async def get_example_video_preview():
+    """获取示例视频预览"""
     try:
-        from oss_manager import generate_session_id, upload_file_to_oss
-        from audio_extractor import extract_audio_from_video
-        import shutil
-        from pathlib import Path
-        
-        # 示例视频路径（从环境变量读取）
         example_video_path = os.getenv('EXAMPLE_VIDEO_PATH')
-        
-        # 检查示例视频文件是否存在
         if not os.path.exists(example_video_path):
             raise HTTPException(status_code=404, detail="示例视频文件不存在")
         
-        # 生成会话ID
-        session_id = generate_session_id()
+        from fastapi.responses import FileResponse
+        return FileResponse(
+            example_video_path,
+            media_type="video/mp4",
+            filename="pressing_operation.mp4"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取示例视频预览失败: {str(e)}")
+
+@app.post("/api/load_example_video")
+async def load_example_video_endpoint(request: dict):
+    """加载示例视频API端点"""
+    try:
+        from local_storage_manager import save_video_locally
+        from audio_extractor import extract_audio_from_video
+        from oss_manager import upload_file_to_oss
         
-        # 创建临时目录
-        temp_dir = Path(f"/tmp/video2sop/{session_id}")
-        temp_dir.mkdir(parents=True, exist_ok=True)
+        # 从请求中获取client_session_id
+        client_session_id = request.get("client_session_id")
+        if not client_session_id:
+            raise HTTPException(status_code=400, detail="缺少 client_session_id 参数")
         
-        # 复制示例视频到临时目录
-        temp_video_path = temp_dir / "pressing_operation.mp4"
-        shutil.copy2(example_video_path, temp_video_path)
+        # 示例视频路径
+        example_video_path = os.getenv('EXAMPLE_VIDEO_PATH')
+        if not os.path.exists(example_video_path):
+            raise HTTPException(status_code=404, detail="示例视频文件不存在")
         
-        # 上传视频到OSS
-        video_oss_key = f"{session_id}/video/pressing_operation.mp4"
-        video_url = upload_file_to_oss(str(temp_video_path), video_oss_key)
+        # 1. 读取示例视频内容
+        with open(example_video_path, 'rb') as f:
+            video_content = f.read()
         
-        # 提取音频
-        temp_audio_path = temp_dir / "extracted_audio.mp3"
-        extracted_audio_path = extract_audio_from_video(str(temp_video_path), str(temp_audio_path))
+        # 2. 保存到本地存储
+        local_video_path = save_video_locally(video_content, client_session_id)
         
-        # 上传音频到OSS
-        audio_oss_key = f"{session_id}/audio/extracted_audio.mp3"
-        audio_url = upload_file_to_oss(extracted_audio_path, audio_oss_key)
+        # 3. 提取音频
+        audio_path = extract_audio_from_video(local_video_path)
         
-        # 清理临时文件
-        try:
-            shutil.rmtree(temp_dir)
-        except:
-            pass  # 忽略清理失败
+        # 4. 上传音频到OSS
+        audio_oss_key = f"{client_session_id}/audio/extracted_audio.mp3"
+        audio_url = upload_file_to_oss(audio_path, audio_oss_key)
         
-        # 注意：load_example_video 是演示功能，暂时不发送 WebSocket 通知
-        # 因为该端点没有 client_session_id 参数，无法确定发送给哪个客户端
-        # 如果需要支持，可以添加 client_session_id 参数
+        # 5. 删除临时音频文件
+        if os.path.exists(audio_path):
+            os.remove(audio_path)
+        
+        # 6. WebSocket通知
+        if client_session_id:
+            await manager.send_to_client(client_session_id, json.dumps({
+                "type": "video_upload_complete",
+                "session_id": client_session_id,
+                "message": "示例视频加载完成"
+            }))
         
         return {
             "success": True,
-            "video_url": video_url,
-            "audio_url": audio_url,
-            "session_id": session_id
+            "session_id": client_session_id,
+            "audio_url": audio_url  # 返回音频URL供语音识别使用
         }
         
     except HTTPException:
@@ -388,14 +436,17 @@ async def load_example_video_endpoint():
 async def speech_recognition_endpoint(request: dict):
     """语音识别API端点"""
     try:
-        audio_url = request.get("audio_url")
         client_session_id = request.get("client_session_id")
-        if not audio_url:
-            raise HTTPException(status_code=400, detail="缺少 audio_url 参数")
+        if not client_session_id:
+            raise HTTPException(status_code=400, detail="缺少 client_session_id 参数")
         
         # 更新会话活跃时间
-        if client_session_id:
-            update_session_activity(client_session_id)
+        update_session_activity(client_session_id)
+        
+        # 从OSS获取音频URL
+        from oss_manager import get_oss_url
+        audio_oss_key = f"{client_session_id}/audio/extracted_audio.mp3"
+        audio_url = get_oss_url(audio_oss_key)
         
         # 使用线程池执行同步调用，避免阻塞事件循环
         result_json = await asyncio.to_thread(speech_recognition, audio_url)
@@ -496,6 +547,281 @@ async def video_understanding_endpoint(request: dict):
         raise
     except Exception as e:
         error_msg = f"视频理解处理异常: {str(e)}"
+        print(error_msg)
+        raise HTTPException(status_code=500, detail=error_msg)
+
+
+@app.post("/api/get_video_duration")
+async def get_video_duration_endpoint(request: dict):
+    """获取视频时长,返回是否需要分段"""
+    try:
+        client_session_id = request.get("client_session_id")
+        if not client_session_id:
+            raise HTTPException(status_code=400, detail="缺少 client_session_id 参数")
+        
+        from local_storage_manager import get_local_video_path
+        local_path = get_local_video_path(client_session_id)
+        
+        if not os.path.exists(local_path):
+            raise HTTPException(status_code=404, detail="视频文件不存在")
+
+        duration_sec = await asyncio.to_thread(get_video_duration, local_path, True)
+        duration_min = round(duration_sec / 60, 2)
+        
+        # 使用用户设置的参数
+        split_threshold_sec = request.get("split_threshold", 18) * 60
+        segment_length_sec = request.get("segment_length", 15) * 60
+        overlap_sec = request.get("segment_overlap", 2) * 60
+        
+        needs_segmentation = duration_sec > split_threshold_sec
+        if needs_segmentation:
+            # 估算分段数量
+            segment_length = segment_length_sec
+            overlap = overlap_sec
+            if duration_sec <= segment_length:
+                estimated = 1
+            else:
+                # 简单估算：首段segment_length，后续每段有效新增(segment_length - overlap)
+                remaining = duration_sec - segment_length
+                extra = max(0, remaining)
+                step = max(1, segment_length - overlap)
+                estimated = 1 + (extra + step - 1) // step
+        else:
+            estimated = 1
+
+        return {
+            "success": True,
+            "duration": duration_min,
+            "duration_seconds": int(duration_sec),
+            "needs_segmentation": needs_segmentation,
+            "estimated_segments": int(estimated)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = f"获取视频时长异常: {str(e)}"
+        print(error_msg)
+        raise HTTPException(status_code=500, detail=error_msg)
+
+
+@app.post("/api/video_understanding_long")
+async def video_understanding_long_endpoint(request: dict):
+    """处理视频的完整流程(短/长统一入口)"""
+    try:
+        prompt = request.get("prompt")
+        fps = request.get("fps", 2)
+        audio_transcript = request.get("audio_transcript")
+        client_session_id = request.get("client_session_id")
+        add_timestamp = request.get("add_timestamp", False)  # 默认不叠加时间戳
+        
+        # 视频分段参数（限制最大18分钟）
+        split_threshold = min(request.get("split_threshold", 18), 18)  # 拆分界限（分钟）
+        segment_length = min(request.get("segment_length", 15), 18)    # 片段时长上限（分钟）
+        segment_overlap = request.get("segment_overlap", 2)   # 片段重叠（分钟）
+        
+        # 调试日志
+        print(f"DEBUG: 接收到的分段参数 - split_threshold: {split_threshold}, segment_length: {segment_length}, segment_overlap: {segment_overlap}")
+        print(f"DEBUG: 原始请求参数 - split_threshold: {request.get('split_threshold')}, segment_length: {request.get('segment_length')}, segment_overlap: {request.get('segment_overlap')}")
+
+        if not client_session_id:
+            raise HTTPException(status_code=400, detail="缺少 client_session_id 参数")
+        if not prompt:
+            raise HTTPException(status_code=400, detail="缺少 prompt 参数")
+
+        # 不再需要video_url参数，直接使用本地文件
+        from local_storage_manager import get_local_video_path
+        local_video_path = get_local_video_path(client_session_id)
+        
+        if not os.path.exists(local_video_path):
+            raise HTTPException(status_code=404, detail="视频文件不存在，请先上传视频")
+
+        # 第二步：获取时长（先获取时长，再决定是否需要上传）
+        duration_sec = await asyncio.to_thread(get_video_duration, local_video_path, True)
+        is_long = duration_sec > split_threshold * 60
+        
+        # 调试日志
+        print(f"DEBUG: 视频时长检测 - duration_sec: {duration_sec}, split_threshold: {split_threshold}, split_threshold*60: {split_threshold * 60}, is_long: {is_long}")
+        
+        # 根据用户选择和视频长度决定处理方式
+        video_for_processing = local_video_path  # 用于后续处理的视频路径
+        ts_video_url = None  # 用于短视频AI处理的视频URL
+        
+        if add_timestamp:
+            # 叠加时间戳
+            await manager.send_to_client(client_session_id, json.dumps({
+                "type": "status", "stage": "overlay_start", "message": "开始叠加时间戳"
+            }))
+            
+            ts_video_url = await asyncio.to_thread(
+                add_timestamp_overlay, 
+                local_video_path, 
+                client_session_id, 
+                "video_with_ts.mp4",
+                True  # is_local_file=True
+            )
+            
+            await manager.send_to_client(client_session_id, json.dumps({
+                "type": "status", "stage": "overlay_done", "message": "时间戳叠加完成"
+            }))
+            
+            # 如果叠加时间戳，使用叠加时间戳后的视频进行后续处理
+            from local_storage_manager import get_local_video_path
+            video_for_processing = get_local_video_path(client_session_id, "video_with_ts.mp4")
+            
+            if not is_long:
+                # 短视频：叠加时间戳后上传到OSS用于AI处理
+                await manager.send_to_client(client_session_id, json.dumps({
+                    "type": "status", "stage": "upload_start", "message": "开始上传叠加时间戳后的视频"
+                }))
+                
+                from oss_manager import upload_file_to_oss
+                video_oss_key = f"{client_session_id}/video_with_ts.mp4"
+                ts_video_url = await asyncio.to_thread(
+                    upload_file_to_oss,
+                    video_for_processing,
+                    video_oss_key
+                )
+                
+                await manager.send_to_client(client_session_id, json.dumps({
+                    "type": "status", "stage": "upload_done", "message": "叠加时间戳后的视频上传完成"
+                }))
+        elif not is_long:
+            # 短视频且不叠加时间戳：上传原始视频到OSS
+            await manager.send_to_client(client_session_id, json.dumps({
+                "type": "status", "stage": "upload_start", "message": "开始上传原始视频"
+            }))
+            
+            from oss_manager import upload_file_to_oss
+            video_oss_key = f"{client_session_id}/original_video.mp4"
+            ts_video_url = await asyncio.to_thread(
+                upload_file_to_oss,
+                local_video_path,
+                video_oss_key
+            )
+            
+            await manager.send_to_client(client_session_id, json.dumps({
+                "type": "status", "stage": "upload_done", "message": "原始视频上传完成"
+            }))
+        # 长视频且不叠加时间戳：直接使用原始视频进行分段，不需要上传
+        
+        if client_session_id:
+            await manager.send_to_client(client_session_id, json.dumps({
+                "type": "status",
+                "stage": "length_detected",
+                "message": (
+                    f"视频时长 {int(duration_sec)} 秒，将分段" if is_long else f"视频时长 {int(duration_sec)} 秒，不分段"
+                )
+            }))
+
+        # 更新会话活跃
+        if client_session_id:
+            update_session_activity(client_session_id)
+
+        if not is_long:
+            # 短视频：直接调用Qwen3-VL-Plus输出完整草稿(含标题/摘要/关键词)
+            if client_session_id:
+                await manager.send_to_client(client_session_id, json.dumps({
+                    "type": "status", "stage": "understanding_start", "message": "开始视频理解(短视频)"
+                }))
+            result_json = await asyncio.to_thread(
+                video_understanding,
+                ts_video_url,
+                prompt,
+                int(fps),
+                audio_transcript
+            )
+            result = json.loads(result_json)
+            if "error" in result:
+                raise HTTPException(status_code=500, detail=result["error"])
+
+            # 通过WebSocket发送完成
+            if client_session_id:
+                await manager.send_to_client(client_session_id, json.dumps({
+                    "type": "video_understanding_complete",
+                    "video_url": ts_video_url,
+                    "result": result.get("result", ""),
+                    "fps": int(fps),
+                    "has_audio_context": bool(audio_transcript),
+                    "message": "短视频理解完成"
+                }))
+            return {"success": True, "result": result.get("result", "")}
+
+        # 长视频：分段并行
+        if client_session_id:
+            await manager.send_to_client(client_session_id, json.dumps({
+                "type": "status", "stage": "segmenting", "message": "正在分段..."
+            }))
+        segments = await asyncio.to_thread(
+            split_video_segments, video_for_processing, client_session_id, duration_sec, segment_length*60, segment_overlap*60, True
+        )
+
+        # 逐段并行处理
+        async def process_segment(seg):
+            seg_prompt = (
+                f"这是长视频的第{seg['segment_id']}个片段，时间范围："
+                f"{seg['start_time']}s - {seg['end_time']}s。只需提供材料、步骤、澄清问题。"
+            )
+            # 通知开始
+            if client_session_id:
+                await manager.send_to_client(client_session_id, json.dumps({
+                    "type": "segment_processing",
+                    "segment_id": seg['segment_id'],
+                    "time_range": f"{seg['start_time']}s-{seg['end_time']}s"
+                }))
+
+            res_json = await asyncio.to_thread(
+                video_understanding,
+                seg['url'],
+                seg_prompt + "\n\n" + (prompt or ""),
+                int(fps),
+                audio_transcript
+            )
+            res = json.loads(res_json)
+            text = res.get("result", "") if "error" not in res else f"[error] {res.get('error')}"
+            if client_session_id:
+                await manager.send_to_client(client_session_id, json.dumps({
+                    "type": "segment_completed",
+                    "segment_id": seg['segment_id'],
+                    "time_range": f"{seg['start_time']}s-{seg['end_time']}s",
+                    "result": text
+                }))
+            return {
+                "segment_id": seg['segment_id'],
+                "time_range": f"{seg['start_time']}s-{seg['end_time']}s",
+                "result": text
+            }
+
+        if client_session_id:
+            await manager.send_to_client(client_session_id, json.dumps({
+                "type": "status", "stage": "segments_running", "message": f"已启动 {len(segments)} 个片段并行理解"
+            }))
+        segment_results = await asyncio.gather(*[process_segment(seg) for seg in segments])
+
+        # 整合
+        if client_session_id:
+            await manager.send_to_client(client_session_id, json.dumps({
+                "type": "status", "stage": "integrating", "message": "正在整合片段结果..."
+            }))
+        integrated = await asyncio.to_thread(integrate_sop_segments, segment_results, audio_transcript or "")
+        if isinstance(integrated, str) and integrated.startswith('{') and '"error"' in integrated:
+            # 失败也继续返回片段结果，供前端展示
+            if client_session_id:
+                await manager.send_to_client(client_session_id, json.dumps({
+                    "type": "integration_completed",
+                    "result": integrated
+                }))
+        else:
+            if client_session_id:
+                await manager.send_to_client(client_session_id, json.dumps({
+                    "type": "integration_completed",
+                    "result": integrated
+                }))
+
+        return {"success": True, "segments": segment_results, "integrated": integrated}
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_msg = f"长视频处理异常: {str(e)}"
         print(error_msg)
         raise HTTPException(status_code=500, detail=error_msg)
 
@@ -752,10 +1078,54 @@ async def check_session_keep_video(session_id: str):
         print(error_msg)
         raise HTTPException(status_code=500, detail=error_msg)
 
+async def check_disconnected_sessions():
+    """定期检查断开连接的会话，超过宽限期则清理"""
+    while True:
+        await asyncio.sleep(60)  # 每分钟检查一次
+        now = datetime.now()
+        to_cleanup = []
+        
+        for client_session_id, disconnect_time in list(websocket_disconnect_tracker.items()):
+            if now - disconnect_time > DISCONNECT_GRACE_PERIOD:
+                to_cleanup.append(client_session_id)
+        
+        for client_session_id in to_cleanup:
+            print(f"清理断线超过5分钟的会话: {client_session_id}")
+            
+            # 清理OSS文件
+            from oss_manager import delete_session_files
+            delete_session_files(client_session_id)
+            
+            # 清理本地文件
+            from local_storage_manager import delete_session_local_files
+            delete_session_local_files(client_session_id)
+            
+            # 清理会话历史
+            if client_session_id in session_histories:
+                del session_histories[client_session_id]
+            
+            del websocket_disconnect_tracker[client_session_id]
+
+async def daily_cleanup_task():
+    """每天清理超过24小时的本地文件"""
+    while True:
+        await asyncio.sleep(86400)  # 24小时
+        from local_storage_manager import cleanup_old_local_files
+        result = cleanup_old_local_files(hours=24)
+        print(f"定期清理完成: {result}")
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(check_disconnected_sessions())
+    asyncio.create_task(daily_cleanup_task())
+
 @app.get("/")
 async def root():
     """根路径"""
     return {"message": "LangGraph Agent Chat API", "version": "1.0.0"}
+
+# 设置 OSS 路由
+setup_oss_routes(app, manager)
 
 if __name__ == "__main__":
     import uvicorn

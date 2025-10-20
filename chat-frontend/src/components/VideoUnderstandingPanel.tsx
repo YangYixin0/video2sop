@@ -120,6 +120,9 @@ interface VideoUnderstandingPanelProps {
     fps: number;
     audio_transcript?: string;
   }) => Promise<string>;
+  // 可选：长视频时用于展示片段与整合结果
+  segmentResults?: { segment_id: number; time_range: string; result: string; status: 'processing' | 'completed' | 'error'; }[];
+  integratedResult?: string;
 }
 
 const DEFAULT_PROMPT = `1. 提供给你的是一个实验室仪器或实验处理的操作教学视频和它的语音识别结果，请按照这些内容理解视频内演示者的操作，写一个标准操作流程（SOP）草稿。这个草稿包含标题、摘要、关键词、材料试剂工具设备清单、操作步骤和也许其他内容。其他内容请你合理地整理成段落。
@@ -154,7 +157,9 @@ const cleanMarkdownContent = (content: string): string => {
 export default function VideoUnderstandingPanel({ 
   uploadResult, 
   speechRecognitionResult,
-  onVideoUnderstanding 
+  onVideoUnderstanding,
+  segmentResults = [],
+  integratedResult = ''
 }: VideoUnderstandingPanelProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<string>('');
@@ -162,25 +167,47 @@ export default function VideoUnderstandingPanel({
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
   const [fps, setFps] = useState(2);
   const [showMarkdown, setShowMarkdown] = useState(true);
+  const [addTimestamp, setAddTimestamp] = useState(false); // 是否叠加时间戳
+  
+  // 视频分段参数
+  const [splitThreshold, setSplitThreshold] = useState(18); // 判定分段阈值（分钟）
+  const [segmentLength, setSegmentLength] = useState(15); // 片段时长上限（分钟）
+  const [segmentOverlap, setSegmentOverlap] = useState(2); // 片段重叠（分钟）
+  const isLongVideo = (segmentResults?.length || 0) > 0 || Boolean(integratedResult);
 
   const handleVideoUnderstanding = async () => {
-    if (!uploadResult?.video_url || !speechRecognitionResult) return;
+    if (!uploadResult || !speechRecognitionResult) return;
 
     setIsProcessing(true);
     setError(null);
     setResult('');
 
     try {
-      // 将语音识别结果转换为文本，使用编辑后的文本
+      // 将语音识别结果转换为文本，包含时间信息（mm:ss格式）
+      const formatTimeForTranscript = (milliseconds: number) => {
+        const seconds = Math.floor(milliseconds / 1000);
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      };
+
       const audioTranscript = speechRecognitionResult
-        .map((item, index) => `${index + 1}. ${item.editedText || item.text}`)
+        .map((item, index) => {
+          const startTime = formatTimeForTranscript(item.begin_time);
+          const endTime = formatTimeForTranscript(item.end_time);
+          return `${index + 1}. [${startTime}-${endTime}] ${item.editedText || item.text}`;
+        })
         .join('\n');
 
       const markdownResult = await onVideoUnderstanding({
-        video_url: uploadResult.video_url,
+        video_url: '', // 不再需要video_url，后端使用client_session_id
         prompt: prompt,
         fps: fps,
-        audio_transcript: audioTranscript
+        audio_transcript: audioTranscript,
+        add_timestamp: addTimestamp, // 传递是否叠加时间戳的选择
+        split_threshold: splitThreshold, // 判定分段阈值（分钟）
+        segment_length: segmentLength, // 片段时长上限（分钟）
+        segment_overlap: segmentOverlap // 片段重叠（分钟）
       });
       
       setResult(markdownResult);
@@ -283,6 +310,129 @@ export default function VideoUnderstandingPanel({
             />
             <span className="text-sm text-gray-600">
               表示每1秒视频中抽取 {fps} 帧用于理解。FPS值越大，理解越可靠，但处理时间越长
+            </span>
+          </div>
+        </div>
+
+        {/* 时间戳叠加选择 */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            视频处理选项
+          </label>
+          <div className="flex items-center space-x-3">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={addTimestamp}
+                onChange={(e) => setAddTimestamp(e.target.checked)}
+                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+              />
+              <span className="ml-2 text-sm text-gray-700">叠加时间戳</span>
+            </label>
+          </div>
+          <div className="text-xs text-gray-500 mt-1">
+            {addTimestamp ? 
+              "在视频画面上叠加时间戳，便于AI理解音频句子与视频画面的对应关系，用时较长" : 
+              "不在视频画面上叠加时间戳，AI将凭音频句子含义和视频画面含义来判断对应关系"
+            }
+          </div>
+        </div>
+
+        {/* 视频分段参数设置 */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            视频分段参数
+          </label>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* 判定分段阈值 */}
+            <div>
+              <label htmlFor="splitThreshold" className="block text-xs text-gray-600 mb-1">
+                判定分段阈值（分钟）
+              </label>
+              <input
+                id="splitThreshold"
+                type="number"
+                min="1"
+                max="18"
+                value={splitThreshold}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  if (isNaN(value)) return; // 如果输入无效，不更新状态
+                  const newThreshold = Math.max(1, Math.min(18, value));
+                  setSplitThreshold(newThreshold);
+                  // 如果片段时长上限大于等于新的判定分段阈值，自动调整
+                  if (segmentLength >= newThreshold) {
+                    const newSegmentLength = Math.max(1, newThreshold - 1);
+                    setSegmentLength(newSegmentLength);
+                    // 如果片段重叠大于等于新的片段时长上限，自动调整
+                    if (segmentOverlap >= newSegmentLength) {
+                      setSegmentOverlap(Math.max(0, newSegmentLength - 1));
+                    }
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              />
+              <div className="text-xs text-gray-500 mt-1">
+                超过此时长将分段处理
+              </div>
+            </div>
+
+            {/* 片段时长上限 */}
+            <div>
+              <label htmlFor="segmentLength" className="block text-xs text-gray-600 mb-1">
+                片段时长上限（分钟）
+              </label>
+              <input
+                id="segmentLength"
+                type="number"
+                min="1"
+                max={Math.min(18, splitThreshold - 1)}
+                value={segmentLength}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  if (isNaN(value)) return; // 如果输入无效，不更新状态
+                  const newValue = Math.max(1, Math.min(18, Math.min(splitThreshold - 1, value)));
+                  setSegmentLength(newValue);
+                  // 如果片段重叠超过新的片段时长上限，自动调整
+                  if (segmentOverlap >= newValue) {
+                    setSegmentOverlap(Math.max(0, newValue - 1));
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              />
+              <div className="text-xs text-gray-500 mt-1">
+                每个片段的最大时长
+              </div>
+            </div>
+
+            {/* 片段重叠 */}
+            <div>
+              <label htmlFor="segmentOverlap" className="block text-xs text-gray-600 mb-1">
+                片段重叠（分钟）
+              </label>
+              <input
+                id="segmentOverlap"
+                type="number"
+                min="0"
+                max={Math.max(0, segmentLength - 1)}
+                value={segmentOverlap}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  if (isNaN(value)) return; // 如果输入无效，不更新状态
+                  setSegmentOverlap(Math.max(0, Math.min(segmentLength - 1, value)));
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              />
+              <div className="text-xs text-gray-500 mt-1">
+                相邻片段的重叠时长
+              </div>
+            </div>
+          </div>
+          <div className="text-xs text-gray-500 mt-2">
+            当前设置：视频超过 {splitThreshold} 分钟将分段，每段最长 {segmentLength} 分钟，重叠 {segmentOverlap} 分钟
+            <br />
+            <span className="text-blue-600">
+              约束条件：片段时长上限 &lt; 判定分段阈值，片段重叠 &lt; 片段时长上限，所有参数最大18分钟
             </span>
           </div>
         </div>
@@ -412,6 +562,48 @@ export default function VideoUnderstandingPanel({
                   {result}
                 </pre>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* 长视频：片段结果（可折叠） */}
+        {isLongVideo && segmentResults && segmentResults.length > 0 && (
+          <div className="mt-4 border border-gray-200 rounded-lg">
+            <div className="p-3 border-b border-gray-200 bg-gray-50">
+              <h4 className="font-medium text-gray-800 flex items-center">
+                <span className="mr-2">🧩</span>
+                分段结果
+              </h4>
+            </div>
+            <div className="p-3 space-y-2">
+              {segmentResults.sort((a,b) => a.segment_id - b.segment_id).map(seg => (
+                <details key={seg.segment_id} className="border rounded">
+                  <summary className="cursor-pointer select-none px-3 py-2 bg-gray-50 flex items-center justify-between">
+                    <span>片段 {seg.segment_id}（{seg.time_range}）</span>
+                    <span className={`text-xs ${seg.status === 'completed' ? 'text-green-600' : seg.status === 'processing' ? 'text-amber-600' : 'text-red-600'}`}>
+                      {seg.status === 'completed' ? '已完成' : seg.status === 'processing' ? '处理中' : '错误'}
+                    </span>
+                  </summary>
+                  <div className="px-3 py-2 whitespace-pre-wrap break-words text-sm text-gray-700">
+                    {seg.result || '（无内容）'}
+                  </div>
+                </details>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 长视频：整合结果 */}
+        {isLongVideo && integratedResult && (
+          <div className="mt-4 border border-gray-200 rounded-lg">
+            <div className="p-3 border-b border-gray-200 bg-gray-50">
+              <h4 className="font-medium text-gray-800 flex items-center">
+                <span className="mr-2">🧷</span>
+                整合后的SOP草稿
+              </h4>
+            </div>
+            <div className="p-3 whitespace-pre-wrap break-words text-sm text-gray-800">
+              {integratedResult}
             </div>
           </div>
         )}

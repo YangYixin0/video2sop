@@ -41,6 +41,13 @@ export default function Home() {
   }[] | null>(null);
   
   const [videoUnderstandingResult, setVideoUnderstandingResult] = useState<string>('');
+  const [segmentResults, setSegmentResults] = useState<{
+    segment_id: number;
+    time_range: string;
+    result: string;
+    status: 'processing' | 'completed' | 'error';
+  }[]>([]);
+  const [integratedResult, setIntegratedResult] = useState<string>('');
   const [videoUnderstandingPrompt, setVideoUnderstandingPrompt] = useState<string>('');
   const [sopBlocks, setSopBlocks] = useState<SOPBlock[]>([]);
 
@@ -81,15 +88,9 @@ export default function Home() {
         );
       }
 
-        // 更新当前上传结果状态
-        setCurrentUploadResult({
-        video_url: (data.video_url as string) || '',
-        audio_url: (data.audio_url as string) || '',
-        session_id: (data.session_id as string) || ''
-      });
-      
-      // 注意：不在这里添加操作记录，因为onUploadComplete回调已经处理了
-      // 这避免了重复的操作记录
+        // 注意：不在这里更新currentUploadResult，因为onUploadComplete回调已经处理了
+        // WebSocket消息主要用于通知，不包含完整的uploadResult数据
+        // 这避免了重复的操作记录和状态覆盖
       } else if (data.type === 'file_removed') {
         // 清空当前上传结果状态
         setCurrentUploadResult(null);
@@ -197,6 +198,64 @@ export default function Home() {
       };
       setOperationRecords(prev => [...prev, refineRecord]);
     }
+    // 阶段性状态消息：写入操作记录面板
+    else if (data.type === 'status') {
+      const stage = (data.stage as string) || '';
+      const message = (data.message as string) || '状态更新';
+      const statusRecord: OperationRecord = {
+        id: `status-${Date.now()}-${stage}`,
+        type: 'video_understanding',
+        timestamp: new Date(),
+        status: 'success',
+        message,
+        data: { stage }
+      };
+      setOperationRecords(prev => [...prev, statusRecord]);
+    }
+    // 长视频分段/整合事件
+    else if (data.type === 'segment_processing') {
+      const segId = (data.segment_id as number) || 0;
+      const timeRange = (data.time_range as string) || '';
+      setSegmentResults(prev => {
+        const exists = prev.find(s => s.segment_id === segId);
+        if (exists) {
+          return prev.map(s => s.segment_id === segId ? { ...s, status: 'processing', time_range: timeRange } : s);
+        }
+        return [...prev, { segment_id: segId, time_range: timeRange, result: '', status: 'processing' }];
+      });
+    } else if (data.type === 'segment_completed') {
+      const segId = (data.segment_id as number) || 0;
+      const timeRange = (data.time_range as string) || '';
+      const text = (data.result as string) || '';
+      setSegmentResults(prev => {
+        const exists = prev.find(s => s.segment_id === segId);
+        if (exists) {
+          return prev.map(s => s.segment_id === segId ? { ...s, status: 'completed', time_range: timeRange, result: text } : s);
+        }
+        return [...prev, { segment_id: segId, time_range: timeRange, result: text, status: 'completed' }];
+      });
+      const segRecord: OperationRecord = {
+        id: `segment-${Date.now()}-${segId}`,
+        type: 'video_understanding',
+        timestamp: new Date(),
+        status: 'success',
+        message: `片段 ${segId} 处理完成`,
+        data: { segment_id: segId, time_range: timeRange }
+      };
+      setOperationRecords(prev => [...prev, segRecord]);
+    } else if (data.type === 'integration_completed') {
+      const text = typeof data.result === 'string' ? data.result : String(data.result || '');
+      setIntegratedResult(text);
+      const integRecord: OperationRecord = {
+        id: `integrate-${Date.now()}`,
+        type: 'video_understanding',
+        timestamp: new Date(),
+        status: 'success',
+        message: '长视频整合完成',
+        data: {}
+      };
+      setOperationRecords(prev => [...prev, integRecord]);
+    }
   }, [notificationEnabled]);
 
   // WebSocket 连接用于接收操作记录
@@ -258,8 +317,7 @@ export default function Home() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          audio_url: audioUrl,
-          client_session_id: clientSessionId
+          client_session_id: clientSessionId  // 不再需要audio_url参数
         }),
         mode: 'cors',
         credentials: 'omit',
@@ -298,6 +356,10 @@ export default function Home() {
     prompt: string;
     fps: number;
     audio_transcript?: string;
+    add_timestamp?: boolean;
+    split_threshold?: number;
+    segment_length?: number;
+    segment_overlap?: number;
   }) => {
     // 从环境变量获取超时时间，默认30分钟
     const timeoutMs = parseInt(process.env.NEXT_PUBLIC_VIDEO_UNDERSTANDING_TIMEOUT || '1800000', 10);
@@ -310,13 +372,18 @@ export default function Home() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
       
-      const response = await fetch(API_ENDPOINTS.VIDEO_UNDERSTANDING, {
+      // 统一调用长视频端点；短视频在后端会直接处理
+      // 清理旧的分段/整合UI状态
+      setSegmentResults([]);
+      setIntegratedResult('');
+      const response = await fetch(API_ENDPOINTS.VIDEO_UNDERSTANDING_LONG, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           ...params,
+          session_id: currentUploadResult?.session_id,
           client_session_id: clientSessionId
         }),
         mode: 'cors',
@@ -586,6 +653,8 @@ export default function Home() {
             uploadResult={currentUploadResult}
             speechRecognitionResult={speechRecognitionResult}
             onVideoUnderstanding={handleVideoUnderstanding}
+            segmentResults={segmentResults}
+            integratedResult={integratedResult}
           />
         </div>
 

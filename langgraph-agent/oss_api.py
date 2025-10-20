@@ -39,17 +39,18 @@ class ExtractAudioRequest(BaseModel):
 def setup_oss_routes(app, connection_manager=None):
     """设置 OSS 相关的路由"""
     
-    @app.post("/api/generate_session_id")
-    async def generate_new_session_id() -> Dict[str, Any]:
-        """生成新的会话 ID"""
-        try:
-            session_id = generate_session_id()
-            return {
-                "success": True,
-                "session_id": session_id
-            }
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to generate session ID: {str(e)}")
+    # 废弃：不再需要单独生成session_id
+    # @app.post("/api/generate_session_id")
+    # async def generate_new_session_id() -> Dict[str, Any]:
+    #     """生成新的会话 ID"""
+    #     try:
+    #         session_id = generate_session_id()
+    #         return {
+    #             "success": True,
+    #             "session_id": session_id
+    #         }
+    #     except Exception as e:
+    #         raise HTTPException(status_code=500, detail=f"Failed to generate session ID: {str(e)}")
 
     @app.post("/api/generate_upload_signature")
     async def generate_signature(request: UploadSignatureRequest) -> Dict[str, Any]:
@@ -69,15 +70,25 @@ def setup_oss_routes(app, connection_manager=None):
 
     @app.post("/api/delete_session_files")
     async def delete_files(request: DeleteSessionRequest) -> Dict[str, Any]:
-        """删除指定会话的所有文件"""
+        """删除指定会话的所有文件（OSS + 本地）"""
         try:
-            result = delete_session_files(request.session_id)
+            from local_storage_manager import delete_session_local_files
             
-            # 注意：不再通过WebSocket发送删除通知，因为前端通过回调处理操作记录
+            # session_id实际上是client_session_id
+            client_session_id = request.session_id
+            
+            # 删除OSS文件
+            oss_result = delete_session_files(client_session_id)
+            
+            # 删除本地文件
+            local_result = delete_session_local_files(client_session_id)
             
             return {
                 "success": True,
-                "result": result
+                "result": {
+                    "oss": oss_result,
+                    "local": local_result
+                }
             }
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to delete files: {str(e)}")
@@ -191,3 +202,48 @@ def setup_oss_routes(app, connection_manager=None):
             
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Proxy upload failed: {str(e)}")
+
+    @app.post("/api/upload_video_to_backend")
+    async def upload_video_to_backend_endpoint(
+        file: UploadFile = File(...),
+        client_session_id: str = Form(...)
+    ) -> Dict[str, Any]:
+        """接收视频文件，保存到本地，提取并上传音频到OSS"""
+        try:
+            from local_storage_manager import save_video_locally
+            from audio_extractor import extract_audio_from_video
+            
+            # 1. 读取视频文件内容
+            file_content = await file.read()
+            
+            # 2. 保存视频到本地
+            local_video_path = save_video_locally(file_content, client_session_id)
+            
+            # 3. 提取音频
+            audio_path = extract_audio_from_video(local_video_path)
+            
+            # 4. 上传音频到OSS（使用client_session_id作为路径）
+            audio_oss_key = f"{client_session_id}/audio/extracted_audio.mp3"
+            audio_url = upload_file_to_oss(audio_path, audio_oss_key)
+            
+            # 5. 删除临时音频文件
+            if os.path.exists(audio_path):
+                os.remove(audio_path)
+            
+            # 6. 通过WebSocket通知上传完成（仅返回client_session_id）
+            if connection_manager and client_session_id:
+                notification = {
+                    "type": "video_upload_complete",
+                    "session_id": client_session_id,  # 为兼容前端，字段名保持session_id
+                    "message": "视频已上传并提取音频"
+                }
+                await connection_manager.send_to_client(client_session_id, json.dumps(notification))
+            
+            return {
+                "success": True,
+                "session_id": client_session_id,  # 返回client_session_id，字段名保持session_id兼容
+                "audio_url": audio_url  # 返回音频URL供语音识别使用
+            }
+            
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"视频上传失败: {str(e)}")

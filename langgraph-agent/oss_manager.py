@@ -209,6 +209,20 @@ def cleanup_old_sessions(hours: int = 2, keep_sessions: set = None) -> Dict:
         "cutoff_hours": hours
     }
 
+def get_oss_url(oss_key: str) -> str:
+    """
+    根据OSS对象键生成完整的OSS URL
+    
+    Args:
+        oss_key: OSS对象键
+    
+    Returns:
+        完整的OSS URL
+    """
+    check_oss_config()
+    # 使用与upload_file_to_oss相同的URL格式
+    return f'https://{BUCKET_NAME}.{ENDPOINT.replace("https://", "")}/{oss_key}'
+
 def get_file_info(oss_url: str) -> Dict:
     """
     获取OSS文件信息

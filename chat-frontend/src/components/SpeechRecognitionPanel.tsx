@@ -19,7 +19,7 @@ interface UploadResult {
 
 interface SpeechRecognitionPanelProps {
   uploadResult: UploadResult | null;
-  onSpeechRecognition: (audioUrl: string) => Promise<SpeechResult[]>;
+  onSpeechRecognition: (audioUrl: string) => Promise<SpeechResult[]>; // 保持接口兼容，但实际不使用audioUrl
   onResultsChange?: (results: SpeechResult[]) => void;
 }
 
@@ -37,14 +37,14 @@ export default function SpeechRecognitionPanel({
   const [editingEndTime, setEditingEndTime] = useState<number>(0);
 
   const handleSpeechRecognition = async () => {
-    if (!uploadResult?.audio_url) return;
+    if (!uploadResult) return;
 
     setIsProcessing(true);
     setError(null);
     setResults([]);
 
     try {
-      const speechResults = await onSpeechRecognition(uploadResult.audio_url);
+      const speechResults = await onSpeechRecognition(''); // 不再需要audio_url参数
       setResults(speechResults);
     } catch (err) {
       setError(err instanceof Error ? err.message : '语音识别失败');

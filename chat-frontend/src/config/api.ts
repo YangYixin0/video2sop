@@ -15,7 +15,6 @@ export { API_BASE_URL, WS_BASE_URL };
 // 导出常用的API端点
 export const API_ENDPOINTS = {
   // 会话管理
-  GENERATE_SESSION_ID: `${API_BASE_URL}/generate_session_id`,
   MARK_SESSION_KEEP_VIDEO: `${API_BASE_URL}/mark_session_keep_video`,
   CHECK_SESSION_KEEP_VIDEO: `${API_BASE_URL}/check_session_keep_video`,
   DELETE_SESSION_FILES: `${API_BASE_URL}/delete_session_files`,
@@ -23,12 +22,16 @@ export const API_ENDPOINTS = {
   // 文件上传
   GENERATE_UPLOAD_SIGNATURE: `${API_BASE_URL}/generate_upload_signature`,
   UPLOAD_FILE_PROXY: `${API_BASE_URL}/upload_file_proxy`,
+  UPLOAD_VIDEO_TO_BACKEND: `${API_BASE_URL}/upload_video_to_backend`,
   EXTRACT_AUDIO: `${API_BASE_URL}/extract_audio`,
   LOAD_EXAMPLE_VIDEO: `${API_BASE_URL}/load_example_video`,
+  EXAMPLE_VIDEO_PREVIEW: `${API_BASE_URL}/example_video_preview`,
   
   // AI 处理
   SPEECH_RECOGNITION: `${API_BASE_URL}/speech_recognition`,
   VIDEO_UNDERSTANDING: `${API_BASE_URL}/video_understanding`,
+  VIDEO_UNDERSTANDING_LONG: `${API_BASE_URL}/video_understanding_long`,
+  GET_VIDEO_DURATION: `${API_BASE_URL}/get_video_duration`,
   PARSE_SOP: `${API_BASE_URL}/parse_sop`,
   REFINE_SOP: `${API_BASE_URL}/refine_sop`,
   

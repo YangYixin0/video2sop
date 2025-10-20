@@ -45,7 +45,6 @@ export default function VideoUploader({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -85,14 +84,14 @@ export default function VideoUploader({
 
   // 清理函数
   const cleanup = useCallback(async () => {
-    if (sessionId && uploadResult) {
+    if (uploadResult && uploadResult.session_id) {
       try {
         // 检查会话是否被标记为保留
-        const checkResponse = await fetch(`${API_ENDPOINTS.CHECK_SESSION_KEEP_VIDEO}?session_id=${sessionId}`);
+        const checkResponse = await fetch(`${API_ENDPOINTS.CHECK_SESSION_KEEP_VIDEO}?session_id=${uploadResult.session_id}`);
         if (checkResponse.ok) {
           const checkData = await checkResponse.json();
           if (checkData.is_kept) {
-            console.log(`会话 ${sessionId} 被标记为保留，跳过清理`);
+            console.log(`会话 ${uploadResult.session_id} 被标记为保留，跳过清理`);
             return { deleted_count: 0 };
           }
         }
@@ -102,7 +101,7 @@ export default function VideoUploader({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            session_id: sessionId,
+            session_id: uploadResult.session_id,
             client_session_id: clientSessionId
           }),
           mode: 'cors',
@@ -117,51 +116,30 @@ export default function VideoUploader({
       }
     }
     return { deleted_count: 0 };
-  }, [sessionId, uploadResult, clientSessionId]);
+  }, [uploadResult, clientSessionId]);
 
   // 组件卸载时清理
   useEffect(() => {
     return () => {
-      if (sessionId && uploadResult) {
+      if (uploadResult && uploadResult.session_id) {
         // 检查会话是否被标记为保留
-        checkAndCleanup(sessionId);
+        checkAndCleanup(uploadResult.session_id);
       }
     };
-  }, [sessionId, uploadResult, clientSessionId, checkAndCleanup]);
+  }, [uploadResult, clientSessionId, checkAndCleanup]);
 
   // 页面关闭时清理
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (sessionId && uploadResult) {
+      if (uploadResult && uploadResult.session_id) {
         // 检查会话是否被标记为保留
-        checkAndCleanup(sessionId);
+        checkAndCleanup(uploadResult.session_id);
       }
     };
     
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [sessionId, uploadResult, clientSessionId, checkAndCleanup]);
-
-  // 生成会话 ID
-  const generateSessionId = useCallback(async () => {
-    try {
-      const response = await fetch(API_ENDPOINTS.GENERATE_SESSION_ID, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        mode: 'cors',
-        credentials: 'omit'
-      });
-      const data = await response.json();
-      if (data.success) {
-        setSessionId(data.session_id);
-        return data.session_id;
-      } else {
-        throw new Error('生成会话 ID 失败');
-      }
-    } catch (error) {
-      throw new Error(`生成会话 ID 失败: ${error}`);
-    }
-  }, []);
+  }, [uploadResult, clientSessionId, checkAndCleanup]);
 
   // 获取上传签名
   const getUploadSignature = useCallback(async (filename: string, sessionId: string) => {
@@ -337,62 +315,48 @@ export default function VideoUploader({
 
   // 上传处理
   const handleUpload = useCallback(async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || !clientSessionId) return;
 
     try {
-      setUploadStatus({ status: 'uploading', message: '正在上传视频...', progress: 0 });
+      setUploadStatus({ status: 'uploading', message: '正在上传视频到服务器...', progress: 0 });
 
-      // 生成会话 ID
-      const sessionId = await generateSessionId();
-      
-      // 尝试直接上传到 OSS
-      let videoUrl: string;
-      try {
-        const signature = await getUploadSignature(selectedFile.name, sessionId);
-        videoUrl = String(await uploadToOSS(selectedFile, signature));
-        setUploadStatus({ status: 'uploading', message: '视频上传成功，正在提取音频...', progress: 50 });
-      } catch (error) {
-        console.warn('直接上传失败，尝试代理上传:', error);
-        setUploadStatus({ status: 'uploading', message: '后端上传中...（进度条不准）', progress: 25 });
-        videoUrl = await uploadViaProxy(selectedFile, sessionId);
-        setUploadStatus({ status: 'uploading', message: '视频上传成功，正在提取音频...', progress: 50 });
+      // 直接上传视频到后端，使用 clientSessionId
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('client_session_id', clientSessionId);
+
+      const response = await fetch(API_ENDPOINTS.UPLOAD_VIDEO_TO_BACKEND, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error('视频上传失败');
       }
 
-      // 提取音频
-      setUploadStatus({ status: 'extracting', message: '正在提取音频...', progress: 75 });
-      const audioUrl = await extractAudio(videoUrl, sessionId);
+      setUploadStatus({ status: 'completed', message: '视频上传完成', progress: 100 });
 
-      // 完成
+      // 回调，返回session_id和audio_url
       const result: UploadResult = {
-        video_url: videoUrl,
-        audio_url: audioUrl,
-        session_id: sessionId
+        session_id: data.session_id,  // 实际是client_session_id
+        video_url: '',
+        audio_url: data.audio_url || ''  // 从后端获取音频URL
       };
-
       setUploadResult(result);
-      setUploadStatus({ status: 'completed', message: '上传完成！', progress: 100 });
       onUploadComplete?.(result);
-
-      // 通过回调发送WebSocket消息
-      onWebSocketMessage?.({
-        type: 'upload_complete',
-        video_url: videoUrl,
-        audio_url: audioUrl,
-        session_id: sessionId,
-        client_session_id: clientSessionId
-      });
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '上传失败';
       setUploadStatus({ status: 'error', message: errorMessage, progress: 0 });
       onUploadError?.(errorMessage);
     }
-  }, [selectedFile, generateSessionId, getUploadSignature, uploadToOSS, uploadViaProxy, extractAudio, onUploadComplete, onUploadError, clientSessionId, onWebSocketMessage]);
+  }, [selectedFile, onUploadComplete, onUploadError, clientSessionId]);
 
   // 移除文件
   const handleRemove = useCallback(async () => {
     let deletedCount = 0;
-    const currentSessionId = sessionId;
+    const currentSessionId = uploadResult?.session_id;
     
     if (uploadResult) {
       try {
@@ -406,7 +370,6 @@ export default function VideoUploader({
     setSelectedFile(null);
     setVideoPreview(null);
     setUploadResult(null);
-    setSessionId(null);
     setUploadStatus({ status: 'idle', message: '', progress: 0 });
     
     if (fileInputRef.current) {
@@ -417,7 +380,7 @@ export default function VideoUploader({
     if (currentSessionId && deletedCount > 0) {
       onFileRemoved?.();
     }
-  }, [uploadResult, cleanup, sessionId, onFileRemoved]);
+  }, [uploadResult, cleanup, onFileRemoved]);
 
   // 拖拽处理
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -450,6 +413,8 @@ export default function VideoUploader({
 
   // 加载示例视频
   const handleLoadExampleVideo = useCallback(async () => {
+    if (!clientSessionId) return;
+    
     try {
       setUploadStatus({ status: 'uploading', message: '正在加载示例视频...', progress: 0 });
       
@@ -457,6 +422,7 @@ export default function VideoUploader({
       const response = await fetch(API_ENDPOINTS.LOAD_EXAMPLE_VIDEO, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_session_id: clientSessionId }),
         mode: 'cors',
         credentials: 'omit'
       });
@@ -466,17 +432,20 @@ export default function VideoUploader({
         setUploadStatus({ status: 'completed', message: '示例视频加载完成！', progress: 100 });
         
         const result: UploadResult = {
-          video_url: data.video_url,
-          audio_url: data.audio_url,
-          session_id: data.session_id
+          session_id: data.session_id,
+          video_url: '',
+          audio_url: data.audio_url || ''  // 从后端获取音频URL
         };
         
+        
         // 设置示例视频的预览
-        setSelectedFile(new File([], 'pressing_operation.mp4', { type: 'video/mp4' }));
-        setVideoPreview(data.video_url);
+        const exampleFile = new File([], 'pressing_operation.mp4', { type: 'video/mp4' });
+        setSelectedFile(exampleFile);
+        
+        // 为示例视频创建预览URL
+        setVideoPreview(API_ENDPOINTS.EXAMPLE_VIDEO_PREVIEW);
         
         setUploadResult(result);
-        setSessionId(data.session_id);
         
         // 调用onUploadComplete回调，确保前端状态正确更新
         onUploadComplete?.(result);
@@ -484,8 +453,6 @@ export default function VideoUploader({
         // 同时发送WebSocket消息
         onWebSocketMessage?.({
           type: 'upload_complete',
-          video_url: data.video_url,
-          audio_url: data.audio_url,
           session_id: data.session_id,
           client_session_id: clientSessionId
         });
@@ -497,7 +464,7 @@ export default function VideoUploader({
       setUploadStatus({ status: 'error', message: errorMessage, progress: 0 });
       onUploadError?.(errorMessage);
     }
-  }, [onUploadComplete, onUploadError, onWebSocketMessage, clientSessionId]);
+  }, [clientSessionId, onUploadComplete, onUploadError, onWebSocketMessage]);
 
   return (
     <div className="w-full max-w-7xl mx-auto bg-white rounded-lg shadow-sm border">
@@ -533,6 +500,9 @@ export default function VideoUploader({
             </p>
             <p className="text-xs text-blue-600 mt-2">
               🛡️ 数据保护：当您关闭或刷新网页时，我们不会保留您的视频。
+            </p>
+            <p className="text-xs text-amber-600 mt-1">
+              ⚠️ 直传OSS可能失败，系统会自动改为后端代理上传（进度条不准）。
             </p>
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -612,13 +582,9 @@ export default function VideoUploader({
             </div>
           ) : uploadStatus.status === 'error' ? (
             <div className="text-red-600 text-sm">{uploadStatus.message}</div>
-          ) : uploadStatus.status === 'completed' && uploadResult ? (
+          ) : uploadStatus.status === 'completed' ? (
             <div className="text-green-600 text-sm">
               <p>✅ 上传完成！</p>
-              <div className="mt-2 space-y-1 text-xs">
-                <p><strong>视频链接:</strong> <a href={uploadResult.video_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{uploadResult.video_url}</a></p>
-                <p><strong>音频链接:</strong> <a href={uploadResult.audio_url} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">{uploadResult.audio_url}</a></p>
-              </div>
             </div>
           ) : null}
         </div>
