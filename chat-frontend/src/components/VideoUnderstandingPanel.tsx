@@ -609,7 +609,7 @@ export default function VideoUnderstandingPanel({
         )}
 
         {/* 空状态提示 */}
-        {!isProcessing && !result && !error && isReady && (
+        {!isProcessing && !result && !integratedResult && !error && isReady && (
           <div className="text-center text-gray-500 py-8">
             <div className="text-4xl mb-2">🎬</div>
             <p>点击上方&ldquo;开始视频理解&rdquo;按钮</p>

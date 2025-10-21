@@ -245,16 +245,22 @@ export default function Home() {
       setOperationRecords(prev => [...prev, segRecord]);
     } else if (data.type === 'integration_completed') {
       const text = typeof data.result === 'string' ? data.result : String(data.result || '');
-      setIntegratedResult(text);
-      const integRecord: OperationRecord = {
-        id: `integrate-${Date.now()}`,
-        type: 'video_understanding',
-        timestamp: new Date(),
-        status: 'success',
-        message: '长视频整合完成',
-        data: {}
-      };
-      setOperationRecords(prev => [...prev, integRecord]);
+      
+      // 确保结果不为空才更新状态
+      if (text && text.length > 0) {
+        setIntegratedResult(text);
+        setVideoUnderstandingResult(text); // 同时设置videoUnderstandingResult以便SOPEditor可以使用
+        
+        const integRecord: OperationRecord = {
+          id: `integrate-${Date.now()}`,
+          type: 'video_understanding',
+          timestamp: new Date(),
+          status: 'success',
+          message: '长视频整合完成',
+          data: {}
+        };
+        setOperationRecords(prev => [...prev, integRecord]);
+      }
     }
   }, [notificationEnabled]);
 
@@ -376,6 +382,7 @@ export default function Home() {
       // 清理旧的分段/整合UI状态
       setSegmentResults([]);
       setIntegratedResult('');
+      setVideoUnderstandingResult(''); // 也清空视频理解结果
       const response = await fetch(API_ENDPOINTS.VIDEO_UNDERSTANDING_LONG, {
         method: 'POST',
         headers: {
@@ -398,12 +405,17 @@ export default function Home() {
       }
 
       const result = await response.json();
-      const videoResult = result.result || '';
       
-      // 保存视频理解结果
-      setVideoUnderstandingResult(videoResult);
-      
-      return videoResult;
+      // 对于长视频，结果已经通过WebSocket的integration_completed消息设置，不需要再从HTTP响应中提取
+      // 对于短视频，result.result包含直接返回的理解结果
+      if (result.result) {
+        const videoResult = result.result;
+        setVideoUnderstandingResult(videoResult);
+        return videoResult;
+      } else {
+        // 长视频：返回空字符串，实际结果已通过WebSocket设置
+        return '';
+      }
     } catch (error) {
       console.error('视频理解失败:', error);
       

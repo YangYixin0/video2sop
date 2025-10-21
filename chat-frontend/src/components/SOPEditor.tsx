@@ -329,7 +329,6 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
     setEditingBlocks(new Set());
   }, [selectedBlocks, blocksA, generateId]);
 
-
   return (
     <div className="w-full max-w-7xl mx-auto">
       <div className="mb-6">

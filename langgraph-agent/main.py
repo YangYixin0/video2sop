@@ -747,6 +747,21 @@ async def video_understanding_long_endpoint(request: dict):
             return {"success": True, "result": result.get("result", "")}
 
         # 长视频：分段并行
+        # 拆分提示词
+        from prompt_splitter_tool import split_prompt_for_long_video
+        
+        if client_session_id:
+            await manager.send_to_client(client_session_id, json.dumps({
+                "type": "status", "stage": "splitting_prompt", "message": "正在分析提示词..."
+            }))
+        
+        prompt_split_result = await asyncio.to_thread(
+            split_prompt_for_long_video, 
+            prompt
+        )
+        segment_prompt_user = prompt_split_result.get("segment_prompt", "")
+        integration_prompt_user = prompt_split_result.get("integration_prompt", "")
+        
         if client_session_id:
             await manager.send_to_client(client_session_id, json.dumps({
                 "type": "status", "stage": "segmenting", "message": "正在分段..."
@@ -757,10 +772,6 @@ async def video_understanding_long_endpoint(request: dict):
 
         # 逐段并行处理
         async def process_segment(seg):
-            seg_prompt = (
-                f"这是长视频的第{seg['segment_id']}个片段，时间范围："
-                f"{seg['start_time']}s - {seg['end_time']}s。只需提供材料、步骤、澄清问题。"
-            )
             # 通知开始
             if client_session_id:
                 await manager.send_to_client(client_session_id, json.dumps({
@@ -772,7 +783,7 @@ async def video_understanding_long_endpoint(request: dict):
             res_json = await asyncio.to_thread(
                 video_understanding,
                 seg['url'],
-                seg_prompt + "\n\n" + (prompt or ""),
+                segment_prompt_user,  # 使用拆分后的片段提示词
                 int(fps),
                 audio_transcript
             )
@@ -802,7 +813,12 @@ async def video_understanding_long_endpoint(request: dict):
             await manager.send_to_client(client_session_id, json.dumps({
                 "type": "status", "stage": "integrating", "message": "正在整合片段结果..."
             }))
-        integrated = await asyncio.to_thread(integrate_sop_segments, segment_results, audio_transcript or "")
+        integrated = await asyncio.to_thread(
+            integrate_sop_segments, 
+            segment_results, 
+            audio_transcript or "",
+            integration_prompt_user  # 传递拆分后的整合提示词
+        )
         if isinstance(integrated, str) and integrated.startswith('{') and '"error"' in integrated:
             # 失败也继续返回片段结果，供前端展示
             if client_session_id:
