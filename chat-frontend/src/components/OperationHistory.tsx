@@ -23,6 +23,9 @@ export interface OperationRecord {
     has_audio_context?: boolean;
     blocks_count?: number;
     has_user_notes?: boolean;
+    stage?: string;
+    segment_id?: number;
+    time_range?: string;
   };
 }
 

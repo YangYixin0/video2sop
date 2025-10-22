@@ -772,18 +772,33 @@ async def video_understanding_long_endpoint(request: dict):
 
         # 逐段并行处理
         async def process_segment(seg):
+            # 格式化时间段信息为 mm:ss 格式
+            def format_time_mmss(seconds):
+                mins = int(seconds) // 60
+                secs = int(seconds) % 60
+                return f"{mins:02d}:{secs:02d}"
+            
+            start_time_str = format_time_mmss(seg['start_time'])
+            end_time_str = format_time_mmss(seg['end_time'])
+            time_range_formatted = f"{start_time_str}-{end_time_str}"
+            
             # 通知开始
             if client_session_id:
                 await manager.send_to_client(client_session_id, json.dumps({
                     "type": "segment_processing",
                     "segment_id": seg['segment_id'],
-                    "time_range": f"{seg['start_time']}s-{seg['end_time']}s"
+                    "time_range": time_range_formatted
                 }))
+            
+            # 在片段提示词前添加时间段信息
+            segment_prompt_with_context = f"""你获得的视频片段是完整视频的{time_range_formatted}部分。
+
+{segment_prompt_user}"""
 
             res_json = await asyncio.to_thread(
                 video_understanding,
                 seg['url'],
-                segment_prompt_user,  # 使用拆分后的片段提示词
+                segment_prompt_with_context,  # 使用包含时间段信息的提示词
                 int(fps),
                 audio_transcript
             )
@@ -793,12 +808,12 @@ async def video_understanding_long_endpoint(request: dict):
                 await manager.send_to_client(client_session_id, json.dumps({
                     "type": "segment_completed",
                     "segment_id": seg['segment_id'],
-                    "time_range": f"{seg['start_time']}s-{seg['end_time']}s",
+                    "time_range": time_range_formatted,
                     "result": text
                 }))
             return {
                 "segment_id": seg['segment_id'],
-                "time_range": f"{seg['start_time']}s-{seg['end_time']}s",
+                "time_range": time_range_formatted,
                 "result": text
             }
 

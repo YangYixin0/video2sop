@@ -119,19 +119,23 @@ interface VideoUnderstandingPanelProps {
     prompt: string;
     fps: number;
     audio_transcript?: string;
+    add_timestamp?: boolean;
+    split_threshold?: number;
+    segment_length?: number;
+    segment_overlap?: number;
   }) => Promise<string>;
   // 可选：长视频时用于展示片段与整合结果
   segmentResults?: { segment_id: number; time_range: string; result: string; status: 'processing' | 'completed' | 'error'; }[];
   integratedResult?: string;
 }
 
-const DEFAULT_PROMPT = `1. 提供给你的是一个实验室仪器或实验处理的操作教学视频和它的语音识别结果，请按照这些内容理解视频内演示者的操作，写一个标准操作流程（SOP）草稿。这个草稿包含标题、摘要、关键词、材料试剂工具设备清单、操作步骤和也许其他内容。其他内容请你合理地整理成段落。
+const DEFAULT_PROMPT = `1. 提供给你的是一个实验室仪器或实验处理的操作教学视频和它的语音识别结果，请按照这些内容去理解视频内演示者的操作，写一个标准操作流程（SOP）草稿。这个草稿包含标题、摘要、关键词、材料试剂工具设备清单、操作步骤和也许其他内容。其他内容请你合理地整理成一个或多个段落。
 
-2. 这份草稿的操作步骤越具体越好。步骤包含"目的"和"操作"两个层级，相邻的多个操作由它们的共同目的所统领。每个目的的开头带有一个时间起终范围（精确到秒），操作不要带时间起终范围。
+2. 这份草稿的操作步骤越具体越好。操作步骤中适当分段，每一段包含"目的"和"操作"两个层级，"操作"是时间上相邻的多个操作，各放一行，"目的"是这些相邻的多个操作的共同目的。每个目的的开头带有一个时间起终范围（格式为mm:ss-mm:ss），操作不要带时间起终范围。
 
 3. 演示者讲的话一定是操作重点，不过细节可能偶尔讲错。同时，语音识别结果也可能有错误，一般是被错误识别为读音相近的字。请你结合上下文来理解。
 
-4. 最终以纯文本格式输出，不要使用任何Markdown语法标记。
+4. 最终以中文、纯文本格式输出，不使用Markdown语法。
 
 5. 生成一些问题请用户澄清一些重要细节。`;
 

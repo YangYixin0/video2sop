@@ -34,13 +34,12 @@ def video_understanding(
     try:
         # 组合提示词
         if audio_transcript:
-            combined_prompt = f"""以下是视频的语音内容：
+            combined_prompt = f"""{prompt}
 
+--------------------------------
+以下是视频的语音内容：
 {audio_transcript}
-
----
-
-{prompt}"""
+"""
         else:
             combined_prompt = prompt
         
@@ -100,7 +99,7 @@ def video_understanding(
 
 def test_video_understanding():
     """测试视频理解功能"""
-    # 测试用的视频URL（需要替换为实际可访问的URL）
+    # 测试用的视频URL（不是真的视频URL，需要替换为实际可访问的URL）
     test_video_url = "https://example.com/test.mp4"
     test_prompt = "这是一个实验室仪器的操作教学视频和它的语音内容，请按照这些内容描述视频内演示者的操作。尽量详细。分成两个层级，相邻的多个有共同目的的步骤由它们的共同目所统领，带有一个时间范围。最终输出为Markdown格式"
     test_audio = "这是测试语音内容"
