@@ -119,7 +119,6 @@ interface VideoUnderstandingPanelProps {
     prompt: string;
     fps: number;
     audio_transcript?: string;
-    add_timestamp?: boolean;
     split_threshold?: number;
     segment_length?: number;
     segment_overlap?: number;
@@ -171,7 +170,6 @@ export default function VideoUnderstandingPanel({
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
   const [fps, setFps] = useState(2);
   const [showMarkdown, setShowMarkdown] = useState(true);
-  const [addTimestamp, setAddTimestamp] = useState(false); // 是否叠加时间戳
   
   // 视频分段参数
   const [splitThreshold, setSplitThreshold] = useState(18); // 判定分段阈值（分钟）
@@ -208,7 +206,6 @@ export default function VideoUnderstandingPanel({
         prompt: prompt,
         fps: fps,
         audio_transcript: audioTranscript,
-        add_timestamp: addTimestamp, // 传递是否叠加时间戳的选择
         split_threshold: splitThreshold, // 判定分段阈值（分钟）
         segment_length: segmentLength, // 片段时长上限（分钟）
         segment_overlap: segmentOverlap // 片段重叠（分钟）
@@ -323,23 +320,6 @@ export default function VideoUnderstandingPanel({
           <label className="block text-sm font-medium text-gray-700 mb-2">
             视频处理选项
           </label>
-          <div className="flex items-center space-x-3">
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={addTimestamp}
-                onChange={(e) => setAddTimestamp(e.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-              />
-              <span className="ml-2 text-sm text-gray-700">叠加时间戳</span>
-            </label>
-          </div>
-          <div className="text-xs text-gray-500 mt-1">
-            {addTimestamp ? 
-              "在视频画面上叠加时间戳，便于AI理解音频句子与视频画面的对应关系，用时较长" : 
-              "不在视频画面上叠加时间戳，AI将凭音频句子含义和视频画面含义来判断对应关系"
-            }
-          </div>
         </div>
 
         {/* 视频分段参数设置 */}

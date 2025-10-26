@@ -173,7 +173,7 @@ def compress_and_overlay_video(
         '-crf', '23',  # CRF质量
         '-preset', 'ultrafast',  # 最快预设
         '-c:a', 'copy',  # 复制原音频，不重新编码
-        '-metadata', 'encoder=Video2SOP v1.7.0',  # 元数据标识
+        '-metadata', 'Description=Video2SOP v1.7.0',  # 元数据标识
         '-movflags', '+faststart',  # 优化流媒体播放
         '-threads', '0',  # 使用所有可用CPU核心进行多线程编码
         '-y',

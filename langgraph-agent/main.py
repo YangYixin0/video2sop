@@ -612,7 +612,6 @@ async def video_understanding_long_endpoint(request: dict):
         fps = request.get("fps", 2)
         audio_transcript = request.get("audio_transcript")
         client_session_id = request.get("client_session_id")
-        add_timestamp = request.get("add_timestamp", False)  # 默认不叠加时间戳
         
         # 视频分段参数（限制最大18分钟）
         split_threshold = min(request.get("split_threshold", 18), 18)  # 拆分界限（分钟）
@@ -642,67 +641,28 @@ async def video_understanding_long_endpoint(request: dict):
         # 调试日志
         print(f"DEBUG: 视频时长检测 - duration_sec: {duration_sec}, split_threshold: {split_threshold}, split_threshold*60: {split_threshold * 60}, is_long: {is_long}")
         
-        # 根据用户选择和视频长度决定处理方式
+        # 根据视频长度决定处理方式
         video_for_processing = local_video_path  # 用于后续处理的视频路径
-        ts_video_url = None  # 用于短视频AI处理的视频URL
+        video_url = None  # 用于短视频AI处理的视频URL
         
-        if add_timestamp:
-            # 叠加时间戳
+        if not is_long:
+            # 短视频：上传原始视频到OSS
             await manager.send_to_client(client_session_id, json.dumps({
-                "type": "status", "stage": "overlay_start", "message": "开始叠加时间戳"
-            }))
-            
-            ts_video_url = await asyncio.to_thread(
-                add_timestamp_overlay, 
-                local_video_path, 
-                client_session_id, 
-                "video_with_ts.mp4",
-                True  # is_local_file=True
-            )
-            
-            await manager.send_to_client(client_session_id, json.dumps({
-                "type": "status", "stage": "overlay_done", "message": "时间戳叠加完成"
-            }))
-            
-            # 如果叠加时间戳，使用叠加时间戳后的视频进行后续处理
-            from local_storage_manager import get_local_video_path
-            video_for_processing = get_local_video_path(client_session_id, "video_with_ts.mp4")
-            
-            if not is_long:
-                # 短视频：叠加时间戳后上传到OSS用于AI处理
-                await manager.send_to_client(client_session_id, json.dumps({
-                    "type": "status", "stage": "upload_start", "message": "开始上传叠加时间戳后的视频"
-                }))
-                
-                from oss_manager import upload_file_to_oss
-                video_oss_key = f"{client_session_id}/video_with_ts.mp4"
-                ts_video_url = await asyncio.to_thread(
-                    upload_file_to_oss,
-                    video_for_processing,
-                    video_oss_key
-                )
-                
-                await manager.send_to_client(client_session_id, json.dumps({
-                    "type": "status", "stage": "upload_done", "message": "叠加时间戳后的视频上传完成"
-                }))
-        elif not is_long:
-            # 短视频且不叠加时间戳：上传原始视频到OSS
-            await manager.send_to_client(client_session_id, json.dumps({
-                "type": "status", "stage": "upload_start", "message": "开始上传原始视频"
+                "type": "status", "stage": "upload_start", "message": "开始上传视频"
             }))
             
             from oss_manager import upload_file_to_oss
             video_oss_key = f"{client_session_id}/original_video.mp4"
-            ts_video_url = await asyncio.to_thread(
+            video_url = await asyncio.to_thread(
                 upload_file_to_oss,
                 local_video_path,
                 video_oss_key
             )
             
             await manager.send_to_client(client_session_id, json.dumps({
-                "type": "status", "stage": "upload_done", "message": "原始视频上传完成"
+                "type": "status", "stage": "upload_done", "message": "视频上传完成"
             }))
-        # 长视频且不叠加时间戳：直接使用原始视频进行分段，不需要上传
+        # 长视频不需要上传，直接使用本地文件
         
         if client_session_id:
             await manager.send_to_client(client_session_id, json.dumps({
@@ -725,7 +685,7 @@ async def video_understanding_long_endpoint(request: dict):
                 }))
             result_json = await asyncio.to_thread(
                 video_understanding,
-                ts_video_url,
+                video_url,
                 prompt,
                 int(fps),
                 audio_transcript
@@ -738,7 +698,7 @@ async def video_understanding_long_endpoint(request: dict):
             if client_session_id:
                 await manager.send_to_client(client_session_id, json.dumps({
                     "type": "video_understanding_complete",
-                    "video_url": ts_video_url,
+                    "video_url": video_url,
                     "result": result.get("result", ""),
                     "fps": int(fps),
                     "has_audio_context": bool(audio_transcript),

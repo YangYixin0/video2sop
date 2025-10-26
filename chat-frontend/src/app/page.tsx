@@ -208,7 +208,7 @@ export default function Home() {
       // 添加到操作记录
       const compressionRecord: OperationRecord = {
         id: `compression-${Date.now()}`,
-        type: 'video_understanding',
+        type: 'video_compression',
         timestamp: new Date(),
         status: 'processing',
         message: '开始压缩视频...',
@@ -222,7 +222,7 @@ export default function Home() {
       // 添加到操作记录
       const compressionRecord: OperationRecord = {
         id: `compression-${Date.now()}`,
-        type: 'video_understanding',
+        type: 'video_compression',
         timestamp: new Date(),
         status: 'success',
         message: '视频压缩完成',
@@ -236,7 +236,7 @@ export default function Home() {
       // 添加到操作记录
       const compressionRecord: OperationRecord = {
         id: `compression-${Date.now()}`,
-        type: 'video_understanding',
+        type: 'video_compression',
         timestamp: new Date(),
         status: 'error',
         message: `视频压缩失败: ${data.message || '未知错误'}`,

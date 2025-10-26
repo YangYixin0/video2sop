@@ -8,7 +8,7 @@ import { SOPBlock } from '@/types/sop';
 
 export interface OperationRecord {
   id: string;
-  type: 'upload' | 'speech_recognition' | 'file_removed' | 'video_understanding' | 'sop_parse' | 'sop_refine';
+  type: 'upload' | 'speech_recognition' | 'file_removed' | 'video_understanding' | 'video_compression' | 'sop_parse' | 'sop_refine';
   timestamp: Date;
   status: 'success' | 'error' | 'processing';
   message: string;
@@ -129,6 +129,8 @@ export default function OperationHistory({
         return '🎤';
       case 'video_understanding':
         return '🎬';
+      case 'video_compression':
+        return '🗜️';
       case 'sop_parse':
         return '📋';
       case 'sop_refine':
@@ -286,6 +288,7 @@ export default function OperationHistory({
                     {record.type === 'upload' && '视频上传'}
                     {record.type === 'speech_recognition' && '语音识别'}
                     {record.type === 'video_understanding' && '视频理解'}
+                    {record.type === 'video_compression' && '视频压缩'}
                     {record.type === 'sop_parse' && '草稿解析'}
                     {record.type === 'sop_refine' && 'SOP精修'}
                     {record.type === 'file_removed' && '文件删除'}
