@@ -233,34 +233,69 @@ def setup_oss_routes(app, connection_manager=None):
             
             # 6. 启动异步压缩任务
             import asyncio
-            from video_processor import compress_and_overlay_video
+            from video_processor import compress_and_overlay_video, check_video_metadata
+            from local_storage_manager import get_local_video_path
             
             async def compress_task():
-                if connection_manager and client_session_id:
-                    await connection_manager.send_to_client(client_session_id, json.dumps({
-                        "type": "compression_started",
-                        "message": "开始压缩视频..."
-                    }))
+                # 检查视频是否已经是压缩过的
+                is_already_compressed = await asyncio.to_thread(
+                    check_video_metadata,
+                    local_video_path
+                )
                 
-                try:
-                    compressed_path = await asyncio.to_thread(
-                        compress_and_overlay_video,
-                        local_video_path,
-                        client_session_id
-                    )
+                if is_already_compressed:
+                    # 视频已经是压缩过的，直接重命名
+                    compressed_video_path = get_local_video_path(client_session_id, "compressed_video.mp4")
+                    
+                    if connection_manager and client_session_id:
+                        await connection_manager.send_to_client(client_session_id, json.dumps({
+                            "type": "compression_started",
+                            "message": "检测到已压缩视频，跳过压缩..."
+                        }))
+                    
+                    # 重命名原视频为压缩视频
+                    import shutil
+                    shutil.move(local_video_path, compressed_video_path)
+                    print(f"已重命名原视频为压缩视频: {compressed_video_path}")
                     
                     if connection_manager and client_session_id:
                         await connection_manager.send_to_client(client_session_id, json.dumps({
                             "type": "compression_completed",
-                            "message": "视频压缩完成",
+                            "message": "视频无需压缩，已准备就绪",
                             "compressed_filename": "compressed_video.mp4"
                         }))
-                except Exception as e:
+                else:
+                    # 需要压缩
                     if connection_manager and client_session_id:
                         await connection_manager.send_to_client(client_session_id, json.dumps({
-                            "type": "compression_error",
-                            "message": f"视频压缩失败: {str(e)}"
+                            "type": "compression_started",
+                            "message": "开始压缩视频..."
                         }))
+                    
+                    try:
+                        compressed_path = await asyncio.to_thread(
+                            compress_and_overlay_video,
+                            local_video_path,
+                            client_session_id
+                        )
+                        
+                        # 压缩完成后删除原视频
+                        if os.path.exists(local_video_path):
+                            os.remove(local_video_path)
+                            print(f"已删除原视频: {local_video_path}")
+                        
+                        if connection_manager and client_session_id:
+                            await connection_manager.send_to_client(client_session_id, json.dumps({
+                                "type": "compression_completed",
+                                "message": "视频压缩完成，已删除原视频",
+                                "compressed_filename": "compressed_video.mp4"
+                            }))
+                    except Exception as e:
+                        if connection_manager and client_session_id:
+                            await connection_manager.send_to_client(client_session_id, json.dumps({
+                                "type": "compression_error",
+                                "message": f"视频压缩失败: {str(e)}"
+                            }))
             
             # 启动压缩任务（不等待完成）
             asyncio.create_task(compress_task())

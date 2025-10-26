@@ -131,6 +131,40 @@ def add_timestamp_overlay(
                 pass
 
 
+def check_video_metadata(input_video_path: str) -> bool:
+    """
+    检查视频元数据中的description字段是否为Video2SOP v1.7.0
+    Args:
+        input_video_path: 视频文件路径
+    Returns:
+        True if 已经是压缩视频，False if 需要压缩
+    """
+    try:
+        cmd = [
+            'ffprobe',
+            '-v', 'quiet',
+            '-print_format', 'json',
+            '-show_format',
+            input_video_path
+        ]
+        
+        code, out, err = _run_cmd(cmd, timeout=30)
+        if code != 0:
+            print(f"ffprobe failed: {err}")
+            return False
+            
+        import json
+        metadata = json.loads(out)
+        format_info = metadata.get('format', {})
+        tags = format_info.get('tags', {})
+        description = tags.get('description', '')
+        
+        return description == 'Video2SOP v1.7.0'
+    except Exception as e:
+        print(f"Error checking video metadata: {e}")
+        return False
+
+
 def compress_and_overlay_video(
     input_video_path: str,
     client_session_id: str,
@@ -173,7 +207,7 @@ def compress_and_overlay_video(
         '-crf', '23',  # CRF质量
         '-preset', 'ultrafast',  # 最快预设
         '-c:a', 'copy',  # 复制原音频，不重新编码
-        '-metadata', 'Description=Video2SOP v1.7.0',  # 元数据标识
+        '-metadata', 'description=Video2SOP v1.7.0',  # 元数据标识
         '-movflags', '+faststart',  # 优化流媒体播放
         '-threads', '0',  # 使用所有可用CPU核心进行多线程编码
         '-y',
@@ -236,6 +270,7 @@ def split_video_segments(
                 '-t', str(duration),
                 '-i', input_path,
                 '-c', 'copy',
+                '-avoid_negative_ts', 'make_zero',  # 处理负时间戳
                 '-y',
                 seg_path
             ]

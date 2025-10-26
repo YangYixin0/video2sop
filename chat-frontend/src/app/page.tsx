@@ -31,6 +31,7 @@ export default function Home() {
   } | null>(null);
   
   const [compressionMessage, setCompressionMessage] = useState<Record<string, unknown> | null>(null);
+  const [compressionStatus, setCompressionStatus] = useState<'idle' | 'compressing' | 'completed' | 'error'>('idle');
   
   const [operationRecords, setOperationRecords] = useState<OperationRecord[]>([]);
   const [speechRecognitionResult, setSpeechRecognitionResult] = useState<{
@@ -204,6 +205,7 @@ export default function Home() {
     else if (data.type === 'compression_started') {
       // 设置压缩消息状态，传递给VideoUploader
       setCompressionMessage(data);
+      setCompressionStatus('compressing');
       
       // 添加到操作记录
       const compressionRecord: OperationRecord = {
@@ -211,13 +213,14 @@ export default function Home() {
         type: 'video_compression',
         timestamp: new Date(),
         status: 'processing',
-        message: '开始压缩视频...',
+        message: data.message as string || '开始压缩视频...',
         data: { stage: 'compression_started' }
       };
       setOperationRecords(prev => [...prev, compressionRecord]);
     } else if (data.type === 'compression_completed') {
       // 设置压缩消息状态，传递给VideoUploader
       setCompressionMessage(data);
+      setCompressionStatus('completed');
       
       // 添加到操作记录
       const compressionRecord: OperationRecord = {
@@ -225,13 +228,14 @@ export default function Home() {
         type: 'video_compression',
         timestamp: new Date(),
         status: 'success',
-        message: '视频压缩完成',
+        message: data.message as string || '视频压缩完成，已删除原视频',
         data: { stage: 'compression_completed' }
       };
       setOperationRecords(prev => [...prev, compressionRecord]);
     } else if (data.type === 'compression_error') {
       // 设置压缩消息状态，传递给VideoUploader
       setCompressionMessage(data);
+      setCompressionStatus('error');
       
       // 添加到操作记录
       const compressionRecord: OperationRecord = {
@@ -724,6 +728,7 @@ export default function Home() {
             onVideoUnderstanding={handleVideoUnderstanding}
             segmentResults={segmentResults}
             integratedResult={integratedResult}
+            compressionStatus={compressionStatus}
           />
         </div>
 

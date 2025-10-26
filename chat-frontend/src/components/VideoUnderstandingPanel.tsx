@@ -126,6 +126,7 @@ interface VideoUnderstandingPanelProps {
   // 可选：长视频时用于展示片段与整合结果
   segmentResults?: { segment_id: number; time_range: string; result: string; status: 'processing' | 'completed' | 'error'; }[];
   integratedResult?: string;
+  compressionStatus?: 'idle' | 'compressing' | 'completed' | 'error';
 }
 
 const DEFAULT_PROMPT = `1. 提供给你的是一个实验室仪器或实验处理的操作教学视频和它的语音识别结果，请按照这些内容去理解视频内演示者的操作，写一个标准操作流程（SOP）草稿。这个草稿包含标题、摘要、关键词、材料试剂工具设备清单、操作步骤和也许其他内容。其他内容请你合理地整理成一个或多个段落。
@@ -162,7 +163,8 @@ export default function VideoUnderstandingPanel({
   speechRecognitionResult,
   onVideoUnderstanding,
   segmentResults = [],
-  integratedResult = ''
+  integratedResult = '',
+  compressionStatus = 'idle'
 }: VideoUnderstandingPanelProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<string>('');
@@ -219,7 +221,13 @@ export default function VideoUnderstandingPanel({
     }
   };
 
-  const isReady = uploadResult && speechRecognitionResult && speechRecognitionResult.length > 0;
+  // 需要同时满足：上传完成、语音识别完成、压缩完成
+  const isReady = Boolean(
+    uploadResult && 
+    speechRecognitionResult && 
+    speechRecognitionResult.length > 0 &&
+    compressionStatus === 'completed'
+  );
   
   // 检查是否有编辑过的语音内容
   const hasEditedSpeech = speechRecognitionResult?.some(item => item.isEdited) || false;
@@ -452,6 +460,15 @@ export default function VideoUnderstandingPanel({
               </div>
             )}
           </button>
+          
+          {/* 压缩等待提示 */}
+          {!isReady && uploadResult && speechRecognitionResult && speechRecognitionResult.length > 0 && compressionStatus !== 'completed' && (
+            <div className="mt-2 text-sm text-amber-600">
+              {compressionStatus === 'compressing' && '⏳ 正在压缩视频，请等待压缩完成...'}
+              {compressionStatus === 'idle' && '⏳ 等待视频压缩...'}
+              {compressionStatus === 'error' && '❌ 视频压缩失败，无法进行视频理解'}
+            </div>
+          )}
         </div>
 
         {/* 编辑提示 */}

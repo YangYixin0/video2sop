@@ -60,10 +60,10 @@ export default function VideoUploader({
     if (compressionMessage) {
       if (compressionMessage.type === 'compression_started') {
         setCompressionStatus('compressing');
-        setCompressionStatusMessage('正在压缩视频...');
+        setCompressionStatusMessage(compressionMessage.message as string || '正在压缩视频...');
       } else if (compressionMessage.type === 'compression_completed') {
         setCompressionStatus('completed');
-        setCompressionStatusMessage('视频压缩完成');
+        setCompressionStatusMessage(compressionMessage.message as string || '视频压缩完成，已删除原视频');
       } else if (compressionMessage.type === 'compression_error') {
         setCompressionStatus('error');
         setCompressionStatusMessage(compressionMessage.message as string || '压缩失败');

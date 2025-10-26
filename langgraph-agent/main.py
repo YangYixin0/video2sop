@@ -627,12 +627,18 @@ async def video_understanding_long_endpoint(request: dict):
         if not prompt:
             raise HTTPException(status_code=400, detail="缺少 prompt 参数")
 
-        # 不再需要video_url参数，直接使用本地文件
+        # 检查压缩视频是否存在
         from local_storage_manager import get_local_video_path
-        local_video_path = get_local_video_path(client_session_id)
+        compressed_video_path = get_local_video_path(client_session_id, "compressed_video.mp4")
         
-        if not os.path.exists(local_video_path):
-            raise HTTPException(status_code=404, detail="视频文件不存在，请先上传视频")
+        if not os.path.exists(compressed_video_path):
+            raise HTTPException(
+                status_code=400, 
+                detail="压缩视频尚未完成，请等待压缩完成后再开始视频理解"
+            )
+        
+        # 使用压缩视频而不是原始视频
+        local_video_path = compressed_video_path
 
         # 第二步：获取时长（先获取时长，再决定是否需要上传）
         duration_sec = await asyncio.to_thread(get_video_duration, local_video_path, True)
@@ -646,21 +652,21 @@ async def video_understanding_long_endpoint(request: dict):
         video_url = None  # 用于短视频AI处理的视频URL
         
         if not is_long:
-            # 短视频：上传原始视频到OSS
+            # 短视频：上传压缩视频到OSS
             await manager.send_to_client(client_session_id, json.dumps({
-                "type": "status", "stage": "upload_start", "message": "开始上传视频"
+                "type": "status", "stage": "upload_start", "message": "开始上传压缩视频"
             }))
             
             from oss_manager import upload_file_to_oss
-            video_oss_key = f"{client_session_id}/original_video.mp4"
+            video_oss_key = f"{client_session_id}/compressed_video.mp4"
             video_url = await asyncio.to_thread(
                 upload_file_to_oss,
-                local_video_path,
+                local_video_path,  # 此时 local_video_path 已是 compressed_video_path
                 video_oss_key
             )
             
             await manager.send_to_client(client_session_id, json.dumps({
-                "type": "status", "stage": "upload_done", "message": "视频上传完成"
+                "type": "status", "stage": "upload_done", "message": "压缩视频上传完成"
             }))
         # 长视频不需要上传，直接使用本地文件
         
