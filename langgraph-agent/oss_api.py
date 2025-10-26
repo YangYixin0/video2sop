@@ -7,6 +7,7 @@ import requests
 import json
 from typing import Dict, Any
 from fastapi import HTTPException, UploadFile, File, Form
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from oss_manager import (
@@ -230,7 +231,41 @@ def setup_oss_routes(app, connection_manager=None):
             if os.path.exists(audio_path):
                 os.remove(audio_path)
             
-            # 6. 通过WebSocket通知上传完成（仅返回client_session_id）
+            # 6. 启动异步压缩任务
+            import asyncio
+            from video_processor import compress_and_overlay_video
+            
+            async def compress_task():
+                if connection_manager and client_session_id:
+                    await connection_manager.send_to_client(client_session_id, json.dumps({
+                        "type": "compression_started",
+                        "message": "开始压缩视频..."
+                    }))
+                
+                try:
+                    compressed_path = await asyncio.to_thread(
+                        compress_and_overlay_video,
+                        local_video_path,
+                        client_session_id
+                    )
+                    
+                    if connection_manager and client_session_id:
+                        await connection_manager.send_to_client(client_session_id, json.dumps({
+                            "type": "compression_completed",
+                            "message": "视频压缩完成",
+                            "compressed_filename": "compressed_video.mp4"
+                        }))
+                except Exception as e:
+                    if connection_manager and client_session_id:
+                        await connection_manager.send_to_client(client_session_id, json.dumps({
+                            "type": "compression_error",
+                            "message": f"视频压缩失败: {str(e)}"
+                        }))
+            
+            # 启动压缩任务（不等待完成）
+            asyncio.create_task(compress_task())
+            
+            # 7. 通过WebSocket通知上传完成（仅返回client_session_id）
             if connection_manager and client_session_id:
                 notification = {
                     "type": "video_upload_complete",
@@ -247,3 +282,25 @@ def setup_oss_routes(app, connection_manager=None):
             
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"视频上传失败: {str(e)}")
+
+    @app.get("/api/download_compressed_video")
+    async def download_compressed_video(session_id: str):
+        """下载压缩后的视频"""
+        try:
+            from local_storage_manager import get_local_video_path
+            
+            compressed_path = get_local_video_path(session_id, "compressed_video.mp4")
+            
+            if not os.path.exists(compressed_path):
+                raise HTTPException(status_code=404, detail="压缩视频不存在")
+            
+            return FileResponse(
+                compressed_path,
+                media_type="video/mp4",
+                filename="compressed_video.mp4",
+                headers={
+                    "Content-Disposition": "attachment; filename=compressed_video.mp4"
+                }
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"下载失败: {str(e)}")

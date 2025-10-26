@@ -20,6 +20,8 @@ interface VideoUploaderProps {
   onUploadError?: (error: string) => void;
   onFileRemoved?: () => void;
   onWebSocketMessage?: (message: Record<string, unknown>) => void;
+  onCompressionMessage?: (message: Record<string, unknown>) => void;
+  compressionMessage?: Record<string, unknown> | null;
   maxFileSize?: number; // 字节
   allowedTypes?: string[];
   clientSessionId?: string;
@@ -33,6 +35,8 @@ export default function VideoUploader({
   onUploadError,
   onFileRemoved,
   onWebSocketMessage,
+  onCompressionMessage,
+  compressionMessage,
   maxFileSize = DEFAULT_MAX_SIZE,
   allowedTypes = DEFAULT_ALLOWED_TYPES,
   clientSessionId
@@ -45,9 +49,35 @@ export default function VideoUploader({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
+  const [compressionStatus, setCompressionStatus] = useState<'idle' | 'compressing' | 'completed' | 'error'>('idle');
+  const [compressionStatusMessage, setCompressionStatusMessage] = useState<string>('');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
+
+  // 处理压缩消息
+  useEffect(() => {
+    if (compressionMessage) {
+      if (compressionMessage.type === 'compression_started') {
+        setCompressionStatus('compressing');
+        setCompressionStatusMessage('正在压缩视频...');
+      } else if (compressionMessage.type === 'compression_completed') {
+        setCompressionStatus('completed');
+        setCompressionStatusMessage('视频压缩完成');
+      } else if (compressionMessage.type === 'compression_error') {
+        setCompressionStatus('error');
+        setCompressionStatusMessage(compressionMessage.message as string || '压缩失败');
+      }
+    }
+  }, [compressionMessage]);
+
+  // 处理WebSocket消息
+  const handleWebSocketMessage = useCallback((msg: Record<string, unknown>) => {
+    // 转发消息给父组件
+    if (onWebSocketMessage) {
+      onWebSocketMessage(msg);
+    }
+  }, [onWebSocketMessage]);
 
   // 检查会话是否被保留，如果未保留则清理
   const checkAndCleanup = useCallback(async (sessionId: string) => {
@@ -109,6 +139,11 @@ export default function VideoUploader({
         });
         const result = await response.json();
         const deleteResult = result.result || { deleted_count: 0 };
+        
+        // 重置压缩状态
+        setCompressionStatus('idle');
+        setCompressionStatusMessage('');
+        
         return deleteResult;
       } catch (error) {
         console.error('清理文件失败:', error);
@@ -602,6 +637,34 @@ export default function VideoUploader({
           >
             您的浏览器不支持视频播放。
           </video>
+        </div>
+      )}
+
+      {/* 压缩状态和下载按钮 */}
+      {compressionStatus === 'completed' && uploadResult?.session_id && (
+        <div className="mt-4">
+          <a
+            href={`${API_ENDPOINTS.DOWNLOAD_COMPRESSED_VIDEO}?session_id=${uploadResult.session_id}`}
+            download="compressed_video.mp4"
+            className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            下载压缩视频
+          </a>
+        </div>
+      )}
+
+      {compressionStatus === 'compressing' && (
+        <div className="mt-4 text-sm text-blue-600">
+          {compressionStatusMessage}
+        </div>
+      )}
+
+      {compressionStatus === 'error' && (
+        <div className="mt-4 text-sm text-red-600">
+          {compressionStatusMessage}
         </div>
       )}
       </div>

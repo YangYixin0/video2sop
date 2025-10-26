@@ -30,6 +30,8 @@ export default function Home() {
     session_id: string;
   } | null>(null);
   
+  const [compressionMessage, setCompressionMessage] = useState<Record<string, unknown> | null>(null);
+  
   const [operationRecords, setOperationRecords] = useState<OperationRecord[]>([]);
   const [speechRecognitionResult, setSpeechRecognitionResult] = useState<{
     sentence_id: number;
@@ -198,6 +200,50 @@ export default function Home() {
       };
       setOperationRecords(prev => [...prev, refineRecord]);
     }
+    // 压缩相关消息：转发给VideoUploader处理并添加到操作记录
+    else if (data.type === 'compression_started') {
+      // 设置压缩消息状态，传递给VideoUploader
+      setCompressionMessage(data);
+      
+      // 添加到操作记录
+      const compressionRecord: OperationRecord = {
+        id: `compression-${Date.now()}`,
+        type: 'video_understanding',
+        timestamp: new Date(),
+        status: 'processing',
+        message: '开始压缩视频...',
+        data: { stage: 'compression_started' }
+      };
+      setOperationRecords(prev => [...prev, compressionRecord]);
+    } else if (data.type === 'compression_completed') {
+      // 设置压缩消息状态，传递给VideoUploader
+      setCompressionMessage(data);
+      
+      // 添加到操作记录
+      const compressionRecord: OperationRecord = {
+        id: `compression-${Date.now()}`,
+        type: 'video_understanding',
+        timestamp: new Date(),
+        status: 'success',
+        message: '视频压缩完成',
+        data: { stage: 'compression_completed' }
+      };
+      setOperationRecords(prev => [...prev, compressionRecord]);
+    } else if (data.type === 'compression_error') {
+      // 设置压缩消息状态，传递给VideoUploader
+      setCompressionMessage(data);
+      
+      // 添加到操作记录
+      const compressionRecord: OperationRecord = {
+        id: `compression-${Date.now()}`,
+        type: 'video_understanding',
+        timestamp: new Date(),
+        status: 'error',
+        message: `视频压缩失败: ${data.message || '未知错误'}`,
+        data: { stage: 'compression_error' }
+      };
+      setOperationRecords(prev => [...prev, compressionRecord]);
+    }
     // 阶段性状态消息：写入操作记录面板
     else if (data.type === 'status') {
       const stage = (data.stage as string) || '';
@@ -294,6 +340,16 @@ export default function Home() {
   // 处理VideoUploader的WebSocket消息
   const handleVideoUploaderWebSocketMessage = (message: Record<string, unknown>) => {
     console.log('handleVideoUploaderWebSocketMessage:', message, 'wsConnected:', wsConnected);
+    
+    // 如果是压缩相关消息，直接处理，不发送到WebSocket
+    if (message.type === 'compression_started' || 
+        message.type === 'compression_completed' || 
+        message.type === 'compression_error') {
+      // 这些消息已经在VideoUploader内部处理了，不需要额外操作
+      return;
+    }
+    
+    // 其他消息发送到WebSocket
     if (sendWebSocketMessage) {
       try {
         console.log('发送WebSocket消息:', JSON.stringify(message));
@@ -647,6 +703,7 @@ export default function Home() {
               setOperationRecords(prev => [...prev, removeRecord]);
             }}
             onWebSocketMessage={handleVideoUploaderWebSocketMessage}
+            compressionMessage={compressionMessage}
           />
         </div>
 

@@ -91,7 +91,7 @@ def add_timestamp_overlay(
             f"drawtext=fontfile={font_path}:"
             "text='Time\\: %{eif\\:floor(t/60)\\:d\\:2}\\:%{eif\\:mod(t\\,60)\\:d\\:2}':"
             "x=w-tw-10:y=h-th-10:"
-            "fontsize=60:fontcolor=white:box=1:boxcolor=black@0.55:"
+            "fontsize=40:fontcolor=white:box=1:boxcolor=black@0.55:"
             "borderw=2:bordercolor=black@0.8"
         )
 
@@ -129,6 +129,62 @@ def add_timestamp_overlay(
                 os.remove(output_path)
             except Exception:
                 pass
+
+
+def compress_and_overlay_video(
+    input_video_path: str,
+    client_session_id: str,
+    output_filename: str = "compressed_video.mp4"
+) -> str:
+    """
+    压缩视频并叠加时间戳，添加元数据标识
+    Args:
+        input_video_path: 原始视频本地路径
+        client_session_id: 会话ID
+        output_filename: 输出文件名
+    Returns:
+        压缩视频的本地路径
+    """
+    from local_storage_manager import get_session_video_dir
+    
+    # 获取输出路径
+    session_dir = get_session_video_dir(client_session_id)
+    output_path = os.path.join(session_dir, output_filename)
+    
+    # 字体路径(常见Linux字体路径)，如无该字体，ffmpeg仍可回退默认
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    # 使用 t(秒) 显示 "Time: mm:ss"，更通用，不依赖 gmtime
+    # minutes = floor(t/60), seconds = mod(t,60)
+    # 使用英文避免中文字体问题，并优化编码速度
+    drawtext = (
+        f"drawtext=fontfile={font_path}:"
+        "text='Time\\: %{eif\\:floor(t/60)\\:d\\:2}\\:%{eif\\:mod(t\\,60)\\:d\\:2}':"
+        "x=w-tw-10:y=h-th-10:"
+        "fontsize=30:fontcolor=white:box=1:boxcolor=black@0.55:"
+        "borderw=2:bordercolor=black@0.8"
+    )
+
+    cmd = [
+        'ffmpeg',
+        '-i', input_video_path,
+        '-vf', f'scale=-2:720,{drawtext}',  # 保持宽高比，高度720p，叠加时间戳
+        '-r', '10',  # 帧率10fps
+        '-c:v', 'libx265',  # h265编码
+        '-crf', '23',  # CRF质量
+        '-preset', 'ultrafast',  # 最快预设
+        '-c:a', 'copy',  # 复制原音频，不重新编码
+        '-metadata', 'encoder=Video2SOP v1.7.0',  # 元数据标识
+        '-movflags', '+faststart',  # 优化流媒体播放
+        '-threads', '0',  # 使用所有可用CPU核心进行多线程编码
+        '-y',
+        output_path
+    ]
+    
+    code, out, err = _run_cmd(cmd, timeout=1800)
+    if code != 0:
+        raise RuntimeError(f"ffmpeg compression failed: {err}")
+    
+    return output_path
 
 
 def split_video_segments(
