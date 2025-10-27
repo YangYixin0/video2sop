@@ -411,12 +411,14 @@ async def load_example_video_endpoint(request: dict):
         if os.path.exists(audio_path):
             os.remove(audio_path)
         
-        # 6. WebSocket通知
+        # 6. WebSocket通知音频提取完成并触发自动语音识别
         if client_session_id:
             await manager.send_to_client(client_session_id, json.dumps({
-                "type": "video_upload_complete",
+                "type": "audio_extraction_complete",
+                "audio_url": audio_url,
                 "session_id": client_session_id,
-                "message": "示例视频加载完成"
+                "message": "示例视频音频提取完成",
+                "auto_start_speech_recognition": True  # 新增：标记触发自动语音识别
             }))
         
         return {
@@ -461,7 +463,7 @@ async def speech_recognition_endpoint(request: dict):
             "type": "speech_recognition_complete",
             "audio_url": audio_url,
             "result": result,
-            "message": "语音识别已执行"
+            "message": "语音识别已完成"
         }
         
         # 发送给特定客户端
@@ -534,7 +536,7 @@ async def video_understanding_endpoint(request: dict):
             "result": result.get("result", ""),
             "fps": fps,
             "has_audio_context": bool(audio_transcript),
-            "message": "视频理解已执行"
+            "message": "视频理解已完成"
         }
         
         # 发送给特定客户端

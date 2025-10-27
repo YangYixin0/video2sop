@@ -6,7 +6,8 @@ import os
 import json
 import tempfile
 import subprocess
-from typing import List, Dict, Optional, Tuple
+import time
+from typing import List, Dict, Optional, Tuple, Callable
 
 import requests
 
@@ -168,7 +169,9 @@ def check_video_metadata(input_video_path: str) -> bool:
 def compress_and_overlay_video(
     input_video_path: str,
     client_session_id: str,
-    output_filename: str = "compressed_video.mp4"
+    output_filename: str = "compressed_video.mp4",
+    progress_callback: Optional[Callable[[int, int], None]] = None,
+    cancel_flag: Optional[object] = None
 ) -> str:
     """
     压缩视频并叠加时间戳，添加元数据标识
@@ -176,6 +179,8 @@ def compress_and_overlay_video(
         input_video_path: 原始视频本地路径
         client_session_id: 会话ID
         output_filename: 输出文件名
+        progress_callback: 进度回调函数，参数为(current_frame, total_frames)
+        cancel_flag: 取消标志对象，如果设置了cancelled属性则停止压缩
     Returns:
         压缩视频的本地路径
     """
@@ -184,6 +189,10 @@ def compress_and_overlay_video(
     # 获取输出路径
     session_dir = get_session_video_dir(client_session_id)
     output_path = os.path.join(session_dir, output_filename)
+    
+    # 获取视频时长并计算总帧数
+    duration_sec = get_video_duration(input_video_path, is_local_file=True)
+    total_frames = int(duration_sec * 10)  # 输出10fps
     
     # 字体路径(常见Linux字体路径)，如无该字体，ffmpeg仍可回退默认
     font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
@@ -200,6 +209,7 @@ def compress_and_overlay_video(
 
     cmd = [
         'ffmpeg',
+        '-progress', 'pipe:1',  # 输出进度到stdout
         '-i', input_video_path,
         '-vf', f'scale=-2:720,{drawtext}',  # 保持宽高比，高度720p，叠加时间戳
         '-r', '10',  # 帧率10fps
@@ -214,9 +224,34 @@ def compress_and_overlay_video(
         output_path
     ]
     
-    code, out, err = _run_cmd(cmd, timeout=1800)
-    if code != 0:
-        raise RuntimeError(f"ffmpeg compression failed: {err}")
+    # 使用Popen实时解析进度
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    
+    last_progress_time = time.time()
+    current_frame = 0
+    
+    # 实时读取FFmpeg输出
+    for line in process.stdout:
+        # 检查是否被取消
+        if cancel_flag and hasattr(cancel_flag, 'cancelled') and cancel_flag.cancelled:
+            print("压缩任务被取消，终止FFmpeg进程")
+            process.terminate()
+            raise RuntimeError("压缩任务被用户取消")
+        
+        if line.startswith('frame='):
+            current_frame = int(line.split('=')[1].strip())
+            
+            # 每5秒回调一次
+            if time.time() - last_progress_time >= 5:
+                if progress_callback:
+                    progress_callback(current_frame, total_frames)
+                last_progress_time = time.time()
+    
+    # 等待进程完成
+    stdout, stderr = process.communicate()
+    
+    if process.returncode != 0:
+        raise RuntimeError(f"ffmpeg compression failed: {stderr}")
     
     return output_path
 

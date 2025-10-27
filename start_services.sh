@@ -13,66 +13,82 @@ pkill -f "npm run start" 2>/dev/null || true
 
 # 强制清理端口占用
 echo "🔍 检查端口占用..."
-if netstat -tlnp 2>/dev/null | grep -q ":50001 "; then
-    echo "⚠️  端口50001被占用，正在清理..."
-    # 尝试多种方法获取PID
-    PID=$(netstat -tlnp 2>/dev/null | grep ":50001 " | awk '{print $7}' | cut -d'/' -f1)
-    if [ -z "$PID" ] || [ "$PID" = "-" ]; then
-        # 如果netstat无法获取PID，使用fuser或lsof
-        if command -v fuser >/dev/null 2>&1; then
-            PID=$(fuser 50001/tcp 2>/dev/null)
-        elif command -v lsof >/dev/null 2>&1; then
-            PID=$(lsof -ti:50001 2>/dev/null)
-        fi
-    fi
-    if [ ! -z "$PID" ] && [ "$PID" != "-" ]; then
-        echo "🔧 终止进程 $PID"
-        kill -9 $PID 2>/dev/null || true
-    else
-        echo "⚠️  无法获取端口50001的进程ID，尝试强制清理nginx进程"
-        pkill -f nginx 2>/dev/null || true
-    fi
+
+# 首先尝试优雅停止nginx
+if command -v nginx >/dev/null 2>&1; then
+    echo "🛑 优雅停止Nginx..."
+    nginx -s stop 2>/dev/null || true
+    sleep 2
 fi
 
-if netstat -tlnp 2>/dev/null | grep -q ":3000 "; then
-    echo "⚠️  端口3000被占用，正在清理..."
-    PID=$(netstat -tlnp 2>/dev/null | grep ":3000 " | awk '{print $7}' | cut -d'/' -f1)
-    if [ -z "$PID" ] || [ "$PID" = "-" ]; then
-        if command -v fuser >/dev/null 2>&1; then
-            PID=$(fuser 3000/tcp 2>/dev/null)
-        elif command -v lsof >/dev/null 2>&1; then
-            PID=$(lsof -ti:3000 2>/dev/null)
-        fi
-    fi
-    if [ ! -z "$PID" ] && [ "$PID" != "-" ]; then
-        echo "🔧 终止进程 $PID"
-        kill -9 $PID 2>/dev/null || true
-    else
-        echo "⚠️  无法获取端口3000的进程ID，尝试强制清理前端进程"
-        pkill -f "next" 2>/dev/null || true
-    fi
-fi
+# 强制清理所有相关进程
+echo "🧹 强制清理所有相关进程..."
+pkill -f "python main.py" 2>/dev/null || true
+pkill -f "next dev" 2>/dev/null || true
+pkill -f "npm run dev" 2>/dev/null || true
+pkill -f "npm run start" 2>/dev/null || true
+pkill -f "next start" 2>/dev/null || true
+pkill -f "uvicorn main:app" 2>/dev/null || true
+pkill -f "next-server" 2>/dev/null || true
+pkill -f nginx 2>/dev/null || true
 
-if netstat -tlnp 2>/dev/null | grep -q ":8123 "; then
-    echo "⚠️  端口8123被占用，正在清理..."
-    PID=$(netstat -tlnp 2>/dev/null | grep ":8123 " | awk '{print $7}' | cut -d'/' -f1)
-    if [ -z "$PID" ] || [ "$PID" = "-" ]; then
-        if command -v fuser >/dev/null 2>&1; then
-            PID=$(fuser 8123/tcp 2>/dev/null)
-        elif command -v lsof >/dev/null 2>&1; then
-            PID=$(lsof -ti:8123 2>/dev/null)
-        fi
-    fi
-    if [ ! -z "$PID" ] && [ "$PID" != "-" ]; then
-        echo "🔧 终止进程 $PID"
-        kill -9 $PID 2>/dev/null || true
-    else
-        echo "⚠️  无法获取端口8123的进程ID，尝试强制清理后端进程"
-        pkill -f "uvicorn" 2>/dev/null || true
-    fi
-fi
-
+# 等待进程完全退出
 sleep 3
+
+# 检查并强制清理端口占用
+cleanup_port() {
+    local port=$1
+    local service_name=$2
+    local process_pattern=$3
+    
+    if netstat -tlnp 2>/dev/null | grep -q ":$port "; then
+        echo "⚠️  端口${port}仍被占用，强制清理..."
+        
+        # 尝试多种方法获取PID
+        local PID=$(netstat -tlnp 2>/dev/null | grep ":$port " | awk '{print $7}' | cut -d'/' -f1)
+        if [ -z "$PID" ] || [ "$PID" = "-" ]; then
+            if command -v fuser >/dev/null 2>&1; then
+                PID=$(fuser ${port}/tcp 2>/dev/null)
+            elif command -v lsof >/dev/null 2>&1; then
+                PID=$(lsof -ti:${port} 2>/dev/null)
+            fi
+        fi
+        
+        if [ ! -z "$PID" ] && [ "$PID" != "-" ]; then
+            echo "🔧 强制终止进程 $PID (端口 $port)"
+            # 终止进程组
+            kill -9 -$PID 2>/dev/null || kill -9 $PID 2>/dev/null || true
+        fi
+        
+        # 如果还有残留，强制清理进程模式
+        if [ ! -z "$process_pattern" ]; then
+            echo "🔧 强制清理 $service_name 进程"
+            pkill -9 -f "$process_pattern" 2>/dev/null || true
+        fi
+        
+        # 再次等待
+        sleep 2
+        
+        # 最终检查
+        if netstat -tlnp 2>/dev/null | grep -q ":$port "; then
+            echo "❌ 端口 $port 清理失败，请手动检查"
+            return 1
+        else
+            echo "✅ 端口 $port 清理成功"
+        fi
+    else
+        echo "✅ 端口 $port 未被占用"
+    fi
+    return 0
+}
+
+# 清理各个端口
+cleanup_port 50001 "Nginx" "nginx"
+cleanup_port 3000 "前端" "next"
+cleanup_port 8123 "后端" "uvicorn"
+
+# 最终等待
+sleep 2
 
 # 检查环境变量
 if [ ! -f "/root/video2sop/.env" ]; then
@@ -150,17 +166,8 @@ if [ -f .env.development ]; then
     cp .env.development .env.local
     echo "✅ 已应用开发环境配置"
 else
-    echo "⚠️  开发环境配置文件 .env.development 不存在，创建默认配置"
-    cat > .env.local << EOF
-NEXT_PUBLIC_WS_URL=ws://127.0.0.1:50001/ws
-NEXT_PUBLIC_API_URL=http://127.0.0.1:50001
-NEXT_PUBLIC_VIDEO_UPLOAD_TIMEOUT=600000
-NEXT_PUBLIC_AUDIO_EXTRACT_TIMEOUT=300000
-NEXT_PUBLIC_SPEECH_RECOGNITION_TIMEOUT=300000
-NEXT_PUBLIC_VIDEO_UNDERSTANDING_TIMEOUT=1800000
-NEXT_PUBLIC_SOP_PARSE_TIMEOUT=1200000
-NEXT_PUBLIC_SOP_REFINE_TIMEOUT=1200000
-EOF
+    echo "❌ 错误: 开发环境配置文件 .env.development 不存在"
+    exit 1
 fi
 
 # 安装 Node.js 和 npm（如果未安装）

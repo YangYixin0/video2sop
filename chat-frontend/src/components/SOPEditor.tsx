@@ -135,7 +135,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
     return `block_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }, []);
 
-  // 解析SOP文档
+  // 解析SOP草稿
   const handleParseSOP = async () => {
     if (!manuscript || !onParseSOP) return;
     
@@ -146,8 +146,8 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
       // 通知父组件blocks变化
       onBlocksChange?.(result.blocks);
     } catch (error) {
-      console.error('解析SOP失败:', error);
-      alert('解析SOP失败，请重试');
+      console.error('拆解SOP失败:', error);
+      alert('拆解SOP失败，请重试');
     } finally {
       setIsParsing(false);
     }
@@ -339,8 +339,8 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
           <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <p className="text-blue-800 mb-3">
               {blocksA.length > 0 
-                ? 'SOP草稿已解析，可以重新解析或继续编辑：' 
-                : '检测到SOP草稿文本，点击按钮开始解析：'
+                ? 'SOP草稿已拆成区块。如果拆解错误很严重，可以重新拆解。如果是内容错误，请手动修改内容或重新做视频理解。' 
+                : '检测到SOP草稿文本，点击按钮开始拆解成区块。'
               }
             </p>
             <button
@@ -348,7 +348,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
               disabled={isParsing}
               className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-lg transition-colors"
             >
-              {isParsing ? '解析中...' : '解析SOP文档 (Qwen-Plus)'}
+              {isParsing ? '拆解中...' : '拆解SOP草稿 (Qwen-Plus)'}
             </button>
           </div>
         )}
@@ -451,7 +451,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
                 {blocksA.length === 0 && (
                   <div className="text-center py-8 text-gray-500">
                     <div className="text-4xl mb-2">📝</div>
-                    <div>暂无区块，请先解析SOP文档或添加新区块</div>
+                    <div>暂无区块，请先拆解SOP草稿或添加新区块</div>
                   </div>
                 )}
               </div>

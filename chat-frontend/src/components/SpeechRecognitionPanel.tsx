@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface SpeechResult {
   sentence_id: number;
@@ -21,12 +21,18 @@ interface SpeechRecognitionPanelProps {
   uploadResult: UploadResult | null;
   onSpeechRecognition: (audioUrl: string) => Promise<SpeechResult[]>; // 保持接口兼容，但实际不使用audioUrl
   onResultsChange?: (results: SpeechResult[]) => void;
+  autoTriggered?: boolean;  // 新增：标记是否自动触发
+  autoError?: string | null;  // 新增：自动触发的错误信息
+  onAddOperationRecord?: (record: any) => void;  // 新增：添加操作记录的回调
 }
 
 export default function SpeechRecognitionPanel({ 
   uploadResult, 
   onSpeechRecognition,
-  onResultsChange
+  onResultsChange,
+  autoTriggered = false,
+  autoError = null,
+  onAddOperationRecord
 }: SpeechRecognitionPanelProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [results, setResults] = useState<SpeechResult[]>([]);
@@ -36,8 +42,24 @@ export default function SpeechRecognitionPanel({
   const [editingBeginTime, setEditingBeginTime] = useState<number>(0);
   const [editingEndTime, setEditingEndTime] = useState<number>(0);
 
+  // 监听自动触发状态
+  useEffect(() => {
+    if (autoTriggered && !isProcessing && !error) {
+      console.log('自动触发语音识别，开始处理...');
+      handleSpeechRecognition();
+    }
+  }, [autoTriggered]); // 只依赖autoTriggered，避免无限循环
+
+  // 监听自动错误状态
+  useEffect(() => {
+    if (autoError) {
+      setError(autoError);
+    }
+  }, [autoError]);
+
   const handleSpeechRecognition = async () => {
-    if (!uploadResult) return;
+    // 自动触发时，uploadResult可能还没有设置，所以不检查uploadResult
+    if (!autoTriggered && !uploadResult) return;
 
     setIsProcessing(true);
     setError(null);
@@ -46,6 +68,11 @@ export default function SpeechRecognitionPanel({
     try {
       const speechResults = await onSpeechRecognition(''); // 不再需要audio_url参数
       setResults(speechResults);
+      if (onResultsChange) {
+        onResultsChange(speechResults);
+      }
+      
+      // 自动触发时不添加操作记录，让WebSocket消息处理
     } catch (err) {
       setError(err instanceof Error ? err.message : '语音识别失败');
     } finally {
@@ -155,17 +182,24 @@ export default function SpeechRecognitionPanel({
         <div className="mb-4">
           <button
             onClick={handleSpeechRecognition}
-            disabled={!uploadResult || isProcessing}
+            disabled={!uploadResult || (isProcessing && !autoError)}
             className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
-              !uploadResult || isProcessing
+              !uploadResult || (isProcessing && !autoError)
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : autoError
+                ? 'bg-yellow-500 text-white hover:bg-yellow-600'
                 : 'bg-green-500 text-white hover:bg-green-600'
             }`}
           >
             {isProcessing ? (
               <div className="flex items-center justify-center space-x-2">
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>正在识别中...</span>
+                <span>正在进行语音识别...</span>
+              </div>
+            ) : autoError ? (
+              <div className="flex items-center justify-center space-x-2">
+                <span>🔄</span>
+                <span>重试识别</span>
               </div>
             ) : uploadResult ? (
               <div className="flex items-center justify-center space-x-2">
@@ -187,6 +221,19 @@ export default function SpeechRecognitionPanel({
             <div className="flex items-center space-x-2">
               <span className="text-red-500">❌</span>
               <span className="text-red-700 text-sm">{error}</span>
+            </div>
+          </div>
+        )}
+
+        {/* 自动语音识别错误提示 */}
+        {autoError && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <span className="text-red-500">❌</span>
+              <div className="text-red-700 text-sm">
+                <p>自动语音识别失败: {autoError}</p>
+                <p className="text-red-500 text-xs mt-1">请手动重试</p>
+              </div>
             </div>
           </div>
         )}

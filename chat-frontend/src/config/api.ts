@@ -27,6 +27,7 @@ export const API_ENDPOINTS = {
   LOAD_EXAMPLE_VIDEO: `${API_BASE_URL}/load_example_video`,
   EXAMPLE_VIDEO_PREVIEW: `${API_BASE_URL}/example_video_preview`,
   DOWNLOAD_COMPRESSED_VIDEO: `${API_BASE_URL}/download_compressed_video`,
+  CANCEL_COMPRESSION: `${API_BASE_URL}/cancel_compression`,
   
   // AI 处理
   SPEECH_RECOGNITION: `${API_BASE_URL}/speech_recognition`,

@@ -16,12 +16,21 @@ interface UploadResult {
 }
 
 interface VideoUploaderProps {
+  onUploadStart?: () => void;
   onUploadComplete?: (result: UploadResult) => void;
   onUploadError?: (error: string) => void;
   onFileRemoved?: () => void;
   onWebSocketMessage?: (message: Record<string, unknown>) => void;
   onCompressionMessage?: (message: Record<string, unknown>) => void;
-  compressionMessage?: Record<string, unknown> | null;
+  onVideoPreviewChange?: (previewUrl: string | null) => void; // 新增：视频预览URL变化回调
+  compressionMessage?: {
+    type: string;
+    message?: string;
+    current_frame?: number;
+    total_frames?: number;
+    percentage?: number;
+    [key: string]: unknown;
+  } | null;
   maxFileSize?: number; // 字节
   allowedTypes?: string[];
   clientSessionId?: string;
@@ -31,11 +40,13 @@ const DEFAULT_MAX_SIZE = 800 * 1024 * 1024; // 800MB
 const DEFAULT_ALLOWED_TYPES = ['video/mp4', 'video/mov', 'video/avi', 'video/mkv', 'video/webm'];
 
 export default function VideoUploader({
+  onUploadStart,
   onUploadComplete,
   onUploadError,
   onFileRemoved,
   onWebSocketMessage,
   onCompressionMessage,
+  onVideoPreviewChange,
   compressionMessage,
   maxFileSize = DEFAULT_MAX_SIZE,
   allowedTypes = DEFAULT_ALLOWED_TYPES,
@@ -51,6 +62,11 @@ export default function VideoUploader({
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
   const [compressionStatus, setCompressionStatus] = useState<'idle' | 'compressing' | 'completed' | 'error'>('idle');
   const [compressionStatusMessage, setCompressionStatusMessage] = useState<string>('');
+  const [compressionProgress, setCompressionProgress] = useState<{
+    currentFrame: number;
+    totalFrames: number;
+    percentage: number;
+  } | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -61,12 +77,22 @@ export default function VideoUploader({
       if (compressionMessage.type === 'compression_started') {
         setCompressionStatus('compressing');
         setCompressionStatusMessage(compressionMessage.message as string || '正在压缩视频...');
+        setCompressionProgress(null); // 重置进度
+      } else if (compressionMessage.type === 'compression_progress') {
+        setCompressionProgress({
+          currentFrame: compressionMessage.current_frame as number,
+          totalFrames: compressionMessage.total_frames as number,
+          percentage: compressionMessage.percentage as number
+        });
+        setCompressionStatusMessage(compressionMessage.message as string);
       } else if (compressionMessage.type === 'compression_completed') {
         setCompressionStatus('completed');
         setCompressionStatusMessage(compressionMessage.message as string || '视频压缩完成，已删除原视频');
+        setCompressionProgress(null); // 清除进度
       } else if (compressionMessage.type === 'compression_error') {
         setCompressionStatus('error');
         setCompressionStatusMessage(compressionMessage.message as string || '压缩失败');
+        setCompressionProgress(null); // 清除进度
       }
     }
   }, [compressionMessage]);
@@ -346,13 +372,23 @@ export default function VideoUploader({
     // 创建预览 URL
     const previewUrl = URL.createObjectURL(file);
     setVideoPreview(previewUrl);
-  }, [validateFile, onUploadError]);
+    
+    // 通知父组件视频预览URL变化
+    if (onVideoPreviewChange) {
+      onVideoPreviewChange(previewUrl);
+    }
+  }, [validateFile, onUploadError, onVideoPreviewChange]);
 
   // 上传处理
   const handleUpload = useCallback(async () => {
     if (!selectedFile || !clientSessionId) return;
 
     try {
+      // 调用上传开始回调
+      if (onUploadStart) {
+        onUploadStart();
+      }
+
       setUploadStatus({ status: 'uploading', message: '正在上传视频到服务器...', progress: 0 });
 
       // 直接上传视频到后端，使用 clientSessionId
@@ -386,12 +422,31 @@ export default function VideoUploader({
       setUploadStatus({ status: 'error', message: errorMessage, progress: 0 });
       onUploadError?.(errorMessage);
     }
-  }, [selectedFile, onUploadComplete, onUploadError, clientSessionId]);
+  }, [selectedFile, onUploadStart, onUploadComplete, onUploadError, clientSessionId]);
 
   // 移除文件
   const handleRemove = useCallback(async () => {
     let deletedCount = 0;
     const currentSessionId = uploadResult?.session_id;
+    
+    // 如果正在压缩，先取消压缩任务
+    if (compressionStatus === 'compressing' && currentSessionId) {
+      try {
+        const response = await fetch(API_ENDPOINTS.CANCEL_COMPRESSION, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: currentSessionId }),
+          mode: 'cors',
+          credentials: 'omit'
+        });
+        
+        if (response.ok) {
+          console.log('压缩任务已取消');
+        }
+      } catch (error) {
+        console.error('取消压缩任务失败:', error);
+      }
+    }
     
     if (uploadResult) {
       try {
@@ -406,6 +461,14 @@ export default function VideoUploader({
     setVideoPreview(null);
     setUploadResult(null);
     setUploadStatus({ status: 'idle', message: '', progress: 0 });
+    setCompressionStatus('idle');
+    setCompressionStatusMessage('');
+    setCompressionProgress(null);
+    
+    // 通知父组件视频预览URL已清除
+    if (onVideoPreviewChange) {
+      onVideoPreviewChange(null);
+    }
     
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -415,7 +478,7 @@ export default function VideoUploader({
     if (currentSessionId && deletedCount > 0) {
       onFileRemoved?.();
     }
-  }, [uploadResult, cleanup, onFileRemoved]);
+  }, [uploadResult, cleanup, onFileRemoved, compressionStatus]);
 
   // 拖拽处理
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -480,6 +543,11 @@ export default function VideoUploader({
         // 为示例视频创建预览URL
         setVideoPreview(API_ENDPOINTS.EXAMPLE_VIDEO_PREVIEW);
         
+        // 通知父组件视频预览URL变化
+        if (onVideoPreviewChange) {
+          onVideoPreviewChange(API_ENDPOINTS.EXAMPLE_VIDEO_PREVIEW);
+        }
+        
         setUploadResult(result);
         
         // 调用onUploadComplete回调，确保前端状态正确更新
@@ -511,6 +579,21 @@ export default function VideoUploader({
       </div>
       
       <div className="p-4">
+
+      {/* 视频预览 */}
+      {videoPreview && selectedFile && (
+        <div className="mb-4">
+          <h4 className="text-sm font-medium text-gray-700 mb-2">视频预览:</h4>
+          <video
+            src={videoPreview}
+            controls
+            className="w-full max-h-64 rounded-lg"
+            preload="metadata"
+          >
+            您的浏览器不支持视频播放。
+          </video>
+        </div>
+      )}
 
       {/* 拖拽区域 */}
       <div
@@ -625,20 +708,6 @@ export default function VideoUploader({
         </div>
       )}
 
-      {/* 视频预览 */}
-      {videoPreview && selectedFile && (
-        <div className="mt-4">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">视频预览:</h4>
-          <video
-            src={videoPreview}
-            controls
-            className="w-full max-h-64 rounded-lg"
-            preload="metadata"
-          >
-            您的浏览器不支持视频播放。
-          </video>
-        </div>
-      )}
 
       {/* 压缩状态和下载按钮 */}
       {compressionStatus === 'completed' && uploadResult?.session_id && (
@@ -657,8 +726,25 @@ export default function VideoUploader({
       )}
 
       {compressionStatus === 'compressing' && (
-        <div className="mt-4 text-sm text-blue-600">
-          {compressionStatusMessage}
+        <div className="mt-4">
+          {compressionProgress && (
+            <div className="mb-2">
+              <div className="flex justify-between text-sm text-gray-600 mb-1">
+                <span>{compressionStatusMessage}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2.5">
+                <div 
+                  className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                  style={{ width: `${compressionProgress.percentage}%` }}
+                ></div>
+              </div>
+            </div>
+          )}
+          {!compressionProgress && (
+            <div className="text-sm text-blue-600">
+              {compressionStatusMessage}
+            </div>
+          )}
         </div>
       )}
 

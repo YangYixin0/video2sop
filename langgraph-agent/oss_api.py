@@ -23,6 +23,10 @@ from oss_manager import (
 )
 from audio_extractor import extract_audio_from_video, check_ffmpeg_available
 
+# 全局变量存储压缩任务和取消标志
+compression_tasks = {}
+compression_cancel_flags = {}
+
 class UploadSignatureRequest(BaseModel):
     filename: str
     session_id: str
@@ -30,7 +34,10 @@ class UploadSignatureRequest(BaseModel):
 
 class DeleteSessionRequest(BaseModel):
     session_id: str
-    client_session_id: str = None
+    client_session_id: str
+
+class CancelCompressionRequest(BaseModel):
+    session_id: str = None
 
 class ExtractAudioRequest(BaseModel):
     video_url: str
@@ -144,16 +151,6 @@ def setup_oss_routes(app, connection_manager=None):
                 oss_key = f"{request.session_id}/audio.mp3"
                 audio_url = upload_file_to_oss(audio_path, oss_key)
                 
-                # 通过WebSocket发送音频提取完成通知给特定客户端
-                if connection_manager and request.client_session_id:
-                    audio_notification = {
-                        "type": "audio_extraction_complete",
-                        "audio_url": audio_url,
-                        "session_id": request.session_id,
-                        "message": "音频提取完成"
-                    }
-                    await connection_manager.send_to_client(request.client_session_id, json.dumps(audio_notification))
-                
                 return {
                     "success": True,
                     "audio_url": audio_url,
@@ -231,10 +228,24 @@ def setup_oss_routes(app, connection_manager=None):
             if os.path.exists(audio_path):
                 os.remove(audio_path)
             
-            # 6. 启动异步压缩任务
+            # 6. WebSocket通知音频提取完成并触发自动语音识别
+            if connection_manager and client_session_id:
+                await connection_manager.send_to_client(client_session_id, json.dumps({
+                    "type": "audio_extraction_complete",
+                    "audio_url": audio_url,
+                    "session_id": client_session_id,
+                    "message": "音频提取完成",
+                    "auto_start_speech_recognition": True  # 新增：标记触发自动语音识别
+                }))
+            
+            # 7. 启动异步压缩任务
             import asyncio
             from video_processor import compress_and_overlay_video, check_video_metadata
             from local_storage_manager import get_local_video_path
+            
+            # 创建取消标志
+            cancel_flag = type('CancelFlag', (), {'cancelled': False})()
+            compression_cancel_flags[client_session_id] = cancel_flag
             
             async def compress_task():
                 # 检查视频是否已经是压缩过的
@@ -273,10 +284,33 @@ def setup_oss_routes(app, connection_manager=None):
                         }))
                     
                     try:
+                        # 定义进度回调函数
+                        async def send_progress(current_frame, total_frames):
+                            if connection_manager and client_session_id:
+                                percentage = int((current_frame / total_frames) * 100) if total_frames > 0 else 0
+                                await connection_manager.send_to_client(client_session_id, json.dumps({
+                                    "type": "compression_progress",
+                                    "current_frame": current_frame,
+                                    "total_frames": total_frames,
+                                    "percentage": percentage,
+                                    "message": f"压缩中... {current_frame}/{total_frames} 帧 ({percentage}%)"
+                                }))
+                        
+                        # 获取当前事件循环
+                        loop = asyncio.get_event_loop()
+                        
+                        # 包装为同步回调（因为compress_and_overlay_video是同步函数）
+                        def progress_callback(current_frame, total_frames):
+                            # 使用asyncio.run_coroutine_threadsafe在事件循环中运行
+                            asyncio.run_coroutine_threadsafe(send_progress(current_frame, total_frames), loop)
+                        
                         compressed_path = await asyncio.to_thread(
                             compress_and_overlay_video,
                             local_video_path,
-                            client_session_id
+                            client_session_id,
+                            "compressed_video.mp4",
+                            progress_callback,  # 传入回调
+                            cancel_flag  # 传入取消标志
                         )
                         
                         # 压缩完成后删除原视频
@@ -296,6 +330,10 @@ def setup_oss_routes(app, connection_manager=None):
                                 "type": "compression_error",
                                 "message": f"视频压缩失败: {str(e)}"
                             }))
+                    finally:
+                        # 清理取消标志
+                        if client_session_id in compression_cancel_flags:
+                            del compression_cancel_flags[client_session_id]
             
             # 启动压缩任务（不等待完成）
             asyncio.create_task(compress_task())
@@ -339,3 +377,21 @@ def setup_oss_routes(app, connection_manager=None):
             )
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"下载失败: {str(e)}")
+
+    @app.post("/api/cancel_compression")
+    async def cancel_compression(request: CancelCompressionRequest):
+        """取消视频压缩任务"""
+        try:
+            session_id = request.session_id
+            if not session_id:
+                raise HTTPException(status_code=400, detail="缺少session_id参数")
+                
+            if session_id in compression_cancel_flags:
+                # 设置取消标志
+                compression_cancel_flags[session_id].cancelled = True
+                print(f"已取消会话 {session_id} 的压缩任务")
+                return {"success": True, "message": "压缩任务已取消"}
+            else:
+                return {"success": False, "message": "未找到正在进行的压缩任务"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"取消压缩任务失败: {str(e)}")

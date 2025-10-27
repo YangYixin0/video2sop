@@ -30,8 +30,22 @@ export default function Home() {
     session_id: string;
   } | null>(null);
   
-  const [compressionMessage, setCompressionMessage] = useState<Record<string, unknown> | null>(null);
+  // 本地视频预览URL（用于SOP编辑器）
+  const [localVideoPreviewUrl, setLocalVideoPreviewUrl] = useState<string | null>(null);
+  
+  const [compressionMessage, setCompressionMessage] = useState<{
+    type: string;
+    message?: string;
+    current_frame?: number;
+    total_frames?: number;
+    percentage?: number;
+    [key: string]: unknown;
+  } | null>(null);
   const [compressionStatus, setCompressionStatus] = useState<'idle' | 'compressing' | 'completed' | 'error'>('idle');
+  
+  // 自动语音识别相关状态
+  const [autoSpeechRecognitionTriggered, setAutoSpeechRecognitionTriggered] = useState(false);
+  const [autoSpeechRecognitionError, setAutoSpeechRecognitionError] = useState<string | null>(null);
   
   const [operationRecords, setOperationRecords] = useState<OperationRecord[]>([]);
   const [speechRecognitionResult, setSpeechRecognitionResult] = useState<{
@@ -98,6 +112,10 @@ export default function Home() {
         // 清空当前上传结果状态
         setCurrentUploadResult(null);
         
+        // 重置自动语音识别状态
+        setAutoSpeechRecognitionTriggered(false);
+        setAutoSpeechRecognitionError(null);
+        
       // 注意：不在这里添加操作记录，因为onFileRemoved回调已经处理了
       // 这避免了重复的操作记录
     } else if (data.type === 'speech_recognition_complete') {
@@ -111,18 +129,24 @@ export default function Home() {
         );
       }
 
-        // 添加语音识别记录
-        const speechRecord: OperationRecord = {
-          id: `speech-${Date.now()}`,
-          type: 'speech_recognition',
-          timestamp: new Date(),
-          status: 'success',
-        message: (data.message as string) || '语音识别已执行',
+      // 添加语音识别记录（无论是自动触发还是手动触发）
+      const speechRecord: OperationRecord = {
+        id: `speech-${Date.now()}`,
+        type: 'speech_recognition',
+        timestamp: new Date(),
+        status: 'success',
+        message: (data.message as string) || '语音识别已完成',
         data: {
           speech_result: data.result as string
         }
       };
       setOperationRecords(prev => [...prev, speechRecord]);
+    } else if (data.type === 'audio_extraction_complete') {
+      // 检查是否需要自动触发语音识别
+      if (data.auto_start_speech_recognition) {
+        // 触发自动语音识别
+        triggerAutoSpeechRecognition();
+      }
     } else if (data.type === 'video_understanding_complete') {
       // 发送通知
       if (notificationEnabled) {
@@ -140,7 +164,7 @@ export default function Home() {
         type: 'video_understanding',
         timestamp: new Date(),
         status: 'success',
-        message: (data.message as string) || '视频理解已执行',
+        message: (data.message as string) || '视频理解已完成',
         data: {
           video_result: typeof data.result === 'string' ? data.result : String(data.result),
           fps: data.fps as number | undefined,
@@ -217,6 +241,10 @@ export default function Home() {
         data: { stage: 'compression_started' }
       };
       setOperationRecords(prev => [...prev, compressionRecord]);
+    } else if (data.type === 'compression_progress') {
+      // 转发给VideoUploader
+      setCompressionMessage(data);
+      // 不添加到操作记录（避免记录过多）
     } else if (data.type === 'compression_completed') {
       // 设置压缩消息状态，传递给VideoUploader
       setCompressionMessage(data);
@@ -416,6 +444,20 @@ export default function Home() {
     }
   };
 
+  // 自动触发语音识别函数
+  const triggerAutoSpeechRecognition = useCallback(() => {
+    if (!clientSessionId) {
+      console.warn('无法自动触发语音识别：未找到客户端会话ID');
+      return;
+    }
+    
+    console.log('自动触发语音识别...');
+    
+    // 设置自动语音识别状态，让SpeechRecognitionPanel的useEffect来处理
+    setAutoSpeechRecognitionTriggered(true);
+    setAutoSpeechRecognitionError(null);
+  }, [clientSessionId]);
+
   // 视频理解处理函数
   const handleVideoUnderstanding = async (params: {
     video_url: string;
@@ -496,6 +538,16 @@ export default function Home() {
 
   // SOP解析处理函数
   const handleParseSOP = async (manuscript: string) => {
+    // 添加SOP拆解开始记录
+    const parseStartRecord: OperationRecord = {
+      id: `parse-start-${Date.now()}`,
+      type: 'sop_parse',
+      timestamp: new Date(),
+      status: 'processing',
+      message: '开始SOP拆解',
+    };
+    setOperationRecords(prev => [...prev, parseStartRecord]);
+
     // 从环境变量获取超时时间，默认20分钟
     const timeoutMs = parseInt(process.env.NEXT_PUBLIC_SOP_PARSE_TIMEOUT || '1200000', 10);
     
@@ -669,6 +721,17 @@ export default function Home() {
         <div className="mb-6">
           <VideoUploader 
             clientSessionId={clientSessionId}
+            onUploadStart={() => {
+              // 添加上传开始记录
+              const uploadStartRecord: OperationRecord = {
+                id: `upload-start-${Date.now()}`,
+                type: 'upload',
+                timestamp: new Date(),
+                status: 'processing',
+                message: '开始视频上传',
+              };
+              setOperationRecords(prev => [...prev, uploadStartRecord]);
+            }}
             onUploadComplete={(result) => {
               setCurrentUploadResult(result);
               
@@ -693,6 +756,13 @@ export default function Home() {
             onFileRemoved={() => {
               setCurrentUploadResult(null);
               
+              // 重置自动语音识别状态
+              setAutoSpeechRecognitionTriggered(false);
+              setAutoSpeechRecognitionError(null);
+              
+              // 清除本地视频预览URL
+              setLocalVideoPreviewUrl(null);
+              
               // 直接添加删除记录，不依赖WebSocket
               const removeRecord: OperationRecord = {
                 id: `remove-${Date.now()}`,
@@ -706,6 +776,9 @@ export default function Home() {
               };
               setOperationRecords(prev => [...prev, removeRecord]);
             }}
+            onVideoPreviewChange={(previewUrl) => {
+              setLocalVideoPreviewUrl(previewUrl);
+            }}
             onWebSocketMessage={handleVideoUploaderWebSocketMessage}
             compressionMessage={compressionMessage}
           />
@@ -713,11 +786,14 @@ export default function Home() {
 
         {/* 语音识别面板 */}
         <div className="mb-6">
-          <SpeechRecognitionPanel
-            uploadResult={currentUploadResult}
-            onSpeechRecognition={handleSpeechRecognition}
-            onResultsChange={handleSpeechResultsChange}
-          />
+        <SpeechRecognitionPanel
+          uploadResult={currentUploadResult}
+          onSpeechRecognition={handleSpeechRecognition}
+          onResultsChange={handleSpeechResultsChange}
+          autoTriggered={autoSpeechRecognitionTriggered}
+          autoError={autoSpeechRecognitionError}
+          onAddOperationRecord={(record) => setOperationRecords(prev => [...prev, record])}
+        />
         </div>
         
         {/* 视频理解面板 */}
@@ -729,6 +805,7 @@ export default function Home() {
             segmentResults={segmentResults}
             integratedResult={integratedResult}
             compressionStatus={compressionStatus}
+            autoSpeechRecognitionError={autoSpeechRecognitionError}
           />
         </div>
 
@@ -736,7 +813,7 @@ export default function Home() {
         <div className="mb-6">
           <SOPEditor
             manuscript={videoUnderstandingResult}
-            videoUrl={currentUploadResult?.video_url}
+            videoUrl={localVideoPreviewUrl || currentUploadResult?.video_url}
             onParseSOP={handleParseSOP}
             onRefineSOP={handleRefineSOP}
             onBlocksChange={handleSopBlocksChange}
@@ -751,7 +828,7 @@ export default function Home() {
               <li>• <strong>AI模型</strong>: Qwen3-VL-Plus (视频理解) + Paraformer-V2 (语音识别) + Qwen-Plus (文本处理)</li>
               <li>• <strong>后端</strong>: FastAPI + WebSocket + LangGraph Agent</li>
               <li>• <strong>前端</strong>: Next.js 15 + TypeScript + React 19 + Tailwind CSS</li>
-              <li>• <strong>存储</strong>: 阿里云OSS + 实时音频提取</li>
+              <li>• <strong>存储</strong>: 后端服务器和阿里云OSS</li>
             </ul>
           </div>
         </div>

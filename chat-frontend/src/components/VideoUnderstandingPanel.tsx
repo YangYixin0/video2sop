@@ -127,6 +127,7 @@ interface VideoUnderstandingPanelProps {
   segmentResults?: { segment_id: number; time_range: string; result: string; status: 'processing' | 'completed' | 'error'; }[];
   integratedResult?: string;
   compressionStatus?: 'idle' | 'compressing' | 'completed' | 'error';
+  autoSpeechRecognitionError?: string | null;
 }
 
 const DEFAULT_PROMPT = `1. 提供给你的是一个实验室仪器或实验处理的操作教学视频和它的语音识别结果，请按照这些内容去理解视频内演示者的操作，写一个标准操作流程（SOP）草稿。这个草稿包含标题、摘要、关键词、材料试剂工具设备清单、操作步骤和也许其他内容。其他内容请你合理地整理成一个或多个段落。
@@ -164,7 +165,8 @@ export default function VideoUnderstandingPanel({
   onVideoUnderstanding,
   segmentResults = [],
   integratedResult = '',
-  compressionStatus = 'idle'
+  compressionStatus = 'idle',
+  autoSpeechRecognitionError = null
 }: VideoUnderstandingPanelProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<string>('');
@@ -177,6 +179,7 @@ export default function VideoUnderstandingPanel({
   const [splitThreshold, setSplitThreshold] = useState(18); // 判定分段阈值（分钟）
   const [segmentLength, setSegmentLength] = useState(15); // 片段时长上限（分钟）
   const [segmentOverlap, setSegmentOverlap] = useState(2); // 片段重叠（分钟）
+  const [isParametersExpanded, setIsParametersExpanded] = useState(false); // 视频处理参数折叠状态
   const isLongVideo = (segmentResults?.length || 0) > 0 || Boolean(integratedResult);
 
   const handleVideoUnderstanding = async () => {
@@ -221,12 +224,13 @@ export default function VideoUnderstandingPanel({
     }
   };
 
-  // 需要同时满足：上传完成、语音识别完成、压缩完成
+  // 需要同时满足：上传完成、语音识别完成、压缩完成、没有语音识别错误
   const isReady = Boolean(
     uploadResult && 
     speechRecognitionResult && 
     speechRecognitionResult.length > 0 &&
-    compressionStatus === 'completed'
+    compressionStatus === 'completed' &&
+    !autoSpeechRecognitionError
   );
   
   // 检查是否有编辑过的语音内容
@@ -302,131 +306,151 @@ export default function VideoUnderstandingPanel({
           </div>
         </div>
 
-        {/* FPS参数输入 */}
+        {/* FPS参数输入和视频分段参数设置 - 折叠面板 */}
         <div className="mb-4">
-          <label htmlFor="fps" className="block text-sm font-medium text-gray-700 mb-2">
-            视频抽帧参数 (FPS)
-          </label>
-          <div className="flex items-center space-x-3">
-            <input
-              id="fps"
-              type="number"
-              min="1"
-              max="10"
-              value={fps}
-              onChange={(e) => setFps(Math.max(1, Math.min(10, parseInt(e.target.value) || 2)))}
-              className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <span className="text-sm text-gray-600">
-              表示每1秒视频中抽取 {fps} 帧用于理解。FPS值越大，理解越可靠，但处理时间越长
-            </span>
-          </div>
-        </div>
+          <button
+            onClick={() => setIsParametersExpanded(!isParametersExpanded)}
+            className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+          >
+            <span className="font-medium text-gray-700">视频处理参数</span>
+            <div className="flex items-center">
+              <span className="text-sm text-gray-500 mr-2">
+                {isParametersExpanded ? '点击折叠' : '点击展开'}
+              </span>
+              <svg 
+                className={`w-5 h-5 text-gray-500 transition-transform ${isParametersExpanded ? '' : 'rotate-90'}`}
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </button>
 
-        {/* 时间戳叠加选择 */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            视频处理选项
-          </label>
-        </div>
+          {isParametersExpanded && (
+            <div className="mt-2 p-4 bg-white border border-gray-200 rounded-lg">
+              {/* FPS参数输入 */}
+              <div className="mb-4">
+                <label htmlFor="fps" className="block text-sm font-medium text-gray-700 mb-2">
+                  视频抽帧参数 (FPS)
+                </label>
+                <div className="flex items-center space-x-3">
+                  <input
+                    id="fps"
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={fps}
+                    onChange={(e) => setFps(Math.max(1, Math.min(10, parseInt(e.target.value) || 2)))}
+                    className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  <span className="text-sm text-gray-600">
+                    表示每1秒视频中抽取 {fps} 帧用于理解。FPS值越大，理解越可靠，但处理时间越长
+                  </span>
+                </div>
+              </div>
 
-        {/* 视频分段参数设置 */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            视频分段参数
-          </label>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* 判定分段阈值 */}
-            <div>
-              <label htmlFor="splitThreshold" className="block text-xs text-gray-600 mb-1">
-                判定分段阈值（分钟）
-              </label>
-              <input
-                id="splitThreshold"
-                type="number"
-                min="1"
-                max="18"
-                value={splitThreshold}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value);
-                  if (isNaN(value)) return; // 如果输入无效，不更新状态
-                  const newThreshold = Math.max(1, Math.min(18, value));
-                  setSplitThreshold(newThreshold);
-                  // 如果片段时长上限大于等于新的判定分段阈值，自动调整
-                  if (segmentLength >= newThreshold) {
-                    const newSegmentLength = Math.max(1, newThreshold - 1);
-                    setSegmentLength(newSegmentLength);
-                    // 如果片段重叠大于等于新的片段时长上限，自动调整
-                    if (segmentOverlap >= newSegmentLength) {
-                      setSegmentOverlap(Math.max(0, newSegmentLength - 1));
-                    }
-                  }
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              />
-              <div className="text-xs text-gray-500 mt-1">
-                超过此时长将分段处理
+              {/* 视频分段参数设置 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  视频分段参数
+                </label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* 判定分段阈值 */}
+                  <div>
+                    <label htmlFor="splitThreshold" className="block text-xs text-gray-600 mb-1">
+                      判定分段阈值（分钟）
+                    </label>
+                    <input
+                      id="splitThreshold"
+                      type="number"
+                      min="1"
+                      max="18"
+                      value={splitThreshold}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value);
+                        if (isNaN(value)) return; // 如果输入无效，不更新状态
+                        const newThreshold = Math.max(1, Math.min(18, value));
+                        setSplitThreshold(newThreshold);
+                        // 如果片段时长上限大于等于新的判定分段阈值，自动调整
+                        if (segmentLength >= newThreshold) {
+                          const newSegmentLength = Math.max(1, newThreshold - 1);
+                          setSegmentLength(newSegmentLength);
+                          // 如果片段重叠大于等于新的片段时长上限，自动调整
+                          if (segmentOverlap >= newSegmentLength) {
+                            setSegmentOverlap(Math.max(0, newSegmentLength - 1));
+                          }
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    />
+                    <div className="text-xs text-gray-500 mt-1">
+                      超过此时长将分段处理
+                    </div>
+                  </div>
+
+                  {/* 片段时长上限 */}
+                  <div>
+                    <label htmlFor="segmentLength" className="block text-xs text-gray-600 mb-1">
+                      片段时长上限（分钟）
+                    </label>
+                    <input
+                      id="segmentLength"
+                      type="number"
+                      min="1"
+                      max={Math.min(18, splitThreshold - 1)}
+                      value={segmentLength}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value);
+                        if (isNaN(value)) return; // 如果输入无效，不更新状态
+                        const newValue = Math.max(1, Math.min(18, Math.min(splitThreshold - 1, value)));
+                        setSegmentLength(newValue);
+                        // 如果片段重叠超过新的片段时长上限，自动调整
+                        if (segmentOverlap >= newValue) {
+                          setSegmentOverlap(Math.max(0, newValue - 1));
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    />
+                    <div className="text-xs text-gray-500 mt-1">
+                      每个片段的最大时长
+                    </div>
+                  </div>
+
+                  {/* 片段重叠 */}
+                  <div>
+                    <label htmlFor="segmentOverlap" className="block text-xs text-gray-600 mb-1">
+                      片段重叠（分钟）
+                    </label>
+                    <input
+                      id="segmentOverlap"
+                      type="number"
+                      min="0"
+                      max={Math.max(0, segmentLength - 1)}
+                      value={segmentOverlap}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value);
+                        if (isNaN(value)) return; // 如果输入无效，不更新状态
+                        setSegmentOverlap(Math.max(0, Math.min(segmentLength - 1, value)));
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    />
+                    <div className="text-xs text-gray-500 mt-1">
+                      相邻片段的重叠时长
+                    </div>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-500 mt-2">
+                  当前设置：视频超过 {splitThreshold} 分钟将分段，每段最长 {segmentLength} 分钟，重叠 {segmentOverlap} 分钟
+                  <br />
+                  <span className="text-blue-600">
+                    约束条件：片段时长上限 &lt; 判定分段阈值，片段重叠 &lt; 片段时长上限，所有参数最大18分钟
+                  </span>
+                </div>
               </div>
             </div>
-
-            {/* 片段时长上限 */}
-            <div>
-              <label htmlFor="segmentLength" className="block text-xs text-gray-600 mb-1">
-                片段时长上限（分钟）
-              </label>
-              <input
-                id="segmentLength"
-                type="number"
-                min="1"
-                max={Math.min(18, splitThreshold - 1)}
-                value={segmentLength}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value);
-                  if (isNaN(value)) return; // 如果输入无效，不更新状态
-                  const newValue = Math.max(1, Math.min(18, Math.min(splitThreshold - 1, value)));
-                  setSegmentLength(newValue);
-                  // 如果片段重叠超过新的片段时长上限，自动调整
-                  if (segmentOverlap >= newValue) {
-                    setSegmentOverlap(Math.max(0, newValue - 1));
-                  }
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              />
-              <div className="text-xs text-gray-500 mt-1">
-                每个片段的最大时长
-              </div>
-            </div>
-
-            {/* 片段重叠 */}
-            <div>
-              <label htmlFor="segmentOverlap" className="block text-xs text-gray-600 mb-1">
-                片段重叠（分钟）
-              </label>
-              <input
-                id="segmentOverlap"
-                type="number"
-                min="0"
-                max={Math.max(0, segmentLength - 1)}
-                value={segmentOverlap}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value);
-                  if (isNaN(value)) return; // 如果输入无效，不更新状态
-                  setSegmentOverlap(Math.max(0, Math.min(segmentLength - 1, value)));
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              />
-              <div className="text-xs text-gray-500 mt-1">
-                相邻片段的重叠时长
-              </div>
-            </div>
-          </div>
-          <div className="text-xs text-gray-500 mt-2">
-            当前设置：视频超过 {splitThreshold} 分钟将分段，每段最长 {segmentLength} 分钟，重叠 {segmentOverlap} 分钟
-            <br />
-            <span className="text-blue-600">
-              约束条件：片段时长上限 &lt; 判定分段阈值，片段重叠 &lt; 片段时长上限，所有参数最大18分钟
-            </span>
-          </div>
+          )}
         </div>
 
         {/* 用时影响因素分析 - 折叠面板 */}
@@ -467,6 +491,13 @@ export default function VideoUnderstandingPanel({
               {compressionStatus === 'compressing' && '⏳ 正在压缩视频，请等待压缩完成...'}
               {compressionStatus === 'idle' && '⏳ 等待视频压缩...'}
               {compressionStatus === 'error' && '❌ 视频压缩失败，无法进行视频理解'}
+            </div>
+          )}
+
+          {/* 语音识别错误提示 */}
+          {autoSpeechRecognitionError && (
+            <div className="mt-2 text-sm text-red-600">
+              ❌ 语音识别失败，请先重试语音识别
             </div>
           )}
         </div>
