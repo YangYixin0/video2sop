@@ -36,7 +36,7 @@ interface VideoUploaderProps {
   clientSessionId?: string;
 }
 
-const DEFAULT_MAX_SIZE = 800 * 1024 * 1024; // 800MB
+const DEFAULT_MAX_SIZE = 3 * 1024 * 1024 * 1024; // 3GB
 const DEFAULT_ALLOWED_TYPES = ['video/mp4', 'video/mov', 'video/avi', 'video/mkv', 'video/webm'];
 
 export default function VideoUploader({

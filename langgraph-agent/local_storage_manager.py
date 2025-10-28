@@ -23,6 +23,37 @@ def save_video_locally(file_content: bytes, client_session_id: str, filename: st
     
     return video_path
 
+async def save_video_locally_streaming(file, client_session_id: str, filename: str = "original_video.mp4") -> str:
+    """流式保存视频到本地，避免大文件内存溢出"""
+    session_dir = get_session_video_dir(client_session_id)
+    os.makedirs(session_dir, exist_ok=True)
+    
+    video_path = os.path.join(session_dir, filename)
+    
+    # 流式写入，每次处理10MB
+    CHUNK_SIZE = 10 * 1024 * 1024  # 10MB chunks
+    with open(video_path, 'wb') as f:
+        while True:
+            chunk = await file.read(CHUNK_SIZE)
+            if not chunk:
+                break
+            f.write(chunk)
+    
+    return video_path
+
+def save_video_locally_file(source_path: str, client_session_id: str, filename: str = "original_video.mp4") -> str:
+    """从文件路径流式复制视频到本地存储"""
+    session_dir = get_session_video_dir(client_session_id)
+    os.makedirs(session_dir, exist_ok=True)
+    
+    video_path = os.path.join(session_dir, filename)
+    
+    # 使用shutil.copyfile进行高效复制
+    import shutil
+    shutil.copyfile(source_path, video_path)
+    
+    return video_path
+
 def get_local_video_path(client_session_id: str, filename: str = "original_video.mp4") -> str:
     """获取本地视频路径"""
     return os.path.join(get_session_video_dir(client_session_id), filename)

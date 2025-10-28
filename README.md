@@ -4,24 +4,26 @@
 
 ## 工作流程
 
-1. **视频上传**: 用户上传实验室仪器操作视频
-2. **语音识别**: 自动提取视频中的音频并进行转录
-3. **视频理解**: 结合视频和音频内容，使用 Qwen3-VL-Plus 分析操作流程
-4. **草稿解析**: 将视频理解结果解析为结构化的SOP区块
-5. **SOP修改**: 用户或AI对SOP区块内容进行精修改进
-7. **文档导出**: 支持导出TXT格式（适合修改后发布至开放获取平台）和HTML格式（适合实验室内部使用）
+1. **视频上传**: 用户上传实验室仪器操作视频（支持最大3GB）
+3. **语音识别**: 自动提取视频中的音频并进行转录
+4. **视频压缩**: 自动压缩视频并在画面上叠加时间戳
+5. **视频理解**: 结合压缩后的视频和音频内容，使用 Qwen3-VL-Plus 分析操作流程
+6. **草稿解析**: 将视频理解结果拆解为结构化的SOP区块
+7. **SOP修改**: 用户或AI对SOP区块内容进行精修改进
+8. **文档导出**: 支持导出TXT格式（适合修改后发布至开放获取平台）和HTML格式（适合实验室内部使用）
 
 ## 项目特性
 
-- **能处理的视频长度**: 已测试能处理18分钟的视频，不能处理29分钟的视频，限制在于Qwen3-VL-Plus的上下文长度。
+- **能处理的视频时长**: 已测试能处理18分钟的视频，不能处理29分钟的视频，限制在于Qwen3-VL-Plus的上下文长度。（已增加长视频分段功能，能处理的视频时长待更新）
 - **多模态分析**: 使用Qwen3-VL-Plus和Paraformer-V2对视频和音频内容进行综合分析
+- **智能分段处理**: 长视频自动分段并行处理，结合提示词拆分技术，确保每段处理质量
 - **多媒体SOP**: 支持TXT和HTML格式的文档导出功能。HTML格式文档可同时展现文字和视频，带来直观理解
 - **可交互编辑区**：SOP修改区中的区块可以方便地修改内容、调整次序、跳转并播放视频片段以核实
 - **操作历史**: 重要操作会被记录，便于回顾
 - **会话隔离**: 每个用户会话独立运行，避免操作冲突
 - **异步并发**: 支持多个会话同时调用工具，提升吞吐量
 
-### 各环节用时典型值
+### 各环节用时典型值（此表格需要更新）
 | 视频时长 (min) | 文件大小 (MB) | 分辨率 (px)   | 视频上传 (min) | 语音识别 (min) | 视频理解 (min) | 草稿解析 (min) | AI精修 (min) |
 |:-------------:|:------------:|:-------------:|:--------------:|:--------------:|:--------------:|:--------------:|:------------:|
 | 1.6           | 30           | 1080×1906     | 0.4            | 0.1            | 1.3            | 1.7            | 0.9          |
@@ -31,7 +33,7 @@
 
 ## 即将增加的功能
 
-- 支持处理一小时量级的长视频
+- 支持处理一小时量级的长视频（即将完成）
 - 支持上传PDF文件，例如已有的仪器使用说明书、已有的SOP，供AI参考
 - 英文界面
 
@@ -249,6 +251,14 @@ cd /root/video2sop
 
 ## 🔄 更新日志
 
+- **v1.7.0** - 视频压缩、长视频分段处理
+  - 将视频上传文件大小限制从800MB提升至3GB，支持更大视频文件
+  - 优化内存管理，使用流式文件处理避免大文件内存溢出
+  - 集成视频压缩功能，自动压缩上传的视频并在画面上叠加时间戳
+  - 修复视频压缩过程中FFmpeg stderr管道阻塞导致的进度卡死问题
+  - 实现长视频自动分段、并行理解、再整合在一起
+  - 新增提示词智能拆分功能，为长视频分段处理提供针对性提示词
+
 - **v1.6.0** - 玻尔平台相对路径配置优化
   - 修改生产环境启动脚本使用相对路径配置，解决玻尔平台WebSocket连接失败问题
   - 前端环境变量改为相对路径：`NEXT_PUBLIC_WS_URL=/ws` 和 `NEXT_PUBLIC_API_URL=./api`
@@ -302,9 +312,13 @@ cd /root/video2sop
 │   ├── main.py                        # FastAPI 主应用
 │   ├── agent.py                       # LangGraph Agent
 │   ├── video_understanding_tool.py    # 视频理解工具
+│   ├── video_processor.py             # 视频处理工具（压缩、分段、时间戳）
+│   ├── prompt_splitter_tool.py        # 提示词拆分工具
+│   ├── sop_integration_tool.py        # SOP片段整合工具
 │   ├── speech_tool.py                 # 语音识别工具
 │   ├── sop_parser_tool.py             # SOP解析工具
 │   ├── sop_refine_tool.py             # SOP精修工具
+│   ├── local_storage_manager.py       # 本地存储管理
 │   ├── oss_manager.py                 # OSS存储管理
 │   ├── oss_api.py                     # OSS API路由
 │   ├── requirements.txt               # Python 依赖
@@ -454,6 +468,36 @@ NEXT_PUBLIC_SOP_PARSE_TIMEOUT=1800000
   "has_audio_context": true
 }
 
+// 视频压缩进度
+{
+  "type": "compression_progress",
+  "current_frame": 1500,
+  "total_frames": 3000,
+  "percentage": 50,
+  "message": "压缩中... 1500/3000 帧 (50%)"
+}
+
+// 长视频分段处理
+{
+  "type": "segment_processing",
+  "segment_id": 1,
+  "time_range": "00:00-15:00"
+}
+
+// 片段处理完成
+{
+  "type": "segment_completed",
+  "segment_id": 1,
+  "time_range": "00:00-15:00",
+  "result": "片段处理结果"
+}
+
+// 片段整合完成
+{
+  "type": "integration_completed",
+  "result": "整合后的完整SOP文档"
+}
+
 // SOP解析完成
 {
   "type": "sop_parse_complete",
@@ -496,11 +540,15 @@ NEXT_PUBLIC_SOP_PARSE_TIMEOUT=1800000
 - `GET /api/health` - 健康检查
 - `GET /api/sessions/stats` - 会话统计信息
 - `POST /api/load_example_video` - 加载示例视频
-- `POST /api/video_upload` - 视频上传
+- `POST /api/upload_video_to_backend` - 视频上传到后端
 - `POST /api/speech_recognition` - 语音识别
-- `POST /api/video_understanding` - 视频理解
+- `POST /api/video_understanding` - 短视频理解
+- `POST /api/video_understanding_long` - 长视频理解（支持分段处理）
+- `GET /api/get_video_duration` - 获取视频时长
 - `POST /api/parse_sop` - SOP解析
 - `POST /api/refine_sop` - SOP精修
+- `GET /api/download_compressed_video` - 下载压缩视频
+- `POST /api/cancel_compression` - 取消视频压缩
 - `POST /api/delete_session_files` - 删除会话文件
 - `POST /api/cleanup_files` - 清理文件
 

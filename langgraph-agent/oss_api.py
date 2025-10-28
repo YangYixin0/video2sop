@@ -208,14 +208,11 @@ def setup_oss_routes(app, connection_manager=None):
     ) -> Dict[str, Any]:
         """接收视频文件，保存到本地，提取并上传音频到OSS"""
         try:
-            from local_storage_manager import save_video_locally
+            from local_storage_manager import save_video_locally_streaming
             from audio_extractor import extract_audio_from_video
             
-            # 1. 读取视频文件内容
-            file_content = await file.read()
-            
-            # 2. 保存视频到本地
-            local_video_path = save_video_locally(file_content, client_session_id)
+            # 1 & 2. 流式保存视频到本地（合并步骤，避免大文件内存溢出）
+            local_video_path = await save_video_locally_streaming(file, client_session_id)
             
             # 3. 提取音频
             audio_path = extract_audio_from_video(local_video_path)
@@ -286,23 +283,30 @@ def setup_oss_routes(app, connection_manager=None):
                     try:
                         # 定义进度回调函数
                         async def send_progress(current_frame, total_frames):
-                            if connection_manager and client_session_id:
-                                percentage = int((current_frame / total_frames) * 100) if total_frames > 0 else 0
-                                await connection_manager.send_to_client(client_session_id, json.dumps({
-                                    "type": "compression_progress",
-                                    "current_frame": current_frame,
-                                    "total_frames": total_frames,
-                                    "percentage": percentage,
-                                    "message": f"压缩中... {current_frame}/{total_frames} 帧 ({percentage}%)"
-                                }))
+                            try:
+                                if connection_manager and client_session_id:
+                                    percentage = int((current_frame / total_frames) * 100) if total_frames > 0 else 0
+                                    await connection_manager.send_to_client(client_session_id, json.dumps({
+                                        "type": "compression_progress",
+                                        "current_frame": current_frame,
+                                        "total_frames": total_frames,
+                                        "percentage": percentage,
+                                        "message": f"压缩中... {current_frame}/{total_frames} 帧 ({percentage}%)"
+                                    }))
+                            except Exception as e:
+                                print(f"发送压缩进度异常: {e}")
                         
                         # 获取当前事件循环
                         loop = asyncio.get_event_loop()
                         
                         # 包装为同步回调（因为compress_and_overlay_video是同步函数）
                         def progress_callback(current_frame, total_frames):
-                            # 使用asyncio.run_coroutine_threadsafe在事件循环中运行
-                            asyncio.run_coroutine_threadsafe(send_progress(current_frame, total_frames), loop)
+                            try:
+                                # 使用asyncio.run_coroutine_threadsafe在事件循环中运行
+                                future = asyncio.run_coroutine_threadsafe(send_progress(current_frame, total_frames), loop)
+                                # 不等待结果，避免阻塞压缩过程
+                            except Exception as e:
+                                print(f"进度回调异常: {e}")
                         
                         compressed_path = await asyncio.to_thread(
                             compress_and_overlay_video,

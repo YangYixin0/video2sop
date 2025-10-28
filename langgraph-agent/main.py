@@ -393,12 +393,9 @@ async def load_example_video_endpoint(request: dict):
         if not os.path.exists(example_video_path):
             raise HTTPException(status_code=404, detail="示例视频文件不存在")
         
-        # 1. 读取示例视频内容
-        with open(example_video_path, 'rb') as f:
-            video_content = f.read()
-        
-        # 2. 保存到本地存储
-        local_video_path = save_video_locally(video_content, client_session_id)
+        # 1 & 2. 高效复制示例视频到本地存储
+        from local_storage_manager import save_video_locally_file
+        local_video_path = save_video_locally_file(example_video_path, client_session_id)
         
         # 3. 提取音频
         audio_path = extract_audio_from_video(local_video_path)
@@ -487,7 +484,8 @@ async def video_understanding_endpoint(request: dict):
         prompt = request.get("prompt")
         fps = request.get("fps", 2)
         audio_transcript = request.get("audio_transcript")
-        client_session_id = request.get("client_session_id")
+        # 兼容旧字段：若未提供 client_session_id，则回退到 session_id
+        client_session_id = request.get("client_session_id") or request.get("session_id")
         
         if not video_url:
             raise HTTPException(status_code=400, detail="缺少 video_url 参数")

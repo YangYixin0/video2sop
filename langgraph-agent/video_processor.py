@@ -209,11 +209,15 @@ def compress_and_overlay_video(
 
     cmd = [
         'ffmpeg',
+        '-hide_banner',
+        '-nostats',
+        '-v', 'error',
         '-progress', 'pipe:1',  # 输出进度到stdout
         '-i', input_video_path,
         '-vf', f'scale=-2:720,{drawtext}',  # 保持宽高比，高度720p，叠加时间戳
         '-r', '10',  # 帧率10fps
         '-c:v', 'libx265',  # h265编码
+        '-x265-params', 'log-level=error',  # 降低x265日志量
         '-crf', '23',  # CRF质量
         '-preset', 'ultrafast',  # 最快预设
         '-c:a', 'copy',  # 复制原音频，不重新编码
@@ -225,33 +229,155 @@ def compress_and_overlay_video(
     ]
     
     # 使用Popen实时解析进度
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     
     last_progress_time = time.time()
     current_frame = 0
+    last_frame_update = 0
     
     # 实时读取FFmpeg输出
-    for line in process.stdout:
-        # 检查是否被取消
-        if cancel_flag and hasattr(cancel_flag, 'cancelled') and cancel_flag.cancelled:
-            print("压缩任务被取消，终止FFmpeg进程")
-            process.terminate()
-            raise RuntimeError("压缩任务被用户取消")
+    try:
+        import select
+        import sys
         
-        if line.startswith('frame='):
-            current_frame = int(line.split('=')[1].strip())
+        no_progress_count = 0  # 连续无进度更新计数
+        max_no_progress = 30   # 最大无进度次数（30秒）
+        output_fps = 10  # 与编码参数 -r 10 保持一致
+
+        def _parse_out_time_to_seconds(out_time_value: str) -> float:
+            try:
+                # 形如 HH:MM:SS.micro
+                hh, mm, ss = out_time_value.split(":")
+                return int(hh) * 3600 + int(mm) * 60 + float(ss)
+            except Exception:
+                return 0.0
+        
+        # 使用非阻塞方式读取FFmpeg输出
+        while True:
+            # 检查是否被取消
+            if cancel_flag and hasattr(cancel_flag, 'cancelled') and cancel_flag.cancelled:
+                print("压缩任务被取消，终止FFmpeg进程")
+                process.terminate()
+                raise RuntimeError("压缩任务被用户取消")
             
-            # 每5秒回调一次
-            if time.time() - last_progress_time >= 5:
+            # 检查进程是否结束
+            if process.poll() is not None:
+                print("FFmpeg进程已结束")
+                break
+            
+            # 检查是否长时间无进度更新
+            if no_progress_count > max_no_progress:
+                print(f"警告: 已{max_no_progress}秒无进度更新，但FFmpeg仍在运行，继续监控...")
+                no_progress_count = 0  # 重置计数，避免重复警告
+            
+            # 非阻塞读取
+            if sys.platform != 'win32':
+                ready, _, _ = select.select([process.stdout], [], [], 1.0)  # 1秒超时
+                if not ready:
+                    # 超时，检查进程状态
+                    if process.poll() is not None:
+                        break
+                    no_progress_count += 1
+                    continue
+            else:
+                # Windows平台使用不同的方法
+                import msvcrt
+                if not msvcrt.kbhit():
+                    time.sleep(0.1)
+                    no_progress_count += 1
+                    continue
+            
+            line = process.stdout.readline()
+            if not line:
+                print("FFmpeg输出结束")
+                break
+            
+            line = line.strip()
+            if not line:
+                continue
+                
+            # 调试：输出关键FFmpeg行
+            if line.startswith('frame=') or line.startswith('progress=') or line.startswith('out_time='):
+                print(f"FFmpeg输出: {line}")
+            
+            if line.startswith('frame='):
+                try:
+                    new_frame = int(line.split('=')[1].strip())
+                    if new_frame > current_frame:
+                        current_frame = new_frame
+                        last_frame_update = time.time()
+                        no_progress_count = 0  # 重置无进度计数
+                        
+                        # 每5秒回调一次，或者帧数有明显变化时也回调
+                        time_elapsed = time.time() - last_progress_time
+                        
+                        if time_elapsed >= 5 or (current_frame > 0 and time_elapsed >= 2):
+                            if progress_callback:
+                                try:
+                                    progress_callback(current_frame, total_frames)
+                                    print(f"压缩进度: {current_frame}/{total_frames} 帧 ({int((current_frame / total_frames) * 100)}%)")
+                                except Exception as e:
+                                    print(f"进度回调异常: {e}")
+                            last_progress_time = time.time()
+                except (ValueError, IndexError) as e:
+                    print(f"解析帧数失败: {line}, 错误: {e}")
+                    continue
+            elif line.startswith('out_time='):
+                # 使用 out_time 估算进度，避免 frame 行刷新不及时导致卡住
+                out_time_value = line.split('=')[1].strip()
+                secs = _parse_out_time_to_seconds(out_time_value)
+                estimated_frame = min(total_frames, int(secs * output_fps))
+                if estimated_frame > current_frame:
+                    current_frame = estimated_frame
+                    last_frame_update = time.time()
+                    no_progress_count = 0
+                    time_elapsed = time.time() - last_progress_time
+                    if time_elapsed >= 3:
+                        if progress_callback:
+                            try:
+                                progress_callback(current_frame, total_frames)
+                                print(f"基于时间的进度: {current_frame}/{total_frames} 帧 ({int((current_frame / total_frames) * 100)}%)")
+                            except Exception as e:
+                                print(f"进度回调异常: {e}")
+                        last_progress_time = time.time()
+            elif line.startswith('progress=') and line.split('=')[1].strip() == 'end':
+                # FFmpeg 显式结束信号，强制更新到 100%
                 if progress_callback:
-                    progress_callback(current_frame, total_frames)
-                last_progress_time = time.time()
+                    try:
+                        progress_callback(total_frames, total_frames)
+                        print("收到 progress=end，强制设置进度为 100%")
+                    except Exception as e:
+                        print(f"进度回调异常: {e}")
+    except Exception as e:
+        print(f"读取FFmpeg输出异常: {e}")
+        # 继续执行，不中断压缩过程
+    
+    # 如果压缩过程中没有收到进度更新，添加一个最终检查
+    if current_frame == 0 and process.poll() is None:
+        print("警告: 压缩过程中未收到进度更新，但进程仍在运行")
+        # 尝试从stderr获取信息
+        try:
+            stderr_output = process.stderr.read(1024)
+            if stderr_output:
+                print(f"FFmpeg stderr: {stderr_output}")
+        except:
+            pass
+    
+    # 取消文件大小估算的备用进度监控，避免与真实进度混淆
     
     # 等待进程完成
     stdout, stderr = process.communicate()
     
     if process.returncode != 0:
         raise RuntimeError(f"ffmpeg compression failed: {stderr}")
+    
+    # 进程成功结束后，补发一次 100% 进度，确保前端与脚本收敛
+    if progress_callback:
+        try:
+            progress_callback(total_frames, total_frames)
+            print("压缩完成，发送最终 100% 进度")
+        except Exception as e:
+            print(f"最终进度回调异常: {e}")
     
     return output_path
 
