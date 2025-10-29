@@ -112,7 +112,7 @@ OSS_ENDPOINT=your_oss_endpoint
 OSS_BUCKET_NAME=your_bucket_name
 
 # 示例视频配置（可选，用于演示功能。如果使用这个配置，应在相应目录存放示例视频）
-EXAMPLE_VIDEO_PATH=/root/video2sop/temp/video_example/pressing_operation.mp4
+EXAMPLE_VIDEO_PATH=/root/video2sop/temp/video_example/your_example_video.mp4
 
 # LangSmith 调试配置（可选，用于LangGraph测试）
 LANGSMITH_API_KEY=your_langsmith_api_key_here

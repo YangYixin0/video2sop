@@ -30,6 +30,13 @@ interface FileRemovedData {
   deleted_count?: number;
 }
 
+interface VideoCompressionData {
+  stage?: string;
+  percentage?: number;
+  current_frame?: number;
+  total_frames?: number;
+}
+
 
 export interface SessionReportOptions {
   includeVideoLinks: boolean;
@@ -246,7 +253,7 @@ export function generateSessionReport(options: SessionReportOptions): string {
     </div>
 
     <div class="mt-6 text-center text-sm text-gray-500">
-      <p>此报告由 Video2SOP 自动生成</p>
+      <p>此报告由 <a href="${process.env.NEXT_PUBLIC_APP_GITHUB || '#'}" target="_blank" style="color: #3b82f6; text-decoration: none;">Video2SOP</a> 生成</p>
       <p>生成时间: ${timestamp}</p>
     </div>
   </div>
@@ -262,6 +269,7 @@ function getOperationIcon(type: OperationRecord['type']): string {
     case 'upload': return '📁';
     case 'speech_recognition': return '🎤';
     case 'video_understanding': return '🎬';
+    case 'video_compression': return '🗜️';
     case 'sop_parse': return '📋';
     case 'sop_refine': return '✨';
     case 'file_removed': return '🗑️';
@@ -274,6 +282,7 @@ function getOperationTitle(type: OperationRecord['type']): string {
     case 'upload': return '视频上传';
     case 'speech_recognition': return '语音识别';
     case 'video_understanding': return '视频理解';
+    case 'video_compression': return '视频压缩';
     case 'sop_parse': return '草稿解析';
     case 'sop_refine': return 'SOP精修';
     case 'file_removed': return '文件删除';
@@ -335,6 +344,19 @@ function generateDataHtml(data: unknown, type: OperationRecord['type'], includeV
       }
       if (refineData.has_user_notes) {
         html += `<div>包含用户批注: 是</div>`;
+      }
+      break;
+    }
+    case 'video_compression': {
+      const compressionData = data as VideoCompressionData;
+      if (compressionData.stage) {
+        html += `<div>阶段: ${compressionData.stage}</div>`;
+      }
+      if (compressionData.percentage !== undefined) {
+        html += `<div>进度: ${compressionData.percentage}%</div>`;
+      }
+      if (compressionData.current_frame !== undefined && compressionData.total_frames !== undefined) {
+        html += `<div>帧数: ${compressionData.current_frame}/${compressionData.total_frames}</div>`;
       }
       break;
     }

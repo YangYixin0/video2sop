@@ -26,6 +26,7 @@ export const API_ENDPOINTS = {
   EXTRACT_AUDIO: `${API_BASE_URL}/extract_audio`,
   LOAD_EXAMPLE_VIDEO: `${API_BASE_URL}/load_example_video`,
   EXAMPLE_VIDEO_PREVIEW: `${API_BASE_URL}/example_video_preview`,
+  EXAMPLE_VIDEO_INFO: `${API_BASE_URL}/example_video_info`,
   DOWNLOAD_COMPRESSED_VIDEO: `${API_BASE_URL}/download_compressed_video`,
   CANCEL_COMPRESSION: `${API_BASE_URL}/cancel_compression`,
   

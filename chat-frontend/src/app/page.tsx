@@ -89,6 +89,14 @@ export default function Home() {
   const [sopRefinePrompt, setSopRefinePrompt] = useState<string>('');
   const [notificationEnabled, setNotificationEnabled] = useState(false);
 
+  // 系统资源状态
+  const [systemResources, setSystemResources] = useState<{
+    cpu_count: number;
+    cpu_percent: number;
+    memory_total_gb: number;
+    memory_percent: number;
+  } | null>(null);
+
   // WebSocket消息处理函数
   const handleWebSocketMessage = useCallback((data: { 
     type: string; 
@@ -224,6 +232,16 @@ export default function Home() {
         }
       };
       setOperationRecords(prev => [...prev, refineRecord]);
+    } else if (data.type === 'pong') {
+      // 处理心跳响应中的系统资源信息
+      if (data.system_resources) {
+        setSystemResources(data.system_resources as {
+          cpu_count: number;
+          cpu_percent: number;
+          memory_total_gb: number;
+          memory_percent: number;
+        });
+      }
     }
     // 压缩相关消息：转发给VideoUploader处理并添加到操作记录
     else if (data.type === 'compression_started') {
@@ -233,7 +251,7 @@ export default function Home() {
       
       // 添加到操作记录
       const compressionRecord: OperationRecord = {
-        id: `compression-${Date.now()}`,
+        id: `compression-started-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         type: 'video_compression',
         timestamp: new Date(),
         status: 'processing',
@@ -252,7 +270,7 @@ export default function Home() {
       
       // 添加到操作记录
       const compressionRecord: OperationRecord = {
-        id: `compression-${Date.now()}`,
+        id: `compression-completed-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         type: 'video_compression',
         timestamp: new Date(),
         status: 'success',
@@ -267,7 +285,7 @@ export default function Home() {
       
       // 添加到操作记录
       const compressionRecord: OperationRecord = {
-        id: `compression-${Date.now()}`,
+        id: `compression-error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         type: 'video_compression',
         timestamp: new Date(),
         status: 'error',
@@ -280,11 +298,16 @@ export default function Home() {
     else if (data.type === 'status') {
       const stage = (data.stage as string) || '';
       const message = (data.message as string) || '状态更新';
+      
+      // 判断是否为"开始"类型的消息，这些应该是处理中状态
+      const isStartMessage = message.includes('开始') || message.includes('正在');
+      const recordStatus = isStartMessage ? 'processing' : 'success';
+      
       const statusRecord: OperationRecord = {
         id: `status-${Date.now()}-${stage}`,
         type: 'video_understanding',
         timestamp: new Date(),
-        status: 'success',
+        status: recordStatus,
         message,
         data: { stage }
       };
@@ -706,6 +729,7 @@ export default function Home() {
           refinedSopBlocks={refinedSopBlocks}
           sopParsePrompt={sopParsePrompt}
           sopRefinePrompt={sopRefinePrompt}
+          systemResources={systemResources}
         />
       }
     >

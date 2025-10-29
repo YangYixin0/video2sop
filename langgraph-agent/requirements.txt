@@ -9,3 +9,4 @@ langsmith>=0.0.80
 requests>=2.31.0
 oss2>=2.18.0
 python-multipart>=0.0.20
+psutil>=5.9.0

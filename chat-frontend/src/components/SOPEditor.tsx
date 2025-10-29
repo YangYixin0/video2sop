@@ -340,7 +340,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
             <p className="text-blue-800 mb-3">
               {blocksA.length > 0 
                 ? 'SOP草稿已拆成区块。如果拆解错误很严重，可以重新拆解。如果是内容错误，请手动修改内容或重新做视频理解。' 
-                : '检测到SOP草稿文本，点击按钮开始拆解成区块。'
+                : '如果视频理解结果大致正确，则点击按钮将它拆解成区块。否则，修改提示词后重新做视频理解。'
               }
             </p>
             <button

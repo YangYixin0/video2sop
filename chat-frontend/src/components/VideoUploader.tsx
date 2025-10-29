@@ -67,9 +67,29 @@ export default function VideoUploader({
     totalFrames: number;
     percentage: number;
   } | null>(null);
+  const [exampleVideoFilename, setExampleVideoFilename] = useState<string>('example_video.mp4');
+  const [isExampleVideo, setIsExampleVideo] = useState<boolean>(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
+
+  // 获取示例视频信息
+  useEffect(() => {
+    const fetchExampleVideoInfo = async () => {
+      try {
+        const response = await fetch(API_ENDPOINTS.EXAMPLE_VIDEO_INFO);
+        if (response.ok) {
+          const data = await response.json();
+          setExampleVideoFilename(data.filename || 'example_video.mp4');
+        }
+      } catch (error) {
+        console.error('获取示例视频信息失败:', error);
+        // 保持默认文件名
+      }
+    };
+
+    fetchExampleVideoInfo();
+  }, []);
 
   // 处理压缩消息
   useEffect(() => {
@@ -368,6 +388,7 @@ export default function VideoUploader({
     setSelectedFile(file);
     setUploadStatus({ status: 'idle', message: '', progress: 0 });
     setUploadResult(null);
+    setIsExampleVideo(false); // 重置示例视频状态
     
     // 创建预览 URL
     const previewUrl = URL.createObjectURL(file);
@@ -380,7 +401,7 @@ export default function VideoUploader({
   }, [validateFile, onUploadError, onVideoPreviewChange]);
 
   // 上传处理
-  const handleUpload = useCallback(async () => {
+  const handleUpload = useCallback(async (resolution: '1080p' | '720p') => {
     if (!selectedFile || !clientSessionId) return;
 
     try {
@@ -389,12 +410,13 @@ export default function VideoUploader({
         onUploadStart();
       }
 
-      setUploadStatus({ status: 'uploading', message: '正在上传视频到服务器...', progress: 0 });
+      setUploadStatus({ status: 'uploading', message: '正在上传视频到服务器（进度条不准）', progress: 10 });
 
       // 直接上传视频到后端，使用 clientSessionId
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('client_session_id', clientSessionId);
+      formData.append('target_resolution', resolution);
 
       const response = await fetch(API_ENDPOINTS.UPLOAD_VIDEO_TO_BACKEND, {
         method: 'POST',
@@ -514,7 +536,7 @@ export default function VideoUploader({
     if (!clientSessionId) return;
     
     try {
-      setUploadStatus({ status: 'uploading', message: '正在加载示例视频...', progress: 0 });
+      setUploadStatus({ status: 'uploading', message: '正在加载示例视频（进度条不准）', progress: 10 });
       
       // 从后端获取示例视频
       const response = await fetch(API_ENDPOINTS.LOAD_EXAMPLE_VIDEO, {
@@ -527,7 +549,8 @@ export default function VideoUploader({
       
       const data = await response.json();
       if (data.success) {
-        setUploadStatus({ status: 'completed', message: '示例视频加载完成！', progress: 100 });
+        setUploadStatus({ status: 'completed', message: '粉末压块示例视频加载完成！', progress: 100 });
+        setIsExampleVideo(true); // 标记为示例视频
         
         const result: UploadResult = {
           session_id: data.session_id,
@@ -537,7 +560,7 @@ export default function VideoUploader({
         
         
         // 设置示例视频的预览
-        const exampleFile = new File([], 'pressing_operation.mp4', { type: 'video/mp4' });
+        const exampleFile = new File([], exampleVideoFilename, { type: 'video/mp4' });
         setSelectedFile(exampleFile);
         
         // 为示例视频创建预览URL
@@ -573,7 +596,7 @@ export default function VideoUploader({
     <div className="w-full max-w-7xl mx-auto bg-white rounded-lg shadow-sm border">
       <div className="p-4 border-b border-gray-200">
         <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-          <span className="mr-2">🎥</span>
+          <span className="mr-2">📁</span>
           视频上传
         </h3>
       </div>
@@ -614,13 +637,10 @@ export default function VideoUploader({
               拖拽视频文件到这里，或点击选择文件
             </p>
             <p className="text-sm text-gray-500">
-              支持格式: MP4, MOV, AVI, MKV, WEBM (最大 {Math.round(maxFileSize / 1024 / 1024)}MB)
+              支持格式: MP4, MOV, AVI, MKV, WEBM (最大 {Math.round(maxFileSize / 1024 / 1024 / 1024)} GB)
             </p>
             <p className="text-xs text-blue-600 mt-2">
               🛡️ 数据保护：当您关闭或刷新网页时，我们不会保留您的视频。
-            </p>
-            <p className="text-xs text-amber-600 mt-1">
-              ⚠️ 直传OSS可能失败，系统会自动改为后端代理上传（进度条不准）。
             </p>
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -638,11 +658,18 @@ export default function VideoUploader({
             </p>
             <div className="mt-4 flex space-x-2 justify-center">
               <button
-                onClick={handleUpload}
+                onClick={() => handleUpload('1080p')}
                 disabled={uploadStatus.status === 'uploading' || uploadStatus.status === 'extracting' || uploadResult !== null}
                 className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
               >
-                上传
+                上传并压缩至1080p
+              </button>
+              <button
+                onClick={() => handleUpload('720p')}
+                disabled={uploadStatus.status === 'uploading' || uploadStatus.status === 'extracting' || uploadResult !== null}
+                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              >
+                上传并压缩至720p
               </button>
               <button
                 onClick={handleRemove}
@@ -675,7 +702,6 @@ export default function VideoUploader({
             <span>🎬</span>
             <span>加载示例视频</span>
           </button>
-          <p className="text-xs text-gray-400 mt-1">使用预设的压片机操作视频</p>
         </div>
       )}
 
@@ -710,18 +736,28 @@ export default function VideoUploader({
 
 
       {/* 压缩状态和下载按钮 */}
-      {compressionStatus === 'completed' && uploadResult?.session_id && (
+      {compressionStatus === 'completed' && uploadResult?.session_id && !isExampleVideo && (
         <div className="mt-4">
-          <a
-            href={`${API_ENDPOINTS.DOWNLOAD_COMPRESSED_VIDEO}?session_id=${uploadResult.session_id}`}
-            download="compressed_video.mp4"
-            className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            下载压缩视频
-          </a>
+          <div className="text-sm text-gray-600 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start space-x-3">
+              <div className="flex-1">
+                <a
+                  href={`${API_ENDPOINTS.DOWNLOAD_COMPRESSED_VIDEO}?session_id=${uploadResult.session_id}`}
+                  download="compressed_video.mp4"
+                  className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors mb-3"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  下载压缩视频
+                </a>
+                <p className="font-medium text-blue-800 mb-2">💡 推荐保存此压缩视频</p>
+                <p className="text-blue-700">
+                  以后如果要重新处理该视频，推荐上传这个 Video2SOP 压缩过的视频，会减少上传用时并跳过压缩步骤。即使你上传原视频，Video2SOP也会压缩，以去掉对视频理解几乎无帮助的部分（主要是过多的帧）。
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

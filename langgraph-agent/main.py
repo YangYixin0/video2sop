@@ -20,9 +20,25 @@ from sop_integration_tool import integrate_sop_segments
 from sop_parser_tool import sop_parser
 from sop_refine_tool import sop_refine
 import dashscope
+import psutil
 
 # 加载环境变量
 load_dotenv('../.env')
+
+def get_system_resources():
+    """获取系统资源信息"""
+    cpu_count = os.cpu_count() or 1
+    cpu_percent = psutil.cpu_percent(interval=0.1)  # 短采样提高响应速度
+    memory = psutil.virtual_memory()
+    memory_total_gb = round(memory.total / (1024**3))
+    memory_percent = round(memory.percent, 1)
+    
+    return {
+        "cpu_count": cpu_count,
+        "cpu_percent": round(cpu_percent, 1),
+        "memory_total_gb": memory_total_gb,
+        "memory_percent": memory_percent
+    }
 
 # 配置 LangSmith 追踪（如果设置了环境变量）
 if os.getenv('LANGSMITH_TRACING'):
@@ -290,9 +306,11 @@ async def websocket_endpoint(websocket: WebSocket):
                     }))
             
             elif message_data.get("type") == "ping":
-                # 心跳检测
+                # 心跳检测 + 系统资源信息
+                system_resources = get_system_resources()
                 await manager.send_message(websocket, json.dumps({
-                    "type": "pong"
+                    "type": "pong",
+                    "system_resources": system_resources
                 }))
             
             elif message_data.get("type") == "register":
@@ -309,6 +327,13 @@ async def websocket_endpoint(websocket: WebSocket):
                     await manager.send_message(websocket, json.dumps({
                         "type": "register_success",
                         "client_session_id": client_session_id
+                    }))
+                    
+                    # 立即发送第一个心跳响应，包含系统资源信息
+                    system_resources = get_system_resources()
+                    await manager.send_message(websocket, json.dumps({
+                        "type": "pong",
+                        "system_resources": system_resources
                     }))
                 else:
                     await manager.send_message(websocket, json.dumps({
@@ -358,6 +383,28 @@ async def websocket_endpoint(websocket: WebSocket):
         print(f"WebSocket 错误: {e}")
         manager.disconnect(websocket)
 
+@app.get("/api/example_video_info")
+async def get_example_video_info():
+    """获取示例视频信息（文件名等）"""
+    try:
+        example_video_path = os.getenv('EXAMPLE_VIDEO_PATH')
+        if not example_video_path:
+            raise HTTPException(status_code=404, detail="示例视频路径未配置")
+        
+        if not os.path.exists(example_video_path):
+            raise HTTPException(status_code=404, detail="示例视频文件不存在")
+        
+        # 从环境变量路径中提取文件名
+        filename = os.path.basename(example_video_path)
+        
+        return {
+            "filename": filename,
+            "path": example_video_path,
+            "exists": True
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取示例视频信息失败: {str(e)}")
+
 @app.get("/api/example_video_preview")
 async def get_example_video_preview():
     """获取示例视频预览"""
@@ -366,11 +413,14 @@ async def get_example_video_preview():
         if not os.path.exists(example_video_path):
             raise HTTPException(status_code=404, detail="示例视频文件不存在")
         
+        # 从环境变量路径中提取文件名
+        filename = os.path.basename(example_video_path) if example_video_path else "example_video.mp4"
+        
         from fastapi.responses import FileResponse
         return FileResponse(
             example_video_path,
             media_type="video/mp4",
-            filename="pressing_operation.mp4"
+            filename=filename
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取示例视频预览失败: {str(e)}")
@@ -417,6 +467,10 @@ async def load_example_video_endpoint(request: dict):
                 "message": "示例视频音频提取完成",
                 "auto_start_speech_recognition": True  # 新增：标记触发自动语音识别
             }))
+            
+            # 7. 触发视频压缩任务（与正常上传流程一致）
+            from oss_api import start_compression_task
+            await start_compression_task(client_session_id, local_video_path, "720p", manager)
         
         return {
             "success": True,
@@ -671,11 +725,16 @@ async def video_understanding_long_endpoint(request: dict):
         # 长视频不需要上传，直接使用本地文件
         
         if client_session_id:
+            # 格式化时长为分钟和秒
+            minutes = int(duration_sec // 60)
+            seconds = int(duration_sec % 60)
+            duration_text = f"{minutes}分{seconds}秒" if minutes > 0 else f"{seconds}秒"
+            
             await manager.send_to_client(client_session_id, json.dumps({
                 "type": "status",
                 "stage": "length_detected",
                 "message": (
-                    f"视频时长 {int(duration_sec)} 秒，将分段" if is_long else f"视频时长 {int(duration_sec)} 秒，不分段"
+                    f"视频时长 {duration_text}，将分段" if is_long else f"视频时长 {duration_text}，不分段"
                 )
             }))
 

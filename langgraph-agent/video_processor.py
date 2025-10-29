@@ -170,6 +170,7 @@ def compress_and_overlay_video(
     input_video_path: str,
     client_session_id: str,
     output_filename: str = "compressed_video.mp4",
+    target_resolution: str = "720p",
     progress_callback: Optional[Callable[[int, int], None]] = None,
     cancel_flag: Optional[object] = None
 ) -> str:
@@ -179,6 +180,7 @@ def compress_and_overlay_video(
         input_video_path: 原始视频本地路径
         client_session_id: 会话ID
         output_filename: 输出文件名
+        target_resolution: 目标分辨率，"1080p" 或 "720p"
         progress_callback: 进度回调函数，参数为(current_frame, total_frames)
         cancel_flag: 取消标志对象，如果设置了cancelled属性则停止压缩
     Returns:
@@ -193,6 +195,9 @@ def compress_and_overlay_video(
     # 获取视频时长并计算总帧数
     duration_sec = get_video_duration(input_video_path, is_local_file=True)
     total_frames = int(duration_sec * 10)  # 输出10fps
+    
+    # 根据目标分辨率确定高度
+    resolution_height = 1080 if target_resolution == "1080p" else 720
     
     # 字体路径(常见Linux字体路径)，如无该字体，ffmpeg仍可回退默认
     font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
@@ -214,7 +219,7 @@ def compress_and_overlay_video(
         '-v', 'error',
         '-progress', 'pipe:1',  # 输出进度到stdout
         '-i', input_video_path,
-        '-vf', f'scale=-2:720,{drawtext}',  # 保持宽高比，高度720p，叠加时间戳
+        '-vf', f'scale=-2:{resolution_height},{drawtext}',  # 保持宽高比，根据目标分辨率调整高度，叠加时间戳
         '-r', '10',  # 帧率10fps
         '-c:v', 'libx265',  # h265编码
         '-x265-params', 'log-level=error',  # 降低x265日志量

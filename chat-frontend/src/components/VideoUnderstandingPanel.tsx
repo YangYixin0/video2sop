@@ -132,7 +132,7 @@ interface VideoUnderstandingPanelProps {
 
 const DEFAULT_PROMPT = `1. 提供给你的是一个实验室仪器或实验处理的操作教学视频和它的语音识别结果，请按照这些内容去理解视频内演示者的操作，写一个标准操作流程（SOP）草稿。这个草稿包含标题、摘要、关键词、材料试剂工具设备清单、操作步骤和也许其他内容。其他内容请你合理地整理成一个或多个段落。
 
-2. 这份草稿的操作步骤越具体越好。操作步骤中适当分段，每一段包含"目的"和"操作"两个层级，"操作"是时间上相邻的多个操作，各放一行，"目的"是这些相邻的多个操作的共同目的。每个目的的开头带有一个时间起终范围（格式为mm:ss-mm:ss），操作不要带时间起终范围。
+2. 这份草稿的操作步骤越具体越好。操作步骤中适当分段，每一段包含"目的"和"操作"两个层级，"操作"是时间上相邻的多个操作，各放一行，"目的"是这些相邻的多个操作的共同目的。每个目的的开头带有一个时间起终范围，格式为(mm:ss-mm:ss)，而操作不要带时间起终范围。
 
 3. 演示者讲的话一定是操作重点，不过细节可能偶尔讲错。同时，语音识别结果也可能有错误，一般是被错误识别为读音相近的字。请你结合上下文来理解。
 
@@ -264,25 +264,8 @@ export default function VideoUnderstandingPanel({
           </div>
         ) : (
           <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
-            <div className="flex items-center space-x-2 mb-2">
-              <span className="text-lg">✅</span>
-              <span className="font-medium text-green-800">可以进行视频理解</span>
-            </div>
-            <div className="text-sm text-green-700 space-y-1">
-              <div>
-                <strong>视频已上传:</strong> 
-                <a 
-                  href={uploadResult.video_url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-green-600 hover:underline ml-1"
-                >
-                  查看视频
-                </a>
-              </div>
-              <div>
-                <strong>语音识别完成:</strong> {speechRecognitionResult.length} 句
-              </div>
+            <div className="flex items-center space-x-2">
+              <span className="font-medium text-green-800">修改提示词，开始视频理解</span>
             </div>
           </div>
         )}
@@ -296,7 +279,7 @@ export default function VideoUnderstandingPanel({
             id="prompt"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            rows={12}
+            rows={14}
             maxLength={2000}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
             placeholder="请输入您的提示词..."
@@ -346,7 +329,7 @@ export default function VideoUnderstandingPanel({
                     className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   <span className="text-sm text-gray-600">
-                    表示每1秒视频中抽取 {fps} 帧用于理解。FPS值越大，理解越可靠，但处理时间越长
+                    表示每1秒视频中抽取 {fps} 帧用于理解。FPS值越大，理解可能越可靠，但处理时间越长。
                   </span>
                 </div>
               </div>

@@ -164,9 +164,11 @@ export default function SpeechRecognitionPanel({
         {/* 当前视频信息 */}
         {uploadResult ? (
           <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
-            <div className="flex items-center space-x-2 mb-2">
+            <div className="flex items-center space-x-2">
               <span className="text-lg">✅</span>
-              <span className="font-medium text-green-800">视频已上传，可以进行语音识别</span>
+              <span className="font-medium text-green-800">
+                {results.length > 0 ? '语音识别已完成，如果不满意可以手动修改或重新识别' : '视频已上传，可以进行语音识别'}
+              </span>
             </div>
           </div>
         ) : (

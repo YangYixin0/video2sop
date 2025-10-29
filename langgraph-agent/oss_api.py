@@ -27,6 +27,124 @@ from audio_extractor import extract_audio_from_video, check_ffmpeg_available
 compression_tasks = {}
 compression_cancel_flags = {}
 
+async def start_compression_task(client_session_id: str, local_video_path: str, target_resolution: str = "720p", connection_manager=None):
+    """启动视频压缩任务的独立函数"""
+    try:
+        import asyncio
+        from video_processor import compress_and_overlay_video, check_video_metadata
+        from local_storage_manager import get_local_video_path
+        
+        # 创建取消标志
+        cancel_flag = type('CancelFlag', (), {'cancelled': False})()
+        compression_cancel_flags[client_session_id] = cancel_flag
+        
+        async def compress_task():
+            # 检查视频是否已经是压缩过的
+            is_already_compressed = await asyncio.to_thread(
+                check_video_metadata,
+                local_video_path
+            )
+            
+            if is_already_compressed:
+                # 视频已经是压缩过的，直接重命名
+                compressed_video_path = get_local_video_path(client_session_id, "compressed_video.mp4")
+                
+                if connection_manager and client_session_id:
+                    await connection_manager.send_to_client(client_session_id, json.dumps({
+                        "type": "compression_started",
+                        "message": "检测到已压缩视频，跳过压缩..."
+                    }))
+                
+                # 重命名原视频为压缩视频
+                import shutil
+                shutil.move(local_video_path, compressed_video_path)
+                print(f"已重命名原视频为压缩视频: {compressed_video_path}")
+                
+                if connection_manager and client_session_id:
+                    await connection_manager.send_to_client(client_session_id, json.dumps({
+                        "type": "compression_completed",
+                        "message": "视频无需压缩，已准备就绪",
+                        "compressed_filename": "compressed_video.mp4"
+                    }))
+            else:
+                # 需要压缩
+                if connection_manager and client_session_id:
+                    await connection_manager.send_to_client(client_session_id, json.dumps({
+                        "type": "compression_started",
+                        "message": "开始压缩视频..."
+                    }))
+                
+                try:
+                    # 定义进度回调函数
+                    async def send_progress(current_frame, total_frames):
+                        try:
+                            if connection_manager and client_session_id:
+                                percentage = int((current_frame / total_frames) * 100) if total_frames > 0 else 0
+                                await connection_manager.send_to_client(client_session_id, json.dumps({
+                                    "type": "compression_progress",
+                                    "current_frame": current_frame,
+                                    "total_frames": total_frames,
+                                    "percentage": percentage,
+                                    "message": f"压缩中... {current_frame}/{total_frames} 帧 ({percentage}%)"
+                                }))
+                        except Exception as e:
+                            print(f"发送压缩进度异常: {e}")
+                    
+                    # 获取当前事件循环
+                    loop = asyncio.get_event_loop()
+                    
+                    # 包装为同步回调（因为compress_and_overlay_video是同步函数）
+                    def progress_callback(current_frame, total_frames):
+                        try:
+                            # 使用asyncio.run_coroutine_threadsafe在事件循环中运行
+                            future = asyncio.run_coroutine_threadsafe(send_progress(current_frame, total_frames), loop)
+                            # 不等待结果，避免阻塞压缩过程
+                        except Exception as e:
+                            print(f"进度回调异常: {e}")
+                    
+                    compressed_path = await asyncio.to_thread(
+                        compress_and_overlay_video,
+                        local_video_path,
+                        client_session_id,
+                        "compressed_video.mp4",
+                        target_resolution,  # 传入目标分辨率
+                        progress_callback,  # 传入回调
+                        cancel_flag  # 传入取消标志
+                    )
+                    
+                    # 压缩完成后删除原视频
+                    if os.path.exists(local_video_path):
+                        os.remove(local_video_path)
+                        print(f"已删除原视频: {local_video_path}")
+                    
+                    if connection_manager and client_session_id:
+                        await connection_manager.send_to_client(client_session_id, json.dumps({
+                            "type": "compression_completed",
+                            "message": f"视频压缩完成({target_resolution})，已删除原视频",
+                            "compressed_filename": "compressed_video.mp4"
+                        }))
+                except Exception as e:
+                    if connection_manager and client_session_id:
+                        await connection_manager.send_to_client(client_session_id, json.dumps({
+                            "type": "compression_error",
+                            "message": f"视频压缩失败: {str(e)}"
+                        }))
+                finally:
+                    # 清理取消标志
+                    if client_session_id in compression_cancel_flags:
+                        del compression_cancel_flags[client_session_id]
+        
+        # 启动压缩任务（不等待完成）
+        asyncio.create_task(compress_task())
+        
+    except Exception as e:
+        print(f"启动压缩任务失败: {e}")
+        if connection_manager and client_session_id:
+            await connection_manager.send_to_client(client_session_id, json.dumps({
+                "type": "compression_error",
+                "message": f"启动压缩任务失败: {str(e)}"
+            }))
+
 class UploadSignatureRequest(BaseModel):
     filename: str
     session_id: str
@@ -204,7 +322,8 @@ def setup_oss_routes(app, connection_manager=None):
     @app.post("/api/upload_video_to_backend")
     async def upload_video_to_backend_endpoint(
         file: UploadFile = File(...),
-        client_session_id: str = Form(...)
+        client_session_id: str = Form(...),
+        target_resolution: str = Form(default="720p")
     ) -> Dict[str, Any]:
         """接收视频文件，保存到本地，提取并上传音频到OSS"""
         try:
@@ -313,6 +432,7 @@ def setup_oss_routes(app, connection_manager=None):
                             local_video_path,
                             client_session_id,
                             "compressed_video.mp4",
+                            target_resolution,  # 传入目标分辨率
                             progress_callback,  # 传入回调
                             cancel_flag  # 传入取消标志
                         )
@@ -325,7 +445,7 @@ def setup_oss_routes(app, connection_manager=None):
                         if connection_manager and client_session_id:
                             await connection_manager.send_to_client(client_session_id, json.dumps({
                                 "type": "compression_completed",
-                                "message": "视频压缩完成，已删除原视频",
+                                "message": f"视频压缩完成({target_resolution})，已删除原视频",
                                 "compressed_filename": "compressed_video.mp4"
                             }))
                     except Exception as e:

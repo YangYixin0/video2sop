@@ -125,7 +125,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       if (wsRef.current?.readyState === WebSocket.OPEN) {
         sendPing();
       }
-    }, 30000);
+    }, 20000);
 
     return () => {
       clearTimeout(connectTimeout);

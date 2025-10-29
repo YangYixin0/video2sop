@@ -540,6 +540,11 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
             }, 1000);
         });
     </script>
+    
+    <!-- 生成信息 -->
+    <div style="margin-top: 40px; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px;">
+      <p>该文档由 <a href="${process.env.NEXT_PUBLIC_APP_GITHUB || '#'}" target="_blank" style="color: #3b82f6; text-decoration: none;">Video2SOP</a> 生成</p>
+    </div>
 </body>
 </html>`;
 

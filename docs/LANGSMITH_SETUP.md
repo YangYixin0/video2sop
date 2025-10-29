@@ -220,7 +220,7 @@ LANGSMITH_TRACING=false
 启动命令：
 ```bash
 cd /root/video2sop/langgraph-agent
-EXAMPLE_VIDEO_PATH="/root/video2sop/temp/video_example/pressing_operation.mp4" python main.py
+EXAMPLE_VIDEO_PATH="/root/video2sop/temp/video_example/powder_compaction_Yixin_compressed.mp4" python main.py
 ```
 
 然后访问 https://smith.langchain.com/ 查看追踪数据！🎉

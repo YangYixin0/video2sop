@@ -54,6 +54,12 @@ interface OperationHistoryProps {
   refinedSopBlocks?: SOPBlock[];
   sopParsePrompt?: string;
   sopRefinePrompt?: string;
+  systemResources?: {
+    cpu_count: number;
+    cpu_percent: number;
+    memory_total_gb: number;
+    memory_percent: number;
+  } | null;
 }
 
 export default function OperationHistory({ 
@@ -73,7 +79,8 @@ export default function OperationHistory({
   sopBlocks,
   refinedSopBlocks,
   sopParsePrompt,
-  sopRefinePrompt
+  sopRefinePrompt,
+  systemResources
 }: OperationHistoryProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -180,7 +187,12 @@ export default function OperationHistory({
               <div className="flex items-center space-x-1">
                 <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'} ${isConnected ? 'animate-pulse' : ''}`}></div>
                 <span className={`text-xs ${isConnected ? 'text-green-600' : 'text-red-600'}`}>
-                  {isConnected ? '已连接' : '未连接'}
+                  {isConnected 
+                    ? (systemResources 
+                        ? `已连接 ${systemResources.cpu_count}核 (${systemResources.cpu_percent}%) / ${systemResources.memory_total_gb}GB (${systemResources.memory_percent}%)`
+                        : '已连接')
+                    : '未连接'
+                  }
                 </span>
               </div>
               {!isConnected && onReconnect && (
@@ -191,9 +203,6 @@ export default function OperationHistory({
                   重连
                 </button>
               )}
-            </div>
-            <div className="text-sm text-gray-500">
-              {records.length} 条记录
             </div>
           </div>
         </div>
