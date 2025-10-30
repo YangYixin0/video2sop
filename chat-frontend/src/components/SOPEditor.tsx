@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { useI18n } from '@/i18n';
 import { SOPBlock } from '@/types/sop';
 import SOPBlockItem from './SOPBlockItem';
 import SOPVideoPlayer from './SOPVideoPlayer';
@@ -38,6 +39,8 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
   onBlocksChange,
   initialBlocks = []
 }) => {
+  const { t } = useI18n();
+  const videoContainerRef = useRef<HTMLDivElement>(null);
   // 状态管理
   const [blocksA, setBlocksA] = useState<SOPBlock[]>(initialBlocks);
   const [blocksB, setBlocksB] = useState<SOPBlock[]>([]);
@@ -227,6 +230,19 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
     setCurrentVideoTime({ start: startTime, end: endTime });
     // 自动展开视频播放器
     setIsVideoPlayerCollapsed(false);
+    // 平滑滚动到视频区域
+    requestAnimationFrame(() => {
+      const el = videoContainerRef.current;
+      if (el) {
+        try {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (_) {
+          // 兼容不支持smooth的环境
+          const rect = el.getBoundingClientRect();
+          window.scrollTo(0, window.scrollY + rect.top - 80);
+        }
+      }
+    });
   }, []);
 
   // 选择区块
@@ -332,30 +348,27 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
   return (
     <div className="w-full max-w-7xl mx-auto">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">📝 SOP编辑器</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">📝 {t('sop.editor_title')}</h2>
         
         {/* 解析按钮 */}
         {manuscript && (
           <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <p className="text-blue-800 mb-3">
-              {blocksA.length > 0 
-                ? 'SOP草稿已拆成区块。如果拆解错误很严重，可以重新拆解。如果是内容错误，请手动修改内容或重新做视频理解。' 
-                : '如果视频理解结果大致正确，则点击按钮将它拆解成区块。否则，修改提示词后重新做视频理解。'
-              }
+              {blocksA.length > 0 ? t('sop.parse_tip_done') : t('sop.parse_tip_ready')}
             </p>
             <button
               onClick={handleParseSOP}
               disabled={isParsing}
               className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-lg transition-colors"
             >
-              {isParsing ? '拆解中...' : '拆解SOP草稿 (Qwen-Plus)'}
+              {isParsing ? t('sop.parsing') : t('sop.parse_action')}
             </button>
           </div>
         )}
       </div>
 
       {/* 视频播放器 - 可折叠 */}
-      <div className="mb-6">
+      <div className="mb-6" ref={videoContainerRef}>
         <div className="bg-white rounded-lg shadow-sm border">
           {/* 可折叠标题栏 */}
           <div 
@@ -364,11 +377,11 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
           >
             <h3 className="text-lg font-semibold text-gray-800 flex items-center">
               <span className="mr-2">🎬</span>
-              视频播放器
+              {t('sop.video_player')}
             </h3>
             <div className="flex items-center">
               <span className="text-sm text-gray-500 mr-2">
-                {isVideoPlayerCollapsed ? '点击展开' : '点击折叠'}
+                {isVideoPlayerCollapsed ? t('sop.expand') : t('sop.collapse')}
               </span>
               <svg 
                 className={`w-5 h-5 text-gray-500 transition-transform ${isVideoPlayerCollapsed ? 'rotate-90' : ''}`}
@@ -386,9 +399,8 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
             <div className="p-4">
               <SOPVideoPlayer
                 videoUrl={videoUrl || ''}
-                currentStartTime={currentVideoTime.start}
-                currentEndTime={currentVideoTime.end}
-                onTimeUpdate={(time) => setCurrentVideoTime({ start: time, end: undefined })}
+            currentStartTime={currentVideoTime.start}
+            currentEndTime={currentVideoTime.end}
               />
             </div>
           )}
@@ -400,27 +412,27 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
         {/* 上方：用户编辑区 */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-800">📝 编辑区</h3>
+            <h3 className="text-lg font-semibold text-gray-800">📝 {t('sop.edit_area')}</h3>
             <div className="flex space-x-2">
               <button
                 onClick={() => handleAddBlock('step')}
                 className="px-3 py-1 text-sm bg-green-100 hover:bg-green-200 text-green-700 rounded transition-colors"
               >
-                + 添加步骤
+                + {t('sop.add_step')}
               </button>
               <button
                 onClick={handleMergeBlocks}
                 disabled={selectedBlocks.size < 2}
                 className="px-3 py-1 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded transition-colors disabled:bg-gray-100 disabled:text-gray-400"
               >
-                合并选中
+                {t('sop.merge_selected')}
               </button>
               <button
                 onClick={handleSplitBlock}
                 disabled={selectedBlocks.size !== 1}
                 className="px-3 py-1 text-sm bg-orange-100 hover:bg-orange-200 text-orange-700 rounded transition-colors disabled:bg-gray-100 disabled:text-gray-400"
               >
-                拆分选中
+                {t('sop.split_selected')}
               </button>
             </div>
           </div>
@@ -451,7 +463,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
                 {blocksA.length === 0 && (
                   <div className="text-center py-8 text-gray-500">
                     <div className="text-4xl mb-2">📝</div>
-                    <div>暂无区块，请先拆解SOP草稿或添加新区块</div>
+                    <div>{t('sop.no_blocks')}</div>
                   </div>
                 )}
               </div>
@@ -462,17 +474,17 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
         {/* 下方：AI精修区 */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-800">🤖 AI精修区</h3>
+            <h3 className="text-lg font-semibold text-gray-800">🤖 {t('sop.refine_area')}</h3>
             {blocksB.length > 0 && (
               <div className="flex items-center space-x-3">
                 <span className="text-sm text-gray-600">
-                  AI精修结果是只读的。如果想修改，请将精修结果替换当前编辑区的区块，随后甚至可以再次AI精修
+                  {t('sop.refine_tip')}
                 </span>
                 <button
                   onClick={handleApplyRefinement}
                   className="px-3 py-1 text-sm bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
                 >
-                  替换
+                  {t('sop.replace')}
                 </button>
               </div>
             )}
@@ -481,25 +493,25 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
           {/* 用户批注输入 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              用户批注和建议
+              {t('sop.user_notes')}
             </label>
             <textarea
               value={userNotes}
               onChange={(e) => setUserNotes(e.target.value)}
               className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 focus:border-transparent"
               rows={3}
-              placeholder="请输入对SOP的修改建议和批注..."
+              placeholder={t('sop.user_notes_placeholder')}
             />
             <div className="mt-2 flex justify-between">
               <span className="text-xs text-gray-500">
-                {userNotes.length}/500 字符
+                {userNotes.length}/500 {t('sop.chars')}
               </span>
               <button
                 onClick={handleRefine}
                 disabled={isRefining || blocksA.length === 0}
                 className="px-4 py-2 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-300 text-white rounded-lg transition-colors text-sm"
               >
-                {isRefining ? '精修中...' : 'AI精修 (Qwen-Plus)'}
+                {isRefining ? t('sop.refining') : t('sop.refine_action')}
               </button>
             </div>
           </div>
@@ -526,7 +538,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
             {blocksB.length === 0 && (
               <div className="text-center py-8 text-gray-500">
                 <div className="text-4xl mb-2">🤖</div>
-                <div>AI精修结果将显示在这里</div>
+                <div>{t('sop.refine_empty')}</div>
               </div>
             )}
           </div>

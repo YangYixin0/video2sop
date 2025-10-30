@@ -502,6 +502,36 @@ def setup_oss_routes(app, connection_manager=None):
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"下载失败: {str(e)}")
 
+    @app.head("/api/download_compressed_video")
+    async def head_download_compressed_video(session_id: str):
+        """探测压缩视频是否存在（HEAD）"""
+        try:
+            from local_storage_manager import get_local_video_path
+            compressed_path = get_local_video_path(session_id, "compressed_video.mp4")
+            if not os.path.exists(compressed_path):
+                raise HTTPException(status_code=404, detail="压缩视频不存在")
+            # 返回空体200
+            from fastapi import Response
+            return Response(status_code=200)
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"探测失败: {str(e)}")
+
+    @app.get("/api/exists_compressed_video")
+    async def exists_compressed_video(session_id: str):
+        """轻量检查压缩视频是否存在（返回JSON）"""
+        try:
+            from local_storage_manager import get_local_video_path
+            compressed_path = get_local_video_path(session_id, "compressed_video.mp4")
+            if not os.path.exists(compressed_path):
+                raise HTTPException(status_code=404, detail="压缩视频不存在")
+            return {"success": True, "exists": True}
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"探测失败: {str(e)}")
+
     @app.post("/api/cancel_compression")
     async def cancel_compression(request: CancelCompressionRequest):
         """取消视频压缩任务"""

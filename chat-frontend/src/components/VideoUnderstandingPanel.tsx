@@ -1,100 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-
-// 各环节用时典型值面板组件
-const PerformanceAnalysisPanel = () => {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  return (
-    <div className="mb-4">
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
-      >
-        <span className="font-medium text-gray-700">各环节用时典型值</span>
-        <div className="flex items-center">
-          <span className="text-sm text-gray-500 mr-2">
-            {isExpanded ? '点击折叠' : '点击展开'}
-          </span>
-          <svg 
-            className={`w-5 h-5 text-gray-500 transition-transform ${isExpanded ? '' : 'rotate-90'}`}
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </div>
-      </button>
-
-      {isExpanded && (
-        <div className="mt-2 p-4 bg-white border border-gray-200 rounded-lg">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300 text-sm">
-              <thead>
-                <tr className="bg-gray-100">
-                  <th className="border border-gray-300 px-3 py-2 text-center">视频时长 (min)</th>
-                  <th className="border border-gray-300 px-3 py-2 text-center">文件大小 (MB)</th>
-                  <th className="border border-gray-300 px-3 py-2 text-center">分辨率 (px)</th>
-                  <th className="border border-gray-300 px-3 py-2 text-center">视频上传 (min)</th>
-                  <th className="border border-gray-300 px-3 py-2 text-center">语音识别 (min)</th>
-                  <th className="border border-gray-300 px-3 py-2 text-center">视频理解 (min)</th>
-                  <th className="border border-gray-300 px-3 py-2 text-center">草稿解析 (min)</th>
-                  <th className="border border-gray-300 px-3 py-2 text-center">AI精修 (min)</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="border border-gray-300 px-3 py-2 text-center">1.6</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">30</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">1080×1906</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">0.4</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">0.1</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">1.3</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">1.7</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">0.9</td>
-                </tr>
-                <tr className="bg-gray-50">
-                  <td className="border border-gray-300 px-3 py-2 text-center">6.3</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">132</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">1080×1920</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">1</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">0.2</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">1.3</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">1.5</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">0.9</td>
-                </tr>
-                <tr>
-                  <td className="border border-gray-300 px-3 py-2 text-center">18.4</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">239</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">720×1280</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">2.3</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">0.4</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">4.2</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">2</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">1.1</td>
-                </tr>
-                <tr className="bg-gray-50">
-                  <td className="border border-gray-300 px-3 py-2 text-center">29.5</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">569</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">1080×1908</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">5.3</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">0.6</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">N/A</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">N/A</td>
-                  <td className="border border-gray-300 px-3 py-2 text-center">N/A</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+import { useI18n } from '@/i18n';
 
 interface SpeechResult {
   sentence_id: number;
@@ -122,6 +31,7 @@ interface VideoUnderstandingPanelProps {
     split_threshold?: number;
     segment_length?: number;
     segment_overlap?: number;
+    lang?: string;
   }) => Promise<string>;
   // 可选：长视频时用于展示片段与整合结果
   segmentResults?: { segment_id: number; time_range: string; result: string; status: 'processing' | 'completed' | 'error'; }[];
@@ -130,7 +40,7 @@ interface VideoUnderstandingPanelProps {
   autoSpeechRecognitionError?: string | null;
 }
 
-const DEFAULT_PROMPT = `1. 提供给你的是一个实验室仪器或实验处理的操作教学视频和它的语音识别结果，请按照这些内容去理解视频内演示者的操作，写一个标准操作流程（SOP）草稿。这个草稿包含标题、摘要、关键词、材料试剂工具设备清单、操作步骤和也许其他内容。其他内容请你合理地整理成一个或多个段落。
+const DEFAULT_PROMPT_ZH = `1. 提供给你的是一个实验室仪器或实验处理的操作教学视频和它的语音识别结果，请按照这些内容去理解视频内演示者的操作，写一个标准操作流程（SOP）草稿。这个草稿包含标题、摘要、关键词、材料试剂工具设备清单、操作步骤和也许其他内容。其他内容请你合理地整理成一个或多个段落。
 
 2. 这份草稿的操作步骤越具体越好。操作步骤中适当分段，每一段包含"目的"和"操作"两个层级，"操作"是时间上相邻的多个操作，各放一行，"目的"是这些相邻的多个操作的共同目的。每个目的的开头带有一个时间起终范围，格式为(mm:ss-mm:ss)，而操作不要带时间起终范围。
 
@@ -139,6 +49,16 @@ const DEFAULT_PROMPT = `1. 提供给你的是一个实验室仪器或实验处�
 4. 最终以中文、纯文本格式输出，不使用Markdown语法。
 
 5. 生成一些问题请用户澄清一些重要细节。`;
+
+const DEFAULT_PROMPT_EN = `1. You are given an instructional video of a lab instrument or process, along with its speech recognition transcript. Understand the presenter's actions and write a draft SOP (Standard Operating Procedure). The draft should include: title, abstract, keywords, materials/reagents/tools/equipment list, operation steps, and possibly other relevant content. Organize any other content into one or more paragraphs.
+
+2. The operation steps should be as specific as possible. Split steps appropriately. For each step, include two levels: "Purpose" and "Operations". "Operations" are multiple time-adjacent actions (one per line). "Purpose" is the common purpose of those adjacent actions. Prefix each purpose with a time range in the format (mm:ss-mm:ss). Do NOT add time ranges to the operations.
+
+3. The presenter's speech is the key for understanding, but details may occasionally be incorrect. The transcript can also contain recognition errors (often homophones). Use context to infer the correct meaning.
+
+4. Output in English, plain text only. Do not use Markdown.
+
+5. Generate a few clarification questions for the user about important details.`;
 
 // 清理Markdown内容，移除AI可能添加的代码块标记
 const cleanMarkdownContent = (content: string): string => {
@@ -168,12 +88,22 @@ export default function VideoUnderstandingPanel({
   compressionStatus = 'idle',
   autoSpeechRecognitionError = null
 }: VideoUnderstandingPanelProps) {
+  const { locale, t } = useI18n();
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
-  const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
+  const [prompt, setPrompt] = useState(locale === 'en' ? DEFAULT_PROMPT_EN : DEFAULT_PROMPT_ZH);
+  const [userModifiedPrompt, setUserModifiedPrompt] = useState(false);
   const [fps, setFps] = useState(2);
   const [showMarkdown, setShowMarkdown] = useState(true);
+  // 语言切换时，如果用户未修改提示词，则同步默认提示词
+  useEffect(() => {
+    if (!userModifiedPrompt) {
+      setPrompt(locale === 'en' ? DEFAULT_PROMPT_EN : DEFAULT_PROMPT_ZH);
+    }
+    // 仅在 locale 或 userModifiedPrompt 变化时触发
+  }, [locale, userModifiedPrompt]);
+
   
   // 视频分段参数
   const [splitThreshold, setSplitThreshold] = useState(18); // 判定分段阈值（分钟）
@@ -213,7 +143,8 @@ export default function VideoUnderstandingPanel({
         audio_transcript: audioTranscript,
         split_threshold: splitThreshold, // 判定分段阈值（分钟）
         segment_length: segmentLength, // 片段时长上限（分钟）
-        segment_overlap: segmentOverlap // 片段重叠（分钟）
+        segment_overlap: segmentOverlap, // 片段重叠（分钟）
+        lang: locale
       });
       
       setResult(markdownResult);
@@ -241,8 +172,8 @@ export default function VideoUnderstandingPanel({
         <div className="p-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-800 flex items-center">
             <span className="mr-2">🎬</span>
-            视频理解
-            <span className="ml-2 text-sm font-normal text-blue-600">(Qwen3-VL-Plus)</span>
+            {t('vu.title')}
+            <span className="ml-2 text-sm font-normal text-blue-600">{t('vu.model')}</span>
           </h3>
         </div>
 
@@ -252,20 +183,20 @@ export default function VideoUnderstandingPanel({
           <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
             <div className="flex items-center space-x-2">
               <span className="text-lg">⏳</span>
-              <span className="text-yellow-700">请先上传视频文件</span>
+              <span className="text-yellow-700">{t('vu.need_upload')}</span>
             </div>
           </div>
         ) : !speechRecognitionResult || speechRecognitionResult.length === 0 ? (
           <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
             <div className="flex items-center space-x-2">
               <span className="text-lg">🎤</span>
-              <span className="text-yellow-700">请先执行语音识别获取音频内容</span>
+              <span className="text-yellow-700">{t('vu.need_asr')}</span>
             </div>
           </div>
         ) : (
           <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
             <div className="flex items-center space-x-2">
-              <span className="font-medium text-green-800">修改提示词，开始视频理解</span>
+              <span className="font-medium text-green-800">{t('vu.ready_hint')}</span>
             </div>
           </div>
         )}
@@ -273,19 +204,19 @@ export default function VideoUnderstandingPanel({
         {/* 提示词输入框 */}
         <div className="mb-4">
           <label htmlFor="prompt" className="block text-sm font-medium text-gray-700 mb-2">
-            提示词
+            {t('vu.prompt_label')}
           </label>
           <textarea
             id="prompt"
             value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            rows={14}
-            maxLength={2000}
+            onChange={(e) => { setPrompt(e.target.value); setUserModifiedPrompt(true); }}
+            rows={16}
+            maxLength={3000}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-            placeholder="请输入您的提示词..."
+            placeholder={t('vu.prompt_placeholder')}
           />
           <div className="text-xs text-gray-500 mt-1">
-            {prompt.length}/2000 字符
+            {prompt.length}/3000 {t('vu.chars')}
           </div>
         </div>
 
@@ -295,10 +226,10 @@ export default function VideoUnderstandingPanel({
             onClick={() => setIsParametersExpanded(!isParametersExpanded)}
             className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
           >
-            <span className="font-medium text-gray-700">视频处理参数</span>
+            <span className="font-medium text-gray-700">{t('vu.params_title')}</span>
             <div className="flex items-center">
               <span className="text-sm text-gray-500 mr-2">
-                {isParametersExpanded ? '点击折叠' : '点击展开'}
+                {isParametersExpanded ? t('vu.collapse') : t('vu.expand')}
               </span>
               <svg 
                 className={`w-5 h-5 text-gray-500 transition-transform ${isParametersExpanded ? '' : 'rotate-90'}`}
@@ -313,37 +244,37 @@ export default function VideoUnderstandingPanel({
 
           {isParametersExpanded && (
             <div className="mt-2 p-4 bg-white border border-gray-200 rounded-lg">
-              {/* FPS参数输入 */}
-              <div className="mb-4">
-                <label htmlFor="fps" className="block text-sm font-medium text-gray-700 mb-2">
-                  视频抽帧参数 (FPS)
-                </label>
-                <div className="flex items-center space-x-3">
-                  <input
-                    id="fps"
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={fps}
-                    onChange={(e) => setFps(Math.max(1, Math.min(10, parseInt(e.target.value) || 2)))}
-                    className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  <span className="text-sm text-gray-600">
-                    表示每1秒视频中抽取 {fps} 帧用于理解。FPS值越大，理解可能越可靠，但处理时间越长。
-                  </span>
-                </div>
+        {/* FPS参数输入 */}
+        <div className="mb-4">
+          <label htmlFor="fps" className="block text-sm font-medium text-gray-700 mb-2">
+                  {t('vu.fps_label')}
+          </label>
+          <div className="flex items-center space-x-3">
+            <input
+              id="fps"
+              type="number"
+              min="1"
+              max="10"
+              value={fps}
+              onChange={(e) => setFps(Math.max(1, Math.min(10, parseInt(e.target.value) || 2)))}
+              className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <span className="text-sm text-gray-600">
+                    {t('vu.fps_help', { fps })}
+            </span>
+          </div>
               </div>
 
               {/* 视频分段参数设置 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  视频分段参数
+                  {t('vu.seg_params')}
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* 判定分段阈值 */}
                   <div>
                     <label htmlFor="splitThreshold" className="block text-xs text-gray-600 mb-1">
-                      判定分段阈值（分钟）
+                      {t('vu.seg_threshold')}
                     </label>
                     <input
                       id="splitThreshold"
@@ -369,14 +300,14 @@ export default function VideoUnderstandingPanel({
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     />
                     <div className="text-xs text-gray-500 mt-1">
-                      超过此时长将分段处理
+                      {t('vu.seg_threshold_help')}
                     </div>
                   </div>
 
                   {/* 片段时长上限 */}
                   <div>
                     <label htmlFor="segmentLength" className="block text-xs text-gray-600 mb-1">
-                      片段时长上限（分钟）
+                      {t('vu.seg_length')}
                     </label>
                     <input
                       id="segmentLength"
@@ -397,14 +328,14 @@ export default function VideoUnderstandingPanel({
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     />
                     <div className="text-xs text-gray-500 mt-1">
-                      每个片段的最大时长
+                      {t('vu.seg_length_help')}
                     </div>
                   </div>
 
                   {/* 片段重叠 */}
                   <div>
                     <label htmlFor="segmentOverlap" className="block text-xs text-gray-600 mb-1">
-                      片段重叠（分钟）
+                      {t('vu.seg_overlap')}
                     </label>
                     <input
                       id="segmentOverlap"
@@ -420,15 +351,15 @@ export default function VideoUnderstandingPanel({
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     />
                     <div className="text-xs text-gray-500 mt-1">
-                      相邻片段的重叠时长
+                      {t('vu.seg_overlap_help')}
                     </div>
                   </div>
                 </div>
                 <div className="text-xs text-gray-500 mt-2">
-                  当前设置：视频超过 {splitThreshold} 分钟将分段，每段最长 {segmentLength} 分钟，重叠 {segmentOverlap} 分钟
+                  {t('vu.seg_summary', { threshold: splitThreshold, length: segmentLength, overlap: segmentOverlap })}
                   <br />
                   <span className="text-blue-600">
-                    约束条件：片段时长上限 &lt; 判定分段阈值，片段重叠 &lt; 片段时长上限，所有参数最大18分钟
+                    {t('vu.seg_constraints')}
                   </span>
                 </div>
               </div>
@@ -436,8 +367,6 @@ export default function VideoUnderstandingPanel({
           )}
         </div>
 
-        {/* 用时影响因素分析 - 折叠面板 */}
-        <PerformanceAnalysisPanel />
 
         {/* 执行按钮 */}
         <div className="mb-4">
@@ -453,17 +382,17 @@ export default function VideoUnderstandingPanel({
             {isProcessing ? (
               <div className="flex items-center justify-center space-x-2">
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>正在分析视频...</span>
+                <span>{t('vu.run_btn_processing')}</span>
               </div>
             ) : !isReady ? (
               <div className="flex items-center justify-center space-x-2">
                 <span>🎬</span>
-                <span>请先完成前置步骤</span>
+                <span>{t('vu.run_btn_prereq')}</span>
               </div>
             ) : (
               <div className="flex items-center justify-center space-x-2">
                 <span>🎬</span>
-                <span>开始视频理解</span>
+                <span>{t('vu.run_btn')}</span>
               </div>
             )}
           </button>
@@ -471,9 +400,9 @@ export default function VideoUnderstandingPanel({
           {/* 压缩等待提示 */}
           {!isReady && uploadResult && speechRecognitionResult && speechRecognitionResult.length > 0 && compressionStatus !== 'completed' && (
             <div className="mt-2 text-sm text-amber-600">
-              {compressionStatus === 'compressing' && '⏳ 正在压缩视频，请等待压缩完成...'}
-              {compressionStatus === 'idle' && '⏳ 等待视频压缩...'}
-              {compressionStatus === 'error' && '❌ 视频压缩失败，无法进行视频理解'}
+              {compressionStatus === 'compressing' && t('vu.waiting_compress_doing')}
+              {compressionStatus === 'idle' && t('vu.waiting_compress_idle')}
+              {compressionStatus === 'error' && t('vu.waiting_compress_error')}
             </div>
           )}
 
@@ -512,7 +441,7 @@ export default function VideoUnderstandingPanel({
               <div className="flex items-center justify-between">
                 <h4 className="font-medium text-gray-800 flex items-center">
                   <span className="mr-2">📄</span>
-                  视频理解结果
+                  {t('vu.result_title')}
                 </h4>
                 <div className="flex items-center space-x-2">
                   <button
@@ -523,7 +452,7 @@ export default function VideoUnderstandingPanel({
                         : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'
                     }`}
                   >
-                    📖 渲染
+                    📖 {t('vu.view_rendered')}
                   </button>
                   <button
                     onClick={() => setShowMarkdown(false)}
@@ -533,7 +462,7 @@ export default function VideoUnderstandingPanel({
                         : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'
                     }`}
                   >
-                    📝 源码
+                    📝 {t('vu.view_source')}
                   </button>
                 </div>
               </div>
@@ -587,16 +516,16 @@ export default function VideoUnderstandingPanel({
             <div className="p-3 border-b border-gray-200 bg-gray-50">
               <h4 className="font-medium text-gray-800 flex items-center">
                 <span className="mr-2">🧩</span>
-                分段结果
+                {t('vu.segments_title')}
               </h4>
             </div>
             <div className="p-3 space-y-2">
               {segmentResults.sort((a,b) => a.segment_id - b.segment_id).map(seg => (
                 <details key={seg.segment_id} className="border rounded">
                   <summary className="cursor-pointer select-none px-3 py-2 bg-gray-50 flex items-center justify-between">
-                    <span>片段 {seg.segment_id}（{seg.time_range}）</span>
+                    <span>{t('vu.segment_item', { id: seg.segment_id, range: seg.time_range })}</span>
                     <span className={`text-xs ${seg.status === 'completed' ? 'text-green-600' : seg.status === 'processing' ? 'text-amber-600' : 'text-red-600'}`}>
-                      {seg.status === 'completed' ? '已完成' : seg.status === 'processing' ? '处理中' : '错误'}
+                      {seg.status === 'completed' ? t('vu.status_completed') : seg.status === 'processing' ? t('vu.status_processing') : t('vu.status_error')}
                     </span>
                   </summary>
                   <div className="px-3 py-2 whitespace-pre-wrap break-words text-sm text-gray-700">
@@ -614,7 +543,7 @@ export default function VideoUnderstandingPanel({
             <div className="p-3 border-b border-gray-200 bg-gray-50">
               <h4 className="font-medium text-gray-800 flex items-center">
                 <span className="mr-2">🧷</span>
-                整合后的SOP草稿
+                {t('vu.integrated_title')}
               </h4>
             </div>
             <div className="p-3 whitespace-pre-wrap break-words text-sm text-gray-800">
@@ -627,8 +556,8 @@ export default function VideoUnderstandingPanel({
         {!isProcessing && !result && !integratedResult && !error && isReady && (
           <div className="text-center text-gray-500 py-8">
             <div className="text-4xl mb-2">🎬</div>
-            <p>点击上方&ldquo;开始视频理解&rdquo;按钮</p>
-            <p className="text-sm mt-1">系统将结合语音内容分析视频中的操作步骤</p>
+            <p>{t('vu.empty_ready_title')}</p>
+            <p className="text-sm mt-1">{t('vu.empty_ready_desc')}</p>
             
           </div>
         )}

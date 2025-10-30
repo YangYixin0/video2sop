@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { SOPBlock, BLOCK_TYPE_CONFIGS } from '@/types/sop';
+import { useI18n } from '@/i18n';
 
 interface SOPBlockItemProps {
   block: SOPBlock;
@@ -33,6 +34,7 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
   dragHandleProps,
   isDragging = false
 }) => {
+  const { t } = useI18n();
   const [localContent, setLocalContent] = useState(block.content);
   const [localStartTime, setLocalStartTime] = useState(block.start_time?.toString() || '');
   const [localEndTime, setLocalEndTime] = useState(block.end_time?.toString() || '');
@@ -44,10 +46,10 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
   useEffect(() => {
     // 如果正在编辑，不要覆盖本地状态
     if (!isEditing) {
-      setLocalContent(block.content);
-      setLocalStartTime(block.start_time?.toString() || '');
-      setLocalEndTime(block.end_time?.toString() || '');
-      setLocalShowPlayButton(block.show_play_button);
+    setLocalContent(block.content);
+    setLocalStartTime(block.start_time?.toString() || '');
+    setLocalEndTime(block.end_time?.toString() || '');
+    setLocalShowPlayButton(block.show_play_button);
     }
   }, [block.content, block.start_time, block.end_time, block.show_play_button, isEditing]);
 
@@ -79,7 +81,7 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
     // 只在非编辑状态下才调用onEdit，避免编辑时状态更新导致重新渲染
     if (!isEditing) {
       debounceTimeoutRef.current = setTimeout(() => {
-        onEdit?.(block.id, 'content', value);
+    onEdit?.(block.id, 'content', value);
       }, 1000);
     }
   }, [block.id, onEdit, isEditing]);
@@ -166,6 +168,14 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
   }, [isEditing]); // 只依赖isEditing，不依赖localContent
 
   const typeConfig = BLOCK_TYPE_CONFIGS[block.type] || BLOCK_TYPE_CONFIGS.unknown;
+  const typeLabel = t(
+    block.type === 'title' ? 'sop.block_labels.title' :
+    block.type === 'abstract' ? 'sop.block_labels.abstract' :
+    block.type === 'keywords' ? 'sop.block_labels.keywords' :
+    block.type === 'materials' ? 'sop.block_labels.materials' :
+    block.type === 'step' ? 'sop.block_labels.step' :
+    'sop.block_labels.unknown'
+  );
   const canPlay = videoUrl && block.start_time !== undefined && localShowPlayButton;
 
   return (
@@ -188,7 +198,7 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
         <div className="flex-1 min-w-0 mr-3">
           <div className="flex items-center space-x-2 mb-1">
             <span className="text-sm">{typeConfig.icon}</span>
-            <span className="text-xs font-medium text-gray-700">{typeConfig.label}</span>
+            <span className="text-xs font-medium text-gray-700">{typeLabel}</span>
             <span className="text-xs text-gray-400">#{block.id.slice(-6)}</span>
           </div>
           {/* 内容预览 - 步骤类型显示更多行，其他类型显示2行 */}
@@ -205,7 +215,7 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
             {block.content ? (
               <span className="whitespace-pre-wrap">{block.content}</span>
             ) : (
-              <span className="text-gray-400 italic">暂无内容</span>
+              <span className="text-gray-400 italic">{t('sop.block_fields.no_content')}</span>
             )}
           </div>
         </div>
@@ -221,7 +231,7 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
               </span>
             )}
             {localShowPlayButton && (
-              <span className="px-2 py-1 bg-green-50 text-green-700 rounded">可播放</span>
+              <span className="px-2 py-1 bg-green-50 text-green-700 rounded">{t('sop.block_fields.playable')}</span>
             )}
           </div>
           
@@ -232,7 +242,12 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
               <button
                 onClick={handlePlay}
                 className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
-                title={`播放 ${block.start_time !== undefined ? formatTime(block.start_time) : ''}${block.end_time ? ` - ${formatTime(block.end_time)}` : ''}`}
+                title={
+                  block.end_time && block.start_time !== undefined
+                    ? t('sop.tooltip.play_range', { start: formatTime(block.start_time), end: formatTime(block.end_time) })
+                    : t('sop.tooltip.play_at', { start: block.start_time !== undefined ? formatTime(block.start_time) : '' })
+                }
+                onPointerDown={(e) => e.stopPropagation()}
               >
                 <span className="text-sm">▶️</span>
               </button>
@@ -242,7 +257,8 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
             <button
               onClick={handleToggleEdit}
               className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-              title={isEditing ? '完成编辑' : '编辑区块'}
+              title={isEditing ? t('common.done_editing') : t('common.edit_block')}
+              onPointerDown={(e) => e.stopPropagation()}
             >
               <span className="text-sm">{isEditing ? '✓' : '✏️'}</span>
             </button>
@@ -251,7 +267,8 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
             <button
               onClick={() => onDelete?.(block.id)}
               className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-              title="删除区块"
+              title={t('common.delete_block')}
+              onPointerDown={(e) => e.stopPropagation()}
             >
               <span className="text-sm">🗑️</span>
             </button>
@@ -265,7 +282,7 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
           {/* 文本内容编辑 */}
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">
-              内容
+              {t('sop.block_fields.content')}
             </label>
             <textarea
               ref={textareaRef}
@@ -273,7 +290,7 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
               onChange={(e) => handleContentChange(e.target.value)}
               className="w-full p-2 border border-gray-300 rounded text-sm resize-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
               rows={3}
-              placeholder="输入区块内容..."
+              placeholder={t('sop.block_fields.content_placeholder')}
             />
           </div>
 
@@ -282,14 +299,14 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
             {/* 开始时间 */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">
-                开始时间
+                {t('sop.block_fields.begin_time')}
               </label>
               <input
                 type="number"
                 value={localStartTime}
                 onChange={(e) => handleTimeChange('start_time', e.target.value)}
                 className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-                placeholder="0"
+              placeholder={t('sop.block_fields.time_placeholder')}
                 min="0"
               />
             </div>
@@ -297,14 +314,14 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
             {/* 结束时间 */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">
-                结束时间
+                {t('sop.block_fields.end_time')}
               </label>
               <input
                 type="number"
                 value={localEndTime}
                 onChange={(e) => handleTimeChange('end_time', e.target.value)}
                 className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-                placeholder="0"
+              placeholder={t('sop.block_fields.time_placeholder')}
                 min="0"
               />
             </div>
@@ -312,7 +329,7 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
             {/* 播放按钮设置 */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">
-                显示播放按钮
+                {t('sop.block_fields.show_play_button')}
               </label>
               <label className="flex items-center justify-center h-8 border border-gray-300 rounded cursor-pointer hover:bg-gray-50">
                 <input
@@ -322,7 +339,7 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
                   className="sr-only"
                 />
                 <span className={`text-xs px-2 py-1 rounded transition-colors ${localShowPlayButton ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                  {localShowPlayButton ? '启用' : '禁用'}
+                  {localShowPlayButton ? t('common.enabled') : t('common.disabled')}
                 </span>
               </label>
             </div>
@@ -338,7 +355,7 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
                   onChange={(e) => onSelect?.(block.id, e.target.checked)}
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-400"
                 />
-                <span className="text-xs text-gray-600">选择此区块</span>
+                <span className="text-xs text-gray-600">{t('sop.select_this_block')}</span>
               </label>
             </div>
           )}

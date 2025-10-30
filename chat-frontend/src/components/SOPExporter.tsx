@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useI18n } from '@/i18n';
 import { SOPBlock, ExportFormat } from '@/types/sop';
 
 interface SOPExporterProps {
@@ -20,6 +21,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
 }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [selectedBlocks, setSelectedBlocks] = useState<'A' | 'B'>('A');
+  const { t } = useI18n();
 
   // 格式化时间显示
   const formatTime = (seconds: number): string => {
@@ -39,23 +41,17 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
     const currentBlocks = getCurrentBlocks();
     let stepCounter = 1; // 操作步骤计数器
     
-    currentBlocks.forEach((block, index) => {
-      // 添加区块标题
-      const blockTypeNames: Record<SOPBlock['type'], string> = {
-        title: '标题',
-        abstract: '摘要',
-        keywords: '关键词',
-        materials: '材料试剂工具设备清单',
-        step: '操作步骤',
-        unknown: '其他内容'
-      };
-      
-      // 对于操作步骤，添加数字编号
-      let blockTitle = blockTypeNames[block.type];
-      if (block.type === 'step') {
-        blockTitle = `操作步骤${stepCounter}`;
-        stepCounter++;
-      }
+    currentBlocks.forEach((block) => {
+      // 添加区块标题（本地化）
+      const baseLabel = t(
+        block.type === 'title' ? 'sop.block_labels.title' :
+        block.type === 'abstract' ? 'sop.block_labels.abstract' :
+        block.type === 'keywords' ? 'sop.block_labels.keywords' :
+        block.type === 'materials' ? 'sop.block_labels.materials' :
+        block.type === 'step' ? 'sop.block_labels.step' :
+        'sop.block_labels.unknown'
+      );
+      const blockTitle = block.type === 'step' ? `${baseLabel} ${stepCounter++}` : baseLabel;
       
       content += `${blockTitle}：\n`;
       content += `${block.content}\n`;
@@ -73,9 +69,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
       }
       
       // 添加分隔线（除了最后一个区块）
-      if (index < currentBlocks.length - 1) {
         content += `\n${'='.repeat(50)}\n\n`;
-      }
     });
     
     return content;
@@ -218,21 +212,21 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
 <body>
     <div class="container">
         <h1 style="text-align: center; color: #1f2937; margin-bottom: 30px;">
-            📋 SOP 标准操作流程文档
+            ${t('exporter_html.title')}
         </h1>
 
     <!-- 视频文件配置区域 -->
     <div class="video-config">
         <h3 style="margin: 0 0 15px 0; color: #495057; display: flex; align-items: center;">
             <span style="margin-right: 8px;">🎥</span>
-            视频文件配置
+            ${t('exporter_html.video_config_title')}
         </h3>
         <div style="margin-bottom: 15px;">
             <p style="margin: 0 0 10px 0; color: #6c757d; font-size: 0.9em;">
-                <strong>当前视频文件：</strong><span id="currentVideoName" style="color: #007bff; font-weight: 500;">${videoFileName}</span>
+                <strong>${t('exporter_html.current_video')}</strong><span id="currentVideoName" style="color: #007bff; font-weight: 500;">${videoFileName}</span>
             </p>
             <p style="margin: 0; color: #6c757d; font-size: 0.85em;">
-                    💡 请确保视频文件与HTML文件在同一目录下
+                    ${t('exporter_html.ensure_same_dir')}
             </p>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
@@ -246,7 +240,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
                 font-size: 0.9em;
                 transition: background-color 0.2s;
             " onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background='#007bff'">
-                📁 选择视频文件
+                ${t('exporter_html.select_video')}
             </button>
             <button onclick="testVideoFile()" style="
                 padding: 8px 16px; 
@@ -258,7 +252,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
                 font-size: 0.9em;
                 transition: background-color 0.2s;
             " onmouseover="this.style.background='#1e7e34'" onmouseout="this.style.background='#28a745'">
-                ▶️ 测试播放
+                ${t('exporter_html.test_play')}
             </button>
             <span id="videoStatus" style="font-size: 0.85em; color: #6c757d;"></span>
         </div>
@@ -269,21 +263,15 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
     const currentBlocks = getCurrentBlocks();
     let stepCounter = 1; // 操作步骤计数器
     currentBlocks.forEach((block) => {
-      const blockTypeNames: Record<SOPBlock['type'], string> = {
-        title: '标题',
-        abstract: '摘要',
-        keywords: '关键词',
-        materials: '材料试剂工具设备清单',
-        step: '操作步骤',
-        unknown: '其他内容'
-      };
-
-      // 对于操作步骤，添加数字编号
-      let blockTitle = blockTypeNames[block.type];
-      if (block.type === 'step') {
-        blockTitle = `操作步骤${stepCounter}`;
-        stepCounter++;
-      }
+      const baseLabel = t(
+        block.type === 'title' ? 'sop.block_labels.title' :
+        block.type === 'abstract' ? 'sop.block_labels.abstract' :
+        block.type === 'keywords' ? 'sop.block_labels.keywords' :
+        block.type === 'materials' ? 'sop.block_labels.materials' :
+        block.type === 'step' ? 'sop.block_labels.step' :
+        'sop.block_labels.unknown'
+      );
+      const blockTitle = block.type === 'step' ? `${baseLabel} ${stepCounter++}` : baseLabel;
 
       const canPlay = block.show_play_button && block.start_time !== undefined;
       
@@ -315,11 +303,11 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
         <button class="close-video" onclick="closeVideo()">×</button>
         <video id="sopVideo" controls>
             <source src="${videoFileName}" type="video/mp4">
-            您的浏览器不支持视频播放。
+            ${t('exporter_html.browser_not_support')}
         </video>
         <div class="video-controls">
             <div id="timeInfo" style="text-align: center; font-size: 0.9em; color: #6b7280;">
-                点击播放按钮开始观看
+                ${t('exporter_html.click_to_play')}
             </div>
         </div>
     </div>
@@ -350,7 +338,9 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
             
             // 检查视频是否可用
             video.addEventListener('error', function onError() {
-                alert('视频文件未找到，请确保视频文件"' + currentVideoName + '"与HTML文件在同一目录下。');
+                // 本地化模板在构建时注入，在运行时替换文件名占位符
+                const notFoundTpl = ${JSON.stringify(t('exporter_html.alert_not_found', { name: '__NAME__' }))};
+                alert(notFoundTpl.replace('__NAME__', currentVideoName));
                 video.removeEventListener('error', onError);
             }, { once: true });
             
@@ -360,15 +350,15 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
                 video.play();
                 
                 currentSegment = { start: startTime, end: endTime };
-                timeInfo.textContent = '播放中: ' + formatTime(startTime) + 
-                    (endTime ? ' - ' + formatTime(endTime) : '');
+                timeInfo.textContent = ${JSON.stringify(t('exporter_html.playing') + ' ')} + formatTime(startTime)
+                    + (endTime ? ' - ' + formatTime(endTime) : '');
                 
                 // 如果有结束时间，设置自动停止
                 if (endTime) {
                     const checkEnd = () => {
                         if (video.currentTime >= endTime) {
                             video.pause();
-                            timeInfo.textContent = '播放完成: ' + formatTime(startTime) + ' - ' + formatTime(endTime);
+                            timeInfo.textContent = ${JSON.stringify(t('exporter_html.play_done') + ' ')} + formatTime(startTime) + ' - ' + formatTime(endTime);
                         }
                     };
                     
@@ -405,7 +395,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
                 
                 // 更新状态显示
                 const status = document.getElementById('videoStatus');
-                status.textContent = '✅ 已选择: ' + fileName;
+                status.textContent = ${JSON.stringify(t('exporter_html.selected_file') + ' ')} + fileName;
                 status.style.color = '#28a745';
                 
                 console.log('视频文件已更改为:', fileName);
@@ -420,7 +410,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
             const status = document.getElementById('videoStatus');
             const source = video.querySelector('source');
             
-            status.textContent = '🔄 测试中...';
+            status.textContent = ${JSON.stringify(t('exporter_html.testing'))};
             status.style.color = '#ffc107';
             
             // 确保使用当前配置的文件名
@@ -430,13 +420,14 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
             
             // 尝试加载视频
             video.addEventListener('loadeddata', function() {
-                status.textContent = '✅ 视频文件可正常播放';
+                status.textContent = ${JSON.stringify(t('exporter_html.test_ok'))};
                 status.style.color = '#28a745';
                 video.removeEventListener('loadeddata', arguments.callee);
             }, { once: true });
             
             video.addEventListener('error', function() {
-                status.textContent = '❌ 视频文件无法加载，请检查文件"' + fileName + '"是否存在';
+                const failTpl = ${JSON.stringify(t('exporter_html.test_fail', { name: '__NAME__' }))};
+                status.textContent = failTpl.replace('__NAME__', fileName);
                 status.style.color = '#dc3545';
                 video.removeEventListener('error', arguments.callee);
             }, { once: true });
@@ -449,9 +440,9 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
         video.addEventListener('timeupdate', () => {
             if (currentSegment) {
                 const current = video.currentTime;
-                timeInfo.textContent = '播放中: ' + formatTime(currentSegment.start) + 
-                    (currentSegment.end ? ' - ' + formatTime(currentSegment.end) : '') + 
-                    ' (当前: ' + formatTime(current) + ')';
+                timeInfo.textContent = ${JSON.stringify(t('exporter_html.playing') + ' ')} + formatTime(currentSegment.start)
+                    + (currentSegment.end ? ' - ' + formatTime(currentSegment.end) : '')
+                    + ' ' + ${JSON.stringify(t('exporter_html.current_time'))} + ' ' + formatTime(current);
             }
         });
 
@@ -529,10 +520,10 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
 
         // 页面加载完成后的提示
         window.addEventListener('load', () => {
-            console.log('SOP文档已加载完成');
+            console.log(${JSON.stringify('HTML loaded')});
             initializeEditableContent();
-            console.log('当前视频文件:', '${videoFileName}');
-            console.log('请确保视频文件与HTML文件在同一目录下');
+            console.log('Current video:', '${videoFileName}');
+            console.log('Ensure video and HTML are in the same folder');
             
             // 自动测试视频文件
             setTimeout(() => {
@@ -543,7 +534,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
     
     <!-- 生成信息 -->
     <div style="margin-top: 40px; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px;">
-      <p>该文档由 <a href="${process.env.NEXT_PUBLIC_APP_GITHUB || '#'}" target="_blank" style="color: #3b82f6; text-decoration: none;">Video2SOP</a> 生成</p>
+      <p>${t('exporter_html.generated_by_prefix')} <a href="${process.env.NEXT_PUBLIC_APP_GITHUB || '#'}" target="_blank" style="color: #3b82f6; text-decoration: none;">Video2SOP</a> ${t('exporter_html.generated_by_suffix')}</p>
     </div>
 </body>
 </html>`;
@@ -590,8 +581,8 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
       downloadFile(content, filename, mimeType);
       
     } catch (error) {
-      console.error('导出失败:', error);
-      alert('导出失败，请重试');
+      console.error(t('exporter.export_failed') + ':', error);
+      alert(t('exporter.export_failed_retry'));
     } finally {
       setIsExporting(false);
     }
@@ -602,13 +593,13 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
   return (
     <div className="bg-white rounded-lg shadow-sm border p-4">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-gray-800 mb-2">📤 导出SOP文档</h3>
+        <h3 className="text-lg font-semibold text-gray-800 mb-2">📤 {t('exporter.title')}</h3>
         
         {/* 区块选择 */}
         <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <label className="block text-base font-semibold text-blue-800 mb-3 flex items-center">
             <span className="text-lg mr-2">🎯</span>
-            选择导出区域
+            {t('exporter.select_area')}
           </label>
           <div className="flex space-x-6">
             <label className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
@@ -628,12 +619,12 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
                 <span className={`text-sm font-medium ${
                   selectedBlocks === 'A' ? 'text-blue-800' : 'text-gray-700'
                 }`}>
-                  📝 编辑区
+                  📝 {t('exporter.edit_area')}
                 </span>
                 <span className={`block text-xs ${
                   selectedBlocks === 'A' ? 'text-blue-600' : 'text-gray-500'
                 }`}>
-                  ({blocksA.length} 个区块)
+                  ({blocksA.length} {t('exporter.blocks')})
                 </span>
               </div>
             </label>
@@ -655,12 +646,12 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
                   <span className={`text-sm font-medium ${
                     selectedBlocks === 'B' ? 'text-blue-800' : 'text-gray-700'
                   }`}>
-                    ✨ 精修区
+                    ✨ {t('exporter.refine_area')}
                   </span>
                   <span className={`block text-xs ${
                     selectedBlocks === 'B' ? 'text-blue-600' : 'text-gray-500'
                   }`}>
-                    ({blocksB.length} 个区块)
+                    ({blocksB.length} {t('exporter.blocks')})
                   </span>
                 </div>
               </label>
@@ -675,9 +666,9 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
         <div className="border border-gray-200 rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <div>
-              <h4 className="font-medium text-gray-800">📄 纯文本格式 (.txt)</h4>
+              <h4 className="font-medium text-gray-800">📄 {t('exporter.txt_title')}</h4>
               <p className="text-sm text-gray-600">
-                适合编辑和发布于开发获取平台，例如 <a href="https://protocols.io" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-800">Protocols.io</a>
+                {t('exporter.txt_desc')} <a href="https://protocols.io" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-800">Protocols.io</a>
               </p>
             </div>
             <button
@@ -685,7 +676,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
               disabled={isExporting || currentBlocks.length === 0}
               className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-lg transition-colors"
             >
-              {isExporting ? '导出中...' : '导出TXT'}
+              {isExporting ? t('exporter.exporting') : t('exporter.export_txt')}
             </button>
           </div>
         </div>
@@ -694,12 +685,12 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
         <div className="border border-gray-200 rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <div>
-              <h4 className="font-medium text-gray-800">🌐 HTML关联格式 (.html)</h4>
+              <h4 className="font-medium text-gray-800">🌐 {t('exporter.html_title')}</h4>
               <p className="text-sm text-gray-600 mb-1">
-                支持视频播放，适合实验室内部使用
+                {t('exporter.html_desc1')}
               </p>
               <p className="text-sm text-gray-600">
-                视频文件需与HTML文件在同一目录下，然后在HTML文件开头配置视频文件
+                {t('exporter.html_desc2')}
               </p>
             </div>
             <button
@@ -707,7 +698,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
               disabled={isExporting || currentBlocks.length === 0}
               className="px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white rounded-lg transition-colors"
             >
-              {isExporting ? '导出中...' : '导出HTML'}
+              {isExporting ? t('exporter.exporting') : t('exporter.export_html')}
             </button>
           </div>
         </div>

@@ -1,18 +1,36 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
+import { I18nProvider, useI18n } from '@/i18n';
 import OperationHistory, { OperationRecord } from '@/components/OperationHistory';
 import ResizableLayout from '@/components/ResizableLayout';
 import VideoUploader from '@/components/VideoUploader';
 import SpeechRecognitionPanel from '@/components/SpeechRecognitionPanel';
 import VideoUnderstandingPanel from '@/components/VideoUnderstandingPanel';
 import SOPEditor from '@/components/SOPEditor';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { SOPBlock } from '@/types/sop';
 import { notificationManager } from '@/utils/notifications';
 import { API_ENDPOINTS } from '@/config/api';
 
+function AppTitle() {
+  const { t } = useI18n();
+  return <>{t('common.app_title')}</>;
+}
+
+function AppTitleTechStack() {
+  const { t } = useI18n();
+  return <>{t('common.tech_stack')}</>;
+}
+
+function I18nLabel({ k }: { k: string }) {
+  const { t } = useI18n();
+  return <>{t(k)}</>;
+}
+
 export default function Home() {
+  const { t } = useI18n();
   // 生成唯一的客户端会话ID
   const [clientSessionId] = useState(() => {
     // 兼容性更好的UUID生成方法
@@ -138,12 +156,12 @@ export default function Home() {
       }
 
       // 添加语音识别记录（无论是自动触发还是手动触发）
-      const speechRecord: OperationRecord = {
-        id: `speech-${Date.now()}`,
-        type: 'speech_recognition',
-        timestamp: new Date(),
-        status: 'success',
-        message: (data.message as string) || '语音识别已完成',
+        const speechRecord: OperationRecord = {
+          id: `speech-${Date.now()}`,
+          type: 'speech_recognition',
+          timestamp: new Date(),
+          status: 'success',
+        message: (data.message as string) || t('records.speech_done'),
         data: {
           speech_result: data.result as string
         }
@@ -352,12 +370,12 @@ export default function Home() {
         setIntegratedResult(text);
         setVideoUnderstandingResult(text); // 同时设置videoUnderstandingResult以便SOPEditor可以使用
         
-        const integRecord: OperationRecord = {
+      const integRecord: OperationRecord = {
           id: `integrate-${Date.now()}`,
           type: 'video_understanding',
           timestamp: new Date(),
           status: 'success',
-          message: '长视频整合完成',
+        message: t('records.long_integration_done'),
           data: {}
         };
         setOperationRecords(prev => [...prev, integRecord]);
@@ -407,8 +425,8 @@ export default function Home() {
     // 其他消息发送到WebSocket
     if (sendWebSocketMessage) {
       try {
-        console.log('发送WebSocket消息:', JSON.stringify(message));
-        sendWebSocketMessage(JSON.stringify(message));
+      console.log('发送WebSocket消息:', JSON.stringify(message));
+      sendWebSocketMessage(JSON.stringify(message));
       } catch (error) {
         console.warn('发送WebSocket消息失败:', error);
         // 不显示错误给用户，因为会自动重连
@@ -444,7 +462,12 @@ export default function Home() {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        let detail = '';
+        try {
+          const err = await response.json();
+          detail = (err && (err.detail || err.message)) ? String(err.detail || err.message) : '';
+        } catch (_) {}
+        throw new Error(`HTTP ${response.status}${detail ? ` - ${detail}` : ''}`);
       }
 
       const result = await response.json();
@@ -491,6 +514,7 @@ export default function Home() {
     split_threshold?: number;
     segment_length?: number;
     segment_overlap?: number;
+    lang?: string;
   }) => {
     // 从环境变量获取超时时间，默认30分钟
     const timeoutMs = parseInt(process.env.NEXT_PUBLIC_VIDEO_UNDERSTANDING_TIMEOUT || '1800000', 10);
@@ -508,7 +532,24 @@ export default function Home() {
       setSegmentResults([]);
       setIntegratedResult('');
       setVideoUnderstandingResult(''); // 也清空视频理解结果
-      const response = await fetch(API_ENDPOINTS.VIDEO_UNDERSTANDING_LONG, {
+      async function headCompressed(): Promise<boolean> {
+        try {
+          // 优先使用轻量 exists 接口
+          const existsUrl = `${API_ENDPOINTS.EXISTS_COMPRESSED_VIDEO}?session_id=${encodeURIComponent(clientSessionId)}`;
+          const r1 = await fetch(existsUrl, { method: 'GET' });
+          if (r1.ok) return true;
+          if (r1.status === 404) return false;
+          // 回退 HEAD（老版本后端）
+          const headUrl = `${API_ENDPOINTS.DOWNLOAD_COMPRESSED_VIDEO}?session_id=${encodeURIComponent(clientSessionId)}`;
+          const r2 = await fetch(headUrl, { method: 'HEAD' });
+          return r2.ok;
+        } catch {
+          return false;
+        }
+      }
+
+      async function callUnderstanding() {
+        return fetch(API_ENDPOINTS.VIDEO_UNDERSTANDING_LONG, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -521,12 +562,39 @@ export default function Home() {
         mode: 'cors',
         credentials: 'omit',
         signal: controller.signal
-      });
+        });
+      }
+      // 先探测压缩视频是否存在（避免竞态或会话不一致）
+      let exists = await headCompressed();
+      if (!exists) {
+        // 等待2秒再探测一次
+        await new Promise(r => setTimeout(r, 2000));
+        exists = await headCompressed();
+      }
+      if (!exists) {
+        throw new Error(t('vu.wait_compress_first'));
+      }
+
+      let response = await callUnderstanding();
       
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        let detail = '';
+        try {
+          const err = await response.json();
+          detail = (err && (err.detail || err.message)) ? String(err.detail || err.message) : '';
+        } catch (_) {}
+        // 针对压缩文件尚未就绪的瞬时错误，等待后重试一次
+        if (response.status === 400 && detail && /压缩视频尚未完成/.test(detail)) {
+          await new Promise(r => setTimeout(r, 3000));
+          response = await callUnderstanding();
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}${detail ? ` - ${detail}` : ''}`);
+          }
+        } else {
+          throw new Error(`HTTP ${response.status}${detail ? ` - ${detail}` : ''}`);
+        }
       }
 
       const result = await response.json();
@@ -535,8 +603,8 @@ export default function Home() {
       // 对于短视频，result.result包含直接返回的理解结果
       if (result.result) {
         const videoResult = result.result;
-        setVideoUnderstandingResult(videoResult);
-        return videoResult;
+      setVideoUnderstandingResult(videoResult);
+      return videoResult;
       } else {
         // 长视频：返回空字符串，实际结果已通过WebSocket设置
         return '';
@@ -674,6 +742,7 @@ export default function Home() {
   };
 
   return (
+    <I18nProvider>
     <ResizableLayout
       defaultSidebarWidth={320}
       minSidebarWidth={200}
@@ -734,10 +803,14 @@ export default function Home() {
       }
     >
       <div className="w-full max-w-6xl mx-auto px-4">
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-6">
-            Video2SOP：将仪器教学视频转化为SOP
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <div className="w-24"></div>
+            <h1 className="text-3xl font-bold text-gray-900 text-center">
+              <AppTitle />
           </h1>
+            <LanguageSwitcher />
+          </div>
         </div>
 
 
@@ -752,7 +825,7 @@ export default function Home() {
                 type: 'upload',
                 timestamp: new Date(),
                 status: 'processing',
-                message: '开始视频上传',
+                message: t('records.upload_start'),
               };
               setOperationRecords(prev => [...prev, uploadStartRecord]);
             }}
@@ -765,7 +838,7 @@ export default function Home() {
                 type: 'upload',
                 timestamp: new Date(),
                 status: 'success',
-                message: '视频和音频上传完成！',
+                message: t('records.upload_done'),
                 data: {
                   video_url: result.video_url,
                   audio_url: result.audio_url,
@@ -793,7 +866,7 @@ export default function Home() {
                 type: 'file_removed',
                 timestamp: new Date(),
                 status: 'success',
-                message: '视频和音频已从OSS删除',
+                message: t('records.files_deleted'),
                 data: {
                   deleted_count: 2
                 }
@@ -810,14 +883,14 @@ export default function Home() {
 
         {/* 语音识别面板 */}
         <div className="mb-6">
-        <SpeechRecognitionPanel
-          uploadResult={currentUploadResult}
-          onSpeechRecognition={handleSpeechRecognition}
+          <SpeechRecognitionPanel
+            uploadResult={currentUploadResult}
+            onSpeechRecognition={handleSpeechRecognition}
           onResultsChange={handleSpeechResultsChange}
           autoTriggered={autoSpeechRecognitionTriggered}
           autoError={autoSpeechRecognitionError}
           onAddOperationRecord={(record) => setOperationRecords(prev => [...prev, record])}
-        />
+          />
         </div>
         
         {/* 视频理解面板 */}
@@ -847,16 +920,17 @@ export default function Home() {
         {/* 技术栈 */}
         <div className="w-full max-w-7xl mx-auto mb-6">
           <div className="bg-white p-4 rounded-lg shadow-sm border">
-            <h3 className="text-base font-semibold text-gray-800 mb-2">🚀 技术栈</h3>
+            <h3 className="text-base font-semibold text-gray-800 mb-2">🚀 <AppTitleTechStack /></h3>
             <ul className="space-y-1 text-sm text-gray-600">
-              <li>• <strong>AI模型</strong>: Qwen3-VL-Plus (视频理解) + Paraformer-V2 (语音识别) + Qwen-Plus (文本处理)</li>
-              <li>• <strong>后端</strong>: FastAPI + WebSocket + LangGraph Agent</li>
-              <li>• <strong>前端</strong>: Next.js 15 + TypeScript + React 19 + Tailwind CSS</li>
-              <li>• <strong>存储</strong>: 后端服务器和阿里云OSS</li>
+              <li>• <strong><I18nLabel k="common.tech_ai_models" /></strong>: <I18nLabel k="common.tech_ai_models_value" /></li>
+              <li>• <strong><I18nLabel k="common.tech_backend" /></strong>: <I18nLabel k="common.tech_backend_value" /></li>
+              <li>• <strong><I18nLabel k="common.tech_frontend" /></strong>: <I18nLabel k="common.tech_frontend_value" /></li>
+              <li>• <strong><I18nLabel k="common.tech_storage" /></strong>: <I18nLabel k="common.tech_storage_value" /></li>
             </ul>
           </div>
         </div>
       </div>
     </ResizableLayout>
+    </I18nProvider>
   );
 }

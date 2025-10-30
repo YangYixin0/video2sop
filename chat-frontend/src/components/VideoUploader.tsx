@@ -1,7 +1,87 @@
 'use client';
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { useI18n } from '@/i18n';
 import { API_ENDPOINTS } from '@/config/api';
+
+// 各环节用时典型值面板组件
+const PerformanceAnalysisPanel = () => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const { t } = useI18n();
+
+  return (
+    <div className="mb-4">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+      >
+        <span className="font-medium text-gray-700">{t('vu.factors_title')}</span>
+        <div className="flex items-center">
+          <span className="text-sm text-gray-500 mr-2">
+            {isExpanded ? t('vu.factors_collapse') : t('vu.factors_expand')}
+          </span>
+          <svg 
+            className={`w-5 h-5 text-gray-500 transition-transform ${isExpanded ? '' : 'rotate-90'}`}
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="mt-2 p-4 bg-white border border-gray-200 rounded-lg">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse border border-gray-300 text-sm">
+                <thead>
+                  <tr className="bg-gray-100">
+                  <th className="border border-gray-300 px-3 py-2 text-center">{t('vu.table_video_len')}</th>
+                  <th className="border border-gray-300 px-3 py-2 text-center">{t('vu.table_file_size')}</th>
+                  <th className="border border-gray-300 px-3 py-2 text-center">{t('vu.table_resolution')}</th>
+                  <th className="border border-gray-300 px-3 py-2 text-center">{t('vu.table_upload')}</th>
+                  <th className="border border-gray-300 px-3 py-2 text-center">{t('vu.table_asr')}</th>
+                  <th className="border border-gray-300 px-3 py-2 text-center">{t('vu.table_compression_720p')}</th>
+                  <th className="border border-gray-300 px-3 py-2 text-center">{t('vu.table_compression_1080p')}</th>
+                  <th className="border border-gray-300 px-3 py-2 text-center">{t('vu.table_understanding')}</th>
+                  <th className="border border-gray-300 px-3 py-2 text-center">{t('vu.table_parse')}</th>
+                  <th className="border border-gray-300 px-3 py-2 text-center">{t('vu.table_refine')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                  <td className="border border-gray-300 px-3 py-2 text-center">9:38</td>
+                  <td className="border border-gray-300 px-3 py-2 text-center">1.37 GB</td>
+                  <td className="border border-gray-300 px-3 py-2 text-center">1080×1920</td>
+                  <td className="border border-gray-300 px-3 py-2 text-center">10:08</td>
+                  <td className="border border-gray-300 px-3 py-2 text-center">0:13</td>
+                  <td className="border border-gray-300 px-3 py-2 text-center">10:13</td>
+                  <td className="border border-gray-300 px-3 py-2 text-center">11:50</td>
+                  <td className="border border-gray-300 px-3 py-2 text-center">1:10</td>
+                  <td className="border border-gray-300 px-3 py-2 text-center">3:15</td>
+                  <td className="border border-gray-300 px-3 py-2 text-center">0:56</td>
+                  </tr>
+                  <tr className="bg-gray-50">
+                  <td className="border border-gray-300 px-3 py-2 text-center">17:39</td>
+                  <td className="border border-gray-300 px-3 py-2 text-center">2.11 GB</td>
+                  <td className="border border-gray-300 px-3 py-2 text-center">1080×1920</td>
+                  <td className="border border-gray-300 px-3 py-2 text-center">14:11</td>
+                  <td className="border border-gray-300 px-3 py-2 text-center">0:22</td>
+                  <td className="border border-gray-300 px-3 py-2 text-center">19:18</td>
+                  <td className="border border-gray-300 px-3 py-2 text-center">27:32</td>
+                  <td className="border border-gray-300 px-3 py-2 text-center">1:12</td>
+                  <td className="border border-gray-300 px-3 py-2 text-center">2:46</td>
+                  <td className="border border-gray-300 px-3 py-2 text-center">1:19</td>
+                  </tr>
+                </tbody>
+              </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface UploadStatus {
   status: 'idle' | 'uploading' | 'extracting' | 'completed' | 'error';
@@ -52,6 +132,7 @@ export default function VideoUploader({
   allowedTypes = DEFAULT_ALLOWED_TYPES,
   clientSessionId
 }: VideoUploaderProps) {
+  const { t } = useI18n();
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>({
     status: 'idle',
     message: '',
@@ -96,7 +177,7 @@ export default function VideoUploader({
     if (compressionMessage) {
       if (compressionMessage.type === 'compression_started') {
         setCompressionStatus('compressing');
-        setCompressionStatusMessage(compressionMessage.message as string || '正在压缩视频...');
+        setCompressionStatusMessage(compressionMessage.message as string || t('uploader.compressing'));
         setCompressionProgress(null); // 重置进度
       } else if (compressionMessage.type === 'compression_progress') {
         setCompressionProgress({
@@ -107,11 +188,11 @@ export default function VideoUploader({
         setCompressionStatusMessage(compressionMessage.message as string);
       } else if (compressionMessage.type === 'compression_completed') {
         setCompressionStatus('completed');
-        setCompressionStatusMessage(compressionMessage.message as string || '视频压缩完成，已删除原视频');
+        setCompressionStatusMessage(compressionMessage.message as string || t('uploader.compression_done'));
         setCompressionProgress(null); // 清除进度
       } else if (compressionMessage.type === 'compression_error') {
         setCompressionStatus('error');
-        setCompressionStatusMessage(compressionMessage.message as string || '压缩失败');
+        setCompressionStatusMessage(compressionMessage.message as string || t('uploader.compression_failed'));
         setCompressionProgress(null); // 清除进度
       }
     }
@@ -157,6 +238,27 @@ export default function VideoUploader({
       console.error('检查或清理文件时出错:', error);
     }
   }, [clientSessionId]);
+
+  // 使用 Blob 下载压缩视频，避免同标签导航触发 beforeunload
+  const handleDownloadCompressed = useCallback(async () => {
+    if (!uploadResult?.session_id) return;
+    const url = `${API_ENDPOINTS.DOWNLOAD_COMPRESSED_VIDEO}?session_id=${encodeURIComponent(uploadResult.session_id)}`;
+    try {
+      const res = await fetch(url, { method: 'GET' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = 'compressed_video.mp4';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (e) {
+      console.error('下载压缩视频失败:', e);
+    }
+  }, [uploadResult]);
 
   // 清理函数
   const cleanup = useCallback(async () => {
@@ -240,10 +342,10 @@ export default function VideoUploader({
       if (data.success) {
         return data.signature;
       } else {
-        throw new Error('获取上传签名失败');
+        throw new Error(t('uploader.sign_failed'));
       }
     } catch (error) {
-      throw new Error(`获取上传签名失败: ${error}`);
+      throw new Error(`${t('uploader.sign_failed')}: ${error}`);
     }
   }, []);
 
@@ -266,7 +368,7 @@ export default function VideoUploader({
     });
 
     if (!response.ok) {
-      throw new Error(`OSS 上传失败: ${response.statusText}`);
+      throw new Error(`OSS ${t('uploader.oss_upload_failed')}: ${response.statusText}`);
     }
 
     return signature.oss_url;
@@ -304,15 +406,15 @@ export default function VideoUploader({
       if (data.success) {
         return data.file_url;
       } else {
-        throw new Error('代理上传失败');
+        throw new Error(t('uploader.proxy_failed'));
       }
     } catch (error) {
-      console.error('视频上传失败:', error);
+      console.error(t('uploader.upload_failed') + ':', error);
       
       // 检查是否是超时错误
       if (error instanceof Error && error.name === 'AbortError') {
         const timeoutMinutes = Math.round(timeoutMs / 60000);
-        throw new Error(`视频上传超时，超过（${timeoutMinutes}分钟），请报告给Video2SOP管理员。`);
+        throw new Error(t('uploader.upload_timeout', { minutes: timeoutMinutes }));
       }
       
       throw error;
@@ -348,15 +450,15 @@ export default function VideoUploader({
       if (data.success) {
         return data.audio_url;
       } else {
-        throw new Error('音频提取失败');
+        throw new Error(t('uploader.audio_extract_failed'));
       }
     } catch (error) {
-      console.error('音频提取失败:', error);
+      console.error(t('uploader.audio_extract_failed') + ':', error);
       
       // 检查是否是超时错误
       if (error instanceof Error && error.name === 'AbortError') {
         const timeoutMinutes = Math.round(timeoutMs / 60000);
-        throw new Error(`音频提取超时，超过（${timeoutMinutes}分钟），请报告给Video2SOP管理员。`);
+        throw new Error(t('uploader.audio_extract_timeout', { minutes: timeoutMinutes }));
       }
       
       throw error;
@@ -366,11 +468,11 @@ export default function VideoUploader({
   // 验证文件
   const validateFile = useCallback((file: File): string | null => {
     if (file.size > maxFileSize) {
-      return `文件大小不能超过 ${Math.round(maxFileSize / 1024 / 1024)}MB`;
+      return t('uploader.file_too_large', { size: Math.round(maxFileSize / 1024 / 1024) });
     }
     
     if (!allowedTypes.includes(file.type)) {
-      return `不支持的文件格式。支持的格式: ${allowedTypes.join(', ')}`;
+      return t('uploader.unsupported_type', { types: allowedTypes.join(', ') });
     }
     
     return null;
@@ -410,7 +512,7 @@ export default function VideoUploader({
         onUploadStart();
       }
 
-      setUploadStatus({ status: 'uploading', message: '正在上传视频到服务器（进度条不准）', progress: 10 });
+      setUploadStatus({ status: 'uploading', message: t('uploader.uploading_hint'), progress: 10 });
 
       // 直接上传视频到后端，使用 clientSessionId
       const formData = new FormData();
@@ -425,10 +527,10 @@ export default function VideoUploader({
 
       const data = await response.json();
       if (!data.success) {
-        throw new Error('视频上传失败');
+        throw new Error(t('uploader.upload_failed'));
       }
 
-      setUploadStatus({ status: 'completed', message: '视频上传完成', progress: 100 });
+      setUploadStatus({ status: 'completed', message: t('uploader.upload_done'), progress: 100 });
 
       // 回调，返回session_id和audio_url
       const result: UploadResult = {
@@ -440,7 +542,7 @@ export default function VideoUploader({
       onUploadComplete?.(result);
 
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '上传失败';
+      const errorMessage = error instanceof Error ? error.message : t('uploader.upload_failed');
       setUploadStatus({ status: 'error', message: errorMessage, progress: 0 });
       onUploadError?.(errorMessage);
     }
@@ -536,7 +638,7 @@ export default function VideoUploader({
     if (!clientSessionId) return;
     
     try {
-      setUploadStatus({ status: 'uploading', message: '正在加载示例视频（进度条不准）', progress: 10 });
+      setUploadStatus({ status: 'uploading', message: t('uploader.loading_example'), progress: 10 });
       
       // 从后端获取示例视频
       const response = await fetch(API_ENDPOINTS.LOAD_EXAMPLE_VIDEO, {
@@ -549,7 +651,7 @@ export default function VideoUploader({
       
       const data = await response.json();
       if (data.success) {
-        setUploadStatus({ status: 'completed', message: '粉末压块示例视频加载完成！', progress: 100 });
+        setUploadStatus({ status: 'completed', message: t('uploader.example_loaded'), progress: 100 });
         setIsExampleVideo(true); // 标记为示例视频
         
         const result: UploadResult = {
@@ -583,10 +685,10 @@ export default function VideoUploader({
           client_session_id: clientSessionId
         });
       } else {
-        throw new Error(data.error || '加载示例视频失败');
+        throw new Error(data.error || t('uploader.example_failed'));
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '加载示例视频失败';
+      const errorMessage = error instanceof Error ? error.message : t('uploader.example_failed');
       setUploadStatus({ status: 'error', message: errorMessage, progress: 0 });
       onUploadError?.(errorMessage);
     }
@@ -597,7 +699,7 @@ export default function VideoUploader({
       <div className="p-4 border-b border-gray-200">
         <h3 className="text-lg font-semibold text-gray-800 flex items-center">
           <span className="mr-2">📁</span>
-          视频上传
+          {t('uploader.title')}
         </h3>
       </div>
       
@@ -606,14 +708,14 @@ export default function VideoUploader({
       {/* 视频预览 */}
       {videoPreview && selectedFile && (
         <div className="mb-4">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">视频预览:</h4>
+          <h4 className="text-sm font-medium text-gray-700 mb-2">{t('uploader.preview')}</h4>
           <video
             src={videoPreview}
             controls
             className="w-full max-h-64 rounded-lg"
             preload="metadata"
           >
-            您的浏览器不支持视频播放。
+            {t('uploader.no_video_support')}
           </video>
         </div>
       )}
@@ -634,19 +736,19 @@ export default function VideoUploader({
           <div>
             <div className="text-4xl mb-4">📁</div>
             <p className="text-gray-600 mb-2">
-              拖拽视频文件到这里，或点击选择文件
+              {t('uploader.drop_or_click')}
             </p>
             <p className="text-sm text-gray-500">
-              支持格式: MP4, MOV, AVI, MKV, WEBM (最大 {Math.round(maxFileSize / 1024 / 1024 / 1024)} GB)
+              {t('uploader.support_formats', { size_gb: Math.round(maxFileSize / 1024 / 1024 / 1024) })}
             </p>
             <p className="text-xs text-blue-600 mt-2">
-              🛡️ 数据保护：当您关闭或刷新网页时，我们不会保留您的视频。
+              🛡️ {t('uploader.data_protection')}
             </p>
             <button
               onClick={() => fileInputRef.current?.click()}
               className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
             >
-              选择文件
+              {t('uploader.choose_file')}
             </button>
           </div>
         ) : (
@@ -662,20 +764,20 @@ export default function VideoUploader({
                 disabled={uploadStatus.status === 'uploading' || uploadStatus.status === 'extracting' || uploadResult !== null}
                 className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
               >
-                上传并压缩至1080p
+                {t('uploader.upload_and_compress_1080p')}
               </button>
               <button
                 onClick={() => handleUpload('720p')}
                 disabled={uploadStatus.status === 'uploading' || uploadStatus.status === 'extracting' || uploadResult !== null}
                 className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
               >
-                上传并压缩至720p
+                {t('uploader.upload_and_compress_720p')}
               </button>
               <button
                 onClick={handleRemove}
                 className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
               >
-                移除
+                {t('uploader.remove')}
               </button>
             </div>
           </div>
@@ -693,14 +795,14 @@ export default function VideoUploader({
       {/* 示例视频按钮 */}
       {!uploadResult && (
         <div className="mt-4 text-center">
-          <p className="text-sm text-gray-500 mb-2">或者</p>
+          <p className="text-sm text-gray-500 mb-2">{t('uploader.or')}</p>
           <button
             onClick={handleLoadExampleVideo}
             disabled={uploadStatus.status === 'uploading' || uploadStatus.status === 'extracting'}
             className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center space-x-2 mx-auto"
           >
             <span>🎬</span>
-            <span>加载示例视频</span>
+            <span>{t('uploader.load_example')}</span>
           </button>
         </div>
       )}
@@ -728,7 +830,7 @@ export default function VideoUploader({
             <div className="text-red-600 text-sm">{uploadStatus.message}</div>
           ) : uploadStatus.status === 'completed' ? (
             <div className="text-green-600 text-sm">
-              <p>✅ 上传完成！</p>
+              <p>✅ {t('uploader.upload_ok')}</p>
             </div>
           ) : null}
         </div>
@@ -741,19 +843,19 @@ export default function VideoUploader({
           <div className="text-sm text-gray-600 bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="flex items-start space-x-3">
               <div className="flex-1">
-                <a
-                  href={`${API_ENDPOINTS.DOWNLOAD_COMPRESSED_VIDEO}?session_id=${uploadResult.session_id}`}
-                  download="compressed_video.mp4"
+                <button
+                  onClick={handleDownloadCompressed}
                   className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors mb-3"
+                  type="button"
                 >
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
-                  下载压缩视频
-                </a>
-                <p className="font-medium text-blue-800 mb-2">💡 推荐保存此压缩视频</p>
+                  {t('uploader.download_compressed')}
+                </button>
+                <p className="font-medium text-blue-800 mb-2">💡 {t('uploader.keep_recommend')}</p>
                 <p className="text-blue-700">
-                  以后如果要重新处理该视频，推荐上传这个 Video2SOP 压缩过的视频，会减少上传用时并跳过压缩步骤。即使你上传原视频，Video2SOP也会压缩，以去掉对视频理解几乎无帮助的部分（主要是过多的帧）。
+                  {t('uploader.keep_detail')}
                 </p>
               </div>
             </div>
@@ -789,6 +891,11 @@ export default function VideoUploader({
           {compressionStatusMessage}
         </div>
       )}
+
+      {/* 各环节用时典型值 */}
+      <div className="mt-4">
+        <PerformanceAnalysisPanel />
+      </div>
       </div>
     </div>
   );

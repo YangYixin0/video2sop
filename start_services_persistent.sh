@@ -53,25 +53,25 @@ cleanup_port() {
         
         # 尝试多种方法获取PID
         local PID=$(netstat -tlnp 2>/dev/null | grep ":$port " | awk '{print $7}' | cut -d'/' -f1)
-        if [ -z "$PID" ] || [ "$PID" = "-" ]; then
-            if command -v fuser >/dev/null 2>&1; then
+    if [ -z "$PID" ] || [ "$PID" = "-" ]; then
+        if command -v fuser >/dev/null 2>&1; then
                 PID=$(fuser ${port}/tcp 2>/dev/null)
-            elif command -v lsof >/dev/null 2>&1; then
+        elif command -v lsof >/dev/null 2>&1; then
                 PID=$(lsof -ti:${port} 2>/dev/null)
             fi
         fi
         
-        if [ ! -z "$PID" ] && [ "$PID" != "-" ]; then
+    if [ ! -z "$PID" ] && [ "$PID" != "-" ]; then
             echo "🔧 强制终止进程 $PID (端口 $port)"
             # 终止进程组
             kill -9 -$PID 2>/dev/null || kill -9 $PID 2>/dev/null || true
-        fi
+    fi
         
         # 如果还有残留，强制清理进程模式
         if [ ! -z "$process_pattern" ]; then
             echo "🔧 强制清理 $service_name 进程"
             pkill -9 -f "$process_pattern" 2>/dev/null || true
-        fi
+    fi
         
         # 再次等待
         sleep 2

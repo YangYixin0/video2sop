@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { VideoPlayerProps } from '@/types/sop';
+import { useI18n } from '@/i18n';
 
 const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
   videoUrl,
@@ -9,6 +10,7 @@ const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
   currentEndTime,
   onTimeUpdate
 }) => {
+  const { t } = useI18n();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -30,44 +32,26 @@ const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
   }, []);
 
   // 播放指定时间段
-  const playSegment = useCallback((startTime: number, endTime?: number) => {
+  const playSegment = useCallback(async (startTime: number) => {
     if (videoRef.current) {
       seekTo(startTime);
-      setIsPlaying(true);
-      
-      // 如果指定了结束时间，设置自动暂停
-      if (endTime) {
-        const checkEndTime = () => {
-          if (videoRef.current && videoRef.current.currentTime >= endTime) {
-            videoRef.current.pause();
-            setIsPlaying(false);
-          }
-        };
-        
-        // 使用定时器检查播放进度
-        const interval = setInterval(checkEndTime, 100);
-        
-        // 监听暂停事件清除定时器
-        const handlePause = () => {
-          clearInterval(interval);
-          setIsPlaying(false);
-        };
-        
-        videoRef.current.addEventListener('pause', handlePause, { once: true });
+      try {
+        await videoRef.current.play();
+      } catch (_) {
+        // ignore autoplay restrictions
       }
     }
   }, [seekTo]);
 
   // 播放/暂停控制
   const togglePlayPause = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      videoRef.current.play();
+    } else {
+      videoRef.current.pause();
     }
+    // 由事件处理器统一更新 isPlaying，避免抖动
   };
 
   // 监听视频事件
@@ -79,6 +63,10 @@ const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
       const time = video.currentTime;
       setCurrentTime(time);
       onTimeUpdate?.(time);
+      // 边界检查：到达片段结束自动暂停
+      if (currentEndTime !== undefined && time >= currentEndTime) {
+        video.pause();
+      }
     };
 
     const handleLoadedMetadata = () => {
@@ -99,14 +87,16 @@ const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
     };
-  }, [onTimeUpdate]);
+  }, [onTimeUpdate, currentEndTime]);
 
   // 当currentStartTime或currentEndTime变化时自动播放
   useEffect(() => {
-    if (currentStartTime !== undefined && currentEndTime !== undefined) {
-      playSegment(currentStartTime, currentEndTime);
-    } else if (currentStartTime !== undefined) {
-      seekTo(currentStartTime);
+    if (currentStartTime !== undefined) {
+      if (currentEndTime !== undefined) {
+        playSegment(currentStartTime);
+      } else {
+        seekTo(currentStartTime);
+      }
     }
   }, [currentStartTime, currentEndTime, playSegment, seekTo]);
 
@@ -126,11 +116,11 @@ const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
       <div className="mb-4">
         {videoUrl ? (
           <div className="text-sm text-gray-600 mb-2">
-            视频文件: {videoUrl.split('/').pop()}
+            {t('sop.player.current_video')}{videoUrl.split('/').pop()}
           </div>
         ) : (
           <div className="text-sm text-gray-500 mb-2">
-            暂无视频文件
+            {t('sop.player.no_video')}
           </div>
         )}
       </div>
@@ -146,7 +136,7 @@ const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
             style={{ maxWidth: '600px' }}
           >
             <source src={videoUrl} type="video/mp4" />
-            您的浏览器不支持视频播放。
+            {t('uploader.no_video_support')}
           </video>
 
           {/* 自定义控制条 */}
@@ -166,7 +156,7 @@ const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
               
               {currentStartTime !== undefined && currentEndTime !== undefined && (
                 <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                  播放段: {formatTime(currentStartTime)} - {formatTime(currentEndTime)}
+                  {t('sop.player.segment_label')} {formatTime(currentStartTime)} - {formatTime(currentEndTime)}
                 </div>
               )}
             </div>
@@ -204,7 +194,7 @@ const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
                   onClick={() => seekTo(currentStartTime)}
                   className="px-3 py-1 text-xs bg-green-100 hover:bg-green-200 text-green-700 rounded transition-colors"
                 >
-                  跳转到开始 ({formatTime(currentStartTime)})
+                  {t('sop.player.jump_to_start')} ({formatTime(currentStartTime)})
                 </button>
               )}
               
@@ -213,7 +203,7 @@ const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
                   onClick={() => seekTo(currentEndTime)}
                   className="px-3 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-700 rounded transition-colors"
                 >
-                  跳转到结束 ({formatTime(currentEndTime)})
+                  {t('sop.player.jump_to_end')} ({formatTime(currentEndTime)})
                 </button>
               )}
             </div>

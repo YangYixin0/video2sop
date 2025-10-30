@@ -244,7 +244,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         continue
                 except Exception:
                     pass
-
+                
                 # 获取或创建会话
                 session = get_or_create_session(client_session_id)
                 session_history = session["history"]
@@ -500,6 +500,17 @@ async def speech_recognition_endpoint(request: dict):
         from oss_manager import get_oss_url
         audio_oss_key = f"{client_session_id}/audio/extracted_audio.mp3"
         audio_url = get_oss_url(audio_oss_key)
+
+        # 验证音频URL可访问性（避免后续模型调用直接500）
+        try:
+            import requests
+            head_resp = requests.head(audio_url, timeout=10)
+            if head_resp.status_code != 200:
+                raise HTTPException(status_code=404, detail=f"音频文件不可访问，状态码: {head_resp.status_code}")
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"音频URL验证失败: {str(e)}")
         
         # 使用线程池执行同步调用，避免阻塞事件循环
         result_json = await asyncio.to_thread(speech_recognition, audio_url)
@@ -666,6 +677,7 @@ async def video_understanding_long_endpoint(request: dict):
         fps = request.get("fps", 2)
         audio_transcript = request.get("audio_transcript")
         client_session_id = request.get("client_session_id")
+        req_lang = request.get("lang", "zh")
         
         # 视频分段参数（限制最大18分钟）
         split_threshold = min(request.get("split_threshold", 18), 18)  # 拆分界限（分钟）
@@ -678,17 +690,30 @@ async def video_understanding_long_endpoint(request: dict):
 
         if not client_session_id:
             raise HTTPException(status_code=400, detail="缺少 client_session_id 参数")
-        if not prompt:
-            raise HTTPException(status_code=400, detail="缺少 prompt 参数")
+        # 若 prompt 为空，使用内置默认提示词，避免因大请求或前端状态异常导致400
+        if not prompt or (isinstance(prompt, str) and not prompt.strip()):
+            prompt = (
+                "Please analyze the instructional video and generate a SOP draft including title, abstract, keywords, materials/tools, and step-by-step operations."
+                if str(req_lang).lower().startswith("en")
+                else "请分析教学视频并生成SOP草稿，包含标题、摘要、关键词、材料/工具清单与详细操作步骤。"
+            )
 
         # 检查压缩视频是否存在
         from local_storage_manager import get_local_video_path
         compressed_video_path = get_local_video_path(client_session_id, "compressed_video.mp4")
         
+        # 等待压缩文件短暂就绪（最多10秒），降低竞态导致的400
+        if not os.path.exists(compressed_video_path):
+            import time
+            max_wait_s = 10
+            waited = 0
+            while waited < max_wait_s and not os.path.exists(compressed_video_path):
+                time.sleep(0.5)
+                waited += 0.5
         if not os.path.exists(compressed_video_path):
             raise HTTPException(
-                status_code=400, 
-                detail="压缩视频尚未完成，请等待压缩完成后再开始视频理解"
+                status_code=400,
+                detail=f"压缩视频尚未完成或不存在 (session={client_session_id})"
             )
         
         # 使用压缩视频而不是原始视频

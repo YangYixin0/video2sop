@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useI18n } from '@/i18n';
+import { OperationRecord } from './OperationHistory';
 
 interface SpeechResult {
   sentence_id: number;
@@ -23,7 +25,7 @@ interface SpeechRecognitionPanelProps {
   onResultsChange?: (results: SpeechResult[]) => void;
   autoTriggered?: boolean;  // 新增：标记是否自动触发
   autoError?: string | null;  // 新增：自动触发的错误信息
-  onAddOperationRecord?: (record: any) => void;  // 新增：添加操作记录的回调
+  onAddOperationRecord?: (record: OperationRecord) => void;  // 新增：添加操作记录的回调
 }
 
 export default function SpeechRecognitionPanel({ 
@@ -34,6 +36,7 @@ export default function SpeechRecognitionPanel({
   autoError = null,
   onAddOperationRecord
 }: SpeechRecognitionPanelProps) {
+  const { t } = useI18n();
   const [isProcessing, setIsProcessing] = useState(false);
   const [results, setResults] = useState<SpeechResult[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -155,7 +158,7 @@ export default function SpeechRecognitionPanel({
         <div className="p-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-800 flex items-center">
             <span className="mr-2">🎤</span>
-            语音识别
+            {t('speech.title')}
             <span className="ml-2 text-sm font-normal text-blue-600">(Paraformer-V2)</span>
           </h3>
         </div>
@@ -167,7 +170,7 @@ export default function SpeechRecognitionPanel({
             <div className="flex items-center space-x-2">
               <span className="text-lg">✅</span>
               <span className="font-medium text-green-800">
-                {results.length > 0 ? '语音识别已完成，如果不满意可以手动修改或重新识别' : '视频已上传，可以进行语音识别'}
+                {results.length > 0 ? t('speech.ready_done') : t('speech.ready_upload_done')}
               </span>
             </div>
           </div>
@@ -175,7 +178,7 @@ export default function SpeechRecognitionPanel({
           <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
             <div className="flex items-center space-x-2">
               <span className="text-lg">⏳</span>
-              <span className="text-yellow-700">请先上传视频文件，然后即可进行语音识别</span>
+              <span className="text-yellow-700">{t('speech.need_upload')}</span>
             </div>
           </div>
         )}
@@ -196,22 +199,22 @@ export default function SpeechRecognitionPanel({
             {isProcessing ? (
               <div className="flex items-center justify-center space-x-2">
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span>正在进行语音识别...</span>
+                <span>{t('speech.processing')}</span>
               </div>
             ) : autoError ? (
               <div className="flex items-center justify-center space-x-2">
                 <span>🔄</span>
-                <span>重试识别</span>
+                <span>{t('speech.retry')}</span>
               </div>
             ) : uploadResult ? (
               <div className="flex items-center justify-center space-x-2">
                 <span>🎤</span>
-                <span>开始语音识别</span>
+                <span>{t('speech.start')}</span>
               </div>
             ) : (
               <div className="flex items-center justify-center space-x-2">
                 <span>🎤</span>
-                <span>请先上传视频</span>
+                <span>{t('speech.need_upload_short')}</span>
               </div>
             )}
           </button>
@@ -233,8 +236,8 @@ export default function SpeechRecognitionPanel({
             <div className="flex items-center space-x-2">
               <span className="text-red-500">❌</span>
               <div className="text-red-700 text-sm">
-                <p>自动语音识别失败: {autoError}</p>
-                <p className="text-red-500 text-xs mt-1">请手动重试</p>
+                <p>{t('speech.auto_failed')}: {autoError}</p>
+                <p className="text-red-500 text-xs mt-1">{t('speech.manual_retry')}</p>
               </div>
             </div>
           </div>
@@ -246,7 +249,7 @@ export default function SpeechRecognitionPanel({
             <div className="p-3 border-b border-gray-200 bg-gray-50">
               <h4 className="font-medium text-gray-800 flex items-center">
                 <span className="mr-2">📄</span>
-                识别结果 ({results.length} 句)
+                {t('speech.result_title', { count: results.length })}
               </h4>
             </div>
             
@@ -258,9 +261,9 @@ export default function SpeechRecognitionPanel({
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center space-x-2">
-                      <span className="text-xs text-gray-500 font-mono">
-                        第 {index + 1} 句
-                      </span>
+                    <span className="text-xs text-gray-500 font-mono">
+                      {t('speech.sentence_index', { index: index + 1 })}
+                    </span>
                       {result.isEdited && (
                         <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
                           ✏️ 已编辑
@@ -296,8 +299,8 @@ export default function SpeechRecognitionPanel({
                           </div>
                         </div>
                       ) : (
-                        <div className="text-xs text-gray-500 font-mono">
-                          {formatTime(result.begin_time)} - {formatTime(result.end_time)}
+                    <div className="text-xs text-gray-500 font-mono">
+                      {formatTime(result.begin_time)} - {formatTime(result.end_time)}
                         </div>
                       )}
                     </div>
@@ -341,7 +344,7 @@ export default function SpeechRecognitionPanel({
                       title="点击编辑文本和时间"
                     >
                       {getDisplayText(result)}
-                    </p>
+                  </p>
                   )}
                 </div>
               ))}
