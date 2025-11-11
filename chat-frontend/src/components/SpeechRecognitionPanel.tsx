@@ -51,6 +51,8 @@ export default function SpeechRecognitionPanel({
   
   // 使用 useRef 跟踪是否已经自动触发过，防止无限循环
   const hasAutoTriggeredRef = useRef<boolean>(false);
+  // 使用 useRef 跟踪是否已经尝试触发（包括失败的尝试）
+  const hasAttemptedTriggerRef = useRef<boolean>(false);
 
   // 监听初始易错词变化（仅在未手动修改时填充）
   useEffect(() => {
@@ -64,6 +66,7 @@ export default function SpeechRecognitionPanel({
   useEffect(() => {
     if (!autoTriggered) {
       hasAutoTriggeredRef.current = false;
+      hasAttemptedTriggerRef.current = false;
     }
   }, [autoTriggered]);
 
@@ -102,30 +105,68 @@ export default function SpeechRecognitionPanel({
     }
   }, [autoTriggered, uploadResult, initialVocabulary, vocabularyText, onSpeechRecognition, onResultsChange]);
 
-  // 监听自动触发状态
-  // 使用 useRef 确保只触发一次，防止无限循环
-  useEffect(() => {
-    // 只有当 autoTriggered 为 true 且还没有自动触发过时才执行
-    // 注意：即使 initialVocabulary 为空（用户上传的视频），也应该触发
-    // hasAutoTriggeredRef 确保即使 useEffect 重新执行，也不会重复触发
-    // 自动触发时，uploadResult 可能还未设置，所以不检查 uploadResult
-    if (autoTriggered && !hasAutoTriggeredRef.current && !isProcessing) {
-      console.log('条件满足，准备自动触发语音识别');
-      
-      // 标记为已自动触发（立即标记，防止重复触发）
-      hasAutoTriggeredRef.current = true;
-      
-      // 使用 setTimeout 确保 React 状态更新完成
-      // 这样即使 initialVocabulary 或 uploadResult 稍后到达，也能在 handleSpeechRecognition 中使用
-      const timeoutId = setTimeout(() => {
-        handleSpeechRecognition();
-      }, 300); // 延迟 300ms，确保状态更新完成
-      
-      return () => {
-        clearTimeout(timeoutId);
-      };
+  // 执行自动语音识别的函数
+  const executeAutoSpeechRecognition = useCallback(() => {
+    if (!autoTriggered || hasAutoTriggeredRef.current || isProcessing) {
+      return;
     }
-  }, [autoTriggered, initialVocabulary, uploadResult, handleSpeechRecognition, isProcessing, vocabularyText]);
+    
+    const isPageVisible = !document.hidden;
+    console.log('条件满足，准备自动触发语音识别', { isPageVisible });
+    
+    // 标记为已尝试触发
+    hasAttemptedTriggerRef.current = true;
+    
+    // 如果页面在后台，尝试执行（浏览器可能会延迟或限制，但我们会通过可见性监听重试）
+    // 如果页面在前台，立即执行
+    handleSpeechRecognition()
+      .then(() => {
+        // 成功执行后标记为已触发
+        console.log('自动触发语音识别成功');
+        hasAutoTriggeredRef.current = true;
+      })
+      .catch((err) => {
+        console.error('自动触发语音识别失败:', err);
+        // 如果失败，不标记为已触发，允许重试
+        hasAutoTriggeredRef.current = false;
+        setError(err instanceof Error ? err.message : '语音识别失败');
+      });
+  }, [autoTriggered, isProcessing, handleSpeechRecognition]);
+
+  // 监听自动触发状态
+  useEffect(() => {
+    if (autoTriggered && !hasAutoTriggeredRef.current && !isProcessing) {
+      // 立即尝试执行，不管页面是否可见
+      // 如果页面在后台，执行可能会被延迟，但我们会通过可见性监听来处理
+      executeAutoSpeechRecognition();
+    }
+  }, [autoTriggered, isProcessing, executeAutoSpeechRecognition]);
+
+  // 监听页面可见性变化，当页面从后台切换回前台时，如果还没有成功触发，则重试
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const isPageVisible = !document.hidden;
+      console.log('页面可见性变化:', { isPageVisible, autoTriggered, hasAttemptedTriggerRef: hasAttemptedTriggerRef.current, hasAutoTriggeredRef: hasAutoTriggeredRef.current, isProcessing });
+      
+      // 如果页面变为可见，且需要自动触发但还没有成功触发
+      if (isPageVisible && 
+          autoTriggered && 
+          hasAttemptedTriggerRef.current && 
+          !hasAutoTriggeredRef.current && 
+          !isProcessing) {
+        console.log('页面变为可见，重试自动触发语音识别');
+        // 延迟一小段时间，确保页面完全激活，网络请求可以正常发送
+        setTimeout(() => {
+          executeAutoSpeechRecognition();
+        }, 200);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [autoTriggered, isProcessing, executeAutoSpeechRecognition]);
 
   // 监听自动错误状态
   useEffect(() => {
