@@ -149,7 +149,9 @@ export const enSpeech = {
     auto_failed: 'Auto speech recognition failed',
     manual_retry: 'Please retry manually',
     result_title: 'Recognition Results ({count} sentences)',
-    sentence_index: 'Sentence {index}'
+    sentence_index: 'Sentence {index}',
+    vocabulary_label: 'Vocabulary',
+    vocabulary_placeholder: 'If certain words are frequently misrecognized as similar-sounding words and you prefer not to manually correct them, please enter the correct words here, one per line, and then re-recognize.'
   }
 };
 

@@ -458,25 +458,50 @@ async def load_example_video_endpoint(request: dict):
         if os.path.exists(audio_path):
             os.remove(audio_path)
         
-        # 6. WebSocket通知音频提取完成并触发自动语音识别
+        # 6. 从环境变量读取示例视频的易错词
+        vocabulary_text = os.getenv('EXAMPLE_VIDEO_VOCABULARY', '')
+        vocabulary = []
+        if vocabulary_text:
+            # 支持两种格式：
+            # 1. 使用分号分隔：硬脂酸;悬浊液
+            # 2. 使用换行符分隔（如果环境变量支持）：硬脂酸\n悬浊液
+            # 优先按分号分割，如果没有分号则按换行符分割
+            if ';' in vocabulary_text:
+                vocabulary = [word.strip() for word in vocabulary_text.split(';') if word.strip()]
+            else:
+                # 处理转义的换行符 \n 或实际的换行符
+                vocabulary_text = vocabulary_text.replace('\\n', '\n')
+                vocabulary = [line.strip() for line in vocabulary_text.split('\n') if line.strip()]
+        
+        # 7. WebSocket通知音频提取完成并触发自动语音识别
         if client_session_id:
-            await manager.send_to_client(client_session_id, json.dumps({
+            ws_message = {
                 "type": "audio_extraction_complete",
                 "audio_url": audio_url,
                 "session_id": client_session_id,
                 "message": "示例视频音频提取完成",
-                "auto_start_speech_recognition": True  # 新增：标记触发自动语音识别
-            }))
+                "auto_start_speech_recognition": True  # 标记触发自动语音识别
+            }
+            # 如果有易错词，添加到WebSocket消息中
+            if vocabulary:
+                ws_message["vocabulary"] = vocabulary
             
-            # 7. 触发视频压缩任务（与正常上传流程一致）
+            await manager.send_to_client(client_session_id, json.dumps(ws_message))
+            
+            # 8. 触发视频压缩任务（与正常上传流程一致）
             from oss_api import start_compression_task
             await start_compression_task(client_session_id, local_video_path, "720p", manager)
         
-        return {
+        response = {
             "success": True,
             "session_id": client_session_id,
             "audio_url": audio_url  # 返回音频URL供语音识别使用
         }
+        # 如果有易错词，添加到响应中
+        if vocabulary:
+            response["vocabulary"] = vocabulary
+        
+        return response
         
     except HTTPException:
         raise
@@ -492,6 +517,9 @@ async def speech_recognition_endpoint(request: dict):
         client_session_id = request.get("client_session_id")
         if not client_session_id:
             raise HTTPException(status_code=400, detail="缺少 client_session_id 参数")
+        
+        # 获取易错词列表（可选）
+        vocabulary = request.get("vocabulary")  # 字符串数组，每行一个词
         
         # 更新会话活跃时间
         update_session_activity(client_session_id)
@@ -513,7 +541,8 @@ async def speech_recognition_endpoint(request: dict):
             raise HTTPException(status_code=400, detail=f"音频URL验证失败: {str(e)}")
         
         # 使用线程池执行同步调用，避免阻塞事件循环
-        result_json = await asyncio.to_thread(speech_recognition, audio_url)
+        # 传递易错词列表给 speech_recognition 函数
+        result_json = await asyncio.to_thread(speech_recognition, audio_url, vocabulary)
         result = json.loads(result_json)
         
         # 检查是否有错误

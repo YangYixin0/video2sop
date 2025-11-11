@@ -16,6 +16,7 @@
 
 - **能处理的视频时长**: 分段处理长视频，无硬性时长上限
 - **多模态分析**: 使用Qwen3-VL-Plus和Paraformer-V2对视频和音频内容进行综合分析
+- **易错词表支持**: 支持用户自定义易错词表，提高语音识别准确性，适用于专业术语较多的场景
 - **智能分段处理**: 长视频自动分段并行处理，结合提示词拆分技术，确保每段处理质量
 - **多媒体SOP**: 支持TXT和HTML格式的文档导出功能。HTML格式文档可同时展现文字和视频，带来直观理解
 - **可交互编辑区**：SOP修改区中的区块可以方便地修改内容、调整次序、跳转并播放视频片段以核实
@@ -110,6 +111,9 @@ OSS_BUCKET_NAME=your_bucket_name
 
 # 示例视频配置（可选，用于演示功能。如果使用这个配置，应在相应目录存放示例视频）
 EXAMPLE_VIDEO_PATH=/root/video2sop/temp/video_example/your_example_video.mp4
+
+# 示例视频易错词表（可选，与示例视频配合使用。使用分号分隔多个词，如：硬脂酸;悬浊液）
+EXAMPLE_VIDEO_VOCABULARY=Word1;Word2
 
 # LangSmith 调试配置（可选，用于LangGraph测试）
 LANGSMITH_API_KEY=your_langsmith_api_key_here
@@ -247,6 +251,10 @@ cd /root/video2sop
 ```
 
 ## 🔄 更新日志
+
+- **v1.8.0** - 语音识别易错词表功能
+  - 新增易错词表输入功能，用户可在语音识别面板中输入易错词以提高识别准确性
+  - 修复 DashScope 的 paraformer-v2 API 调用问题：使用`phrase_id`参数会导致`403 Resource access denied`错误，应当改为使用`vocabulary_id`参数
 
 - **v1.7.0** - 视频压缩、长视频分段处理
   - 将视频上传文件大小限制从800MB提升至3GB，支持更大视频文件

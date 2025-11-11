@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useI18n } from '@/i18n';
 import { OperationRecord } from './OperationHistory';
 
@@ -21,11 +21,12 @@ interface UploadResult {
 
 interface SpeechRecognitionPanelProps {
   uploadResult: UploadResult | null;
-  onSpeechRecognition: (audioUrl: string) => Promise<SpeechResult[]>; // 保持接口兼容，但实际不使用audioUrl
+  onSpeechRecognition: (audioUrl: string, vocabulary?: string[]) => Promise<SpeechResult[]>; // 添加易错词参数
   onResultsChange?: (results: SpeechResult[]) => void;
   autoTriggered?: boolean;  // 新增：标记是否自动触发
   autoError?: string | null;  // 新增：自动触发的错误信息
   onAddOperationRecord?: (record: OperationRecord) => void;  // 新增：添加操作记录的回调
+  initialVocabulary?: string;  // 新增：初始易错词（用于示例视频）
 }
 
 export default function SpeechRecognitionPanel({ 
@@ -34,7 +35,8 @@ export default function SpeechRecognitionPanel({
   onResultsChange,
   autoTriggered = false,
   autoError = null,
-  onAddOperationRecord
+  onAddOperationRecord,
+  initialVocabulary
 }: SpeechRecognitionPanelProps) {
   const { t } = useI18n();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -44,23 +46,29 @@ export default function SpeechRecognitionPanel({
   const [editingText, setEditingText] = useState<string>('');
   const [editingBeginTime, setEditingBeginTime] = useState<number>(0);
   const [editingEndTime, setEditingEndTime] = useState<number>(0);
+  const [vocabularyText, setVocabularyText] = useState<string>('');
+  const [vocabularyInitialized, setVocabularyInitialized] = useState<boolean>(false);
+  
+  // 使用 useRef 跟踪是否已经自动触发过，防止无限循环
+  const hasAutoTriggeredRef = useRef<boolean>(false);
 
-  // 监听自动触发状态
+  // 监听初始易错词变化（仅在未手动修改时填充）
   useEffect(() => {
-    if (autoTriggered && !isProcessing && !error) {
-      console.log('自动触发语音识别，开始处理...');
-      handleSpeechRecognition();
+    if (initialVocabulary && !vocabularyInitialized) {
+      setVocabularyText(initialVocabulary);
+      setVocabularyInitialized(true);
     }
-  }, [autoTriggered]); // 只依赖autoTriggered，避免无限循环
+  }, [initialVocabulary, vocabularyInitialized]);
 
-  // 监听自动错误状态
+  // 当 autoTriggered 变为 false 时，重置自动触发标记
   useEffect(() => {
-    if (autoError) {
-      setError(autoError);
+    if (!autoTriggered) {
+      hasAutoTriggeredRef.current = false;
     }
-  }, [autoError]);
+  }, [autoTriggered]);
 
-  const handleSpeechRecognition = async () => {
+  // 记忆化语音识别处理函数
+  const handleSpeechRecognition = useCallback(async () => {
     // 自动触发时，uploadResult可能还没有设置，所以不检查uploadResult
     if (!autoTriggered && !uploadResult) return;
 
@@ -69,7 +77,18 @@ export default function SpeechRecognitionPanel({
     setResults([]);
 
     try {
-      const speechResults = await onSpeechRecognition(''); // 不再需要audio_url参数
+      // 处理易错词：自动触发时优先使用 initialVocabulary，否则使用 vocabularyText
+      // 这样可以确保自动触发时能使用到从后端传来的易错词
+      const vocabularySource = autoTriggered && initialVocabulary 
+        ? initialVocabulary 
+        : vocabularyText;
+      
+      const vocabulary = vocabularySource
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+      
+      const speechResults = await onSpeechRecognition('', vocabulary.length > 0 ? vocabulary : undefined);
       setResults(speechResults);
       if (onResultsChange) {
         onResultsChange(speechResults);
@@ -81,7 +100,39 @@ export default function SpeechRecognitionPanel({
     } finally {
       setIsProcessing(false);
     }
-  };
+  }, [autoTriggered, uploadResult, initialVocabulary, vocabularyText, onSpeechRecognition, onResultsChange]);
+
+  // 监听自动触发状态
+  // 使用 useRef 确保只触发一次，防止无限循环
+  useEffect(() => {
+    // 只有当 autoTriggered 为 true 且还没有自动触发过时才执行
+    // 注意：即使 initialVocabulary 为空（用户上传的视频），也应该触发
+    // hasAutoTriggeredRef 确保即使 useEffect 重新执行，也不会重复触发
+    // 自动触发时，uploadResult 可能还未设置，所以不检查 uploadResult
+    if (autoTriggered && !hasAutoTriggeredRef.current && !isProcessing) {
+      console.log('条件满足，准备自动触发语音识别');
+      
+      // 标记为已自动触发（立即标记，防止重复触发）
+      hasAutoTriggeredRef.current = true;
+      
+      // 使用 setTimeout 确保 React 状态更新完成
+      // 这样即使 initialVocabulary 或 uploadResult 稍后到达，也能在 handleSpeechRecognition 中使用
+      const timeoutId = setTimeout(() => {
+        handleSpeechRecognition();
+      }, 300); // 延迟 300ms，确保状态更新完成
+      
+      return () => {
+        clearTimeout(timeoutId);
+      };
+    }
+  }, [autoTriggered, initialVocabulary, uploadResult, handleSpeechRecognition, isProcessing, vocabularyText]);
+
+  // 监听自动错误状态
+  useEffect(() => {
+    if (autoError) {
+      setError(autoError);
+    }
+  }, [autoError]);
 
   const formatTime = (milliseconds: number) => {
     const seconds = milliseconds / 1000;  // 将毫秒转换为秒
@@ -182,6 +233,23 @@ export default function SpeechRecognitionPanel({
             </div>
           </div>
         )}
+
+        {/* 易错词输入区 */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            {t('speech.vocabulary_label')}
+          </label>
+          <textarea
+            value={vocabularyText}
+            onChange={(e) => {
+              setVocabularyText(e.target.value);
+              setVocabularyInitialized(true); // 标记为已手动修改
+            }}
+            placeholder={t('speech.vocabulary_placeholder')}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+            rows={4}
+          />
+        </div>
 
         {/* 语音识别按钮 */}
         <div className="mb-4">

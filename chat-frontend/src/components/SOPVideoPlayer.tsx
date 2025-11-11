@@ -49,7 +49,7 @@ const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
     if (videoRef.current.paused) {
       videoRef.current.play();
     } else {
-      videoRef.current.pause();
+        videoRef.current.pause();
     }
     // 由事件处理器统一更新 isPlaying，避免抖动
   };
@@ -95,7 +95,7 @@ const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
       if (currentEndTime !== undefined) {
         playSegment(currentStartTime);
       } else {
-        seekTo(currentStartTime);
+      seekTo(currentStartTime);
       }
     }
   }, [currentStartTime, currentEndTime, playSegment, seekTo]);

@@ -263,7 +263,7 @@ export default function VideoUnderstandingPanel({
                     {t('vu.fps_help', { fps })}
             </span>
           </div>
-              </div>
+        </div>
 
               {/* 视频分段参数设置 */}
               <div>

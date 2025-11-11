@@ -399,8 +399,8 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
             <div className="p-4">
               <SOPVideoPlayer
                 videoUrl={videoUrl || ''}
-            currentStartTime={currentVideoTime.start}
-            currentEndTime={currentVideoTime.end}
+                currentStartTime={currentVideoTime.start}
+                currentEndTime={currentVideoTime.end}
               />
             </div>
           )}
@@ -444,7 +444,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
           >
             <SortableContext items={blocksA.map(block => block.id)} strategy={verticalListSortingStrategy}>
               <div className="space-y-3 max-h-[40rem] overflow-y-auto">
-                {blocksA.map((block, index) => (
+            {blocksA.map((block, index) => (
                   <SortableBlockItem
                     key={block.id}
                     block={block}
@@ -458,15 +458,15 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
                     onSelectBlock={handleSelectBlock}
                     onToggleEdit={handleToggleEdit}
                   />
-                ))}
+            ))}
             
-                {blocksA.length === 0 && (
-                  <div className="text-center py-8 text-gray-500">
-                    <div className="text-4xl mb-2">📝</div>
+            {blocksA.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                <div className="text-4xl mb-2">📝</div>
                     <div>{t('sop.no_blocks')}</div>
-                  </div>
-                )}
               </div>
+            )}
+          </div>
             </SortableContext>
           </DndContext>
         </div>

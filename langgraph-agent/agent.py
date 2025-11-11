@@ -13,8 +13,9 @@ class QwenAgent:
     
     def __init__(self):
         self.llm = QwenChatModel()
-        # 绑定语音识别工具
-        self.llm_with_tools = self.llm.bind_tools([speech_recognition])
+        # 注意：speech_recognition 已不再是 tool，agent 功能已不再使用
+        # self.llm_with_tools = self.llm.bind_tools([speech_recognition])
+        self.llm_with_tools = self.llm  # 不再绑定工具
         self.graph = self._build_graph()
     
     def _build_graph(self) -> StateGraph:
@@ -78,10 +79,11 @@ class QwenAgent:
             # 检查是否有工具调用
             if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
                 for tool_call in last_message.tool_calls:
-                    # 执行语音识别工具
+                    # 执行语音识别工具（注意：speech_recognition 已不再是 tool）
                     if tool_call['name'] == 'speech_recognition':
                         file_url = tool_call['args']['file_url']
-                        result = speech_recognition.invoke({"file_url": file_url})
+                        # 直接调用函数，不再使用 .invoke() 方法
+                        result = speech_recognition(file_url)
                         
                         # 添加工具结果消息
                         tool_message = ToolMessage(

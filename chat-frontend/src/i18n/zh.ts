@@ -149,7 +149,9 @@ export const zhSpeech = {
     auto_failed: '自动语音识别失败',
     manual_retry: '请手动重试',
     result_title: '识别结果 ({count} 句)',
-    sentence_index: '第 {index} 句'
+    sentence_index: '第 {index} 句',
+    vocabulary_label: '易错词表',
+    vocabulary_placeholder: '如果有词被大量错误识别为读音相近的词，你不想手动修改，那么请输入正确的词在这里，每行一个词，然后重新识别。'
   }
 };
 

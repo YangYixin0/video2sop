@@ -65,6 +65,9 @@ export default function Home() {
   const [autoSpeechRecognitionTriggered, setAutoSpeechRecognitionTriggered] = useState(false);
   const [autoSpeechRecognitionError, setAutoSpeechRecognitionError] = useState<string | null>(null);
   
+  // 示例视频的易错词
+  const [exampleVideoVocabulary, setExampleVideoVocabulary] = useState<string>('');
+  
   const [operationRecords, setOperationRecords] = useState<OperationRecord[]>([]);
   const [speechRecognitionResult, setSpeechRecognitionResult] = useState<{
     sentence_id: number;
@@ -155,6 +158,10 @@ export default function Home() {
         );
       }
 
+      // 重置自动语音识别状态，防止重复触发
+      setAutoSpeechRecognitionTriggered(false);
+      setAutoSpeechRecognitionError(null);
+
       // 添加语音识别记录（无论是自动触发还是手动触发）
         const speechRecord: OperationRecord = {
           id: `speech-${Date.now()}`,
@@ -168,10 +175,30 @@ export default function Home() {
       };
       setOperationRecords(prev => [...prev, speechRecord]);
     } else if (data.type === 'audio_extraction_complete') {
+      // 如果包含易错词（来自示例视频），保存它
+      if (data.vocabulary) {
+        const vocabArray = data.vocabulary as string[];
+        const vocabText = vocabArray.join('\n');
+        setExampleVideoVocabulary(vocabText);
+      }
+      
       // 检查是否需要自动触发语音识别
       if (data.auto_start_speech_recognition) {
-        // 触发自动语音识别
-        triggerAutoSpeechRecognition();
+        // 确保 currentUploadResult 已设置（从 audio_url 创建）
+        if (data.audio_url && data.session_id) {
+          const uploadResult = {
+            session_id: data.session_id,
+            video_url: '',
+            audio_url: data.audio_url
+          };
+          setCurrentUploadResult(uploadResult);
+        }
+        
+        // 使用延迟确保所有状态更新完成
+        // 包括 exampleVideoVocabulary 和 currentUploadResult
+        setTimeout(() => {
+          triggerAutoSpeechRecognition();
+        }, 200);
       }
     } else if (data.type === 'video_understanding_complete') {
       // 发送通知
@@ -437,7 +464,7 @@ export default function Home() {
   };
 
   // 语音识别处理函数
-  const handleSpeechRecognition = async (audioUrl: string) => {
+  const handleSpeechRecognition = async (audioUrl: string, vocabulary?: string[]) => {
     // 从环境变量获取超时时间，默认5分钟
     const timeoutMs = parseInt(process.env.NEXT_PUBLIC_SPEECH_RECOGNITION_TIMEOUT || '300000', 10);
     
@@ -446,14 +473,21 @@ export default function Home() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
       
+      const requestBody: { client_session_id: string; vocabulary?: string[] } = {
+        client_session_id: clientSessionId
+      };
+      
+      // 如果有易错词，添加到请求体中
+      if (vocabulary && vocabulary.length > 0) {
+        requestBody.vocabulary = vocabulary;
+      }
+      
       const response = await fetch(API_ENDPOINTS.SPEECH_RECOGNITION, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          client_session_id: clientSessionId  // 不再需要audio_url参数
-        }),
+        body: JSON.stringify(requestBody),
         mode: 'cors',
         credentials: 'omit',
         signal: controller.signal
@@ -493,11 +527,8 @@ export default function Home() {
   // 自动触发语音识别函数
   const triggerAutoSpeechRecognition = useCallback(() => {
     if (!clientSessionId) {
-      console.warn('无法自动触发语音识别：未找到客户端会话ID');
       return;
     }
-    
-    console.log('自动触发语音识别...');
     
     // 设置自动语音识别状态，让SpeechRecognitionPanel的useEffect来处理
     setAutoSpeechRecognitionTriggered(true);
@@ -886,10 +917,11 @@ export default function Home() {
           <SpeechRecognitionPanel
             uploadResult={currentUploadResult}
             onSpeechRecognition={handleSpeechRecognition}
-          onResultsChange={handleSpeechResultsChange}
-          autoTriggered={autoSpeechRecognitionTriggered}
-          autoError={autoSpeechRecognitionError}
-          onAddOperationRecord={(record) => setOperationRecords(prev => [...prev, record])}
+            onResultsChange={handleSpeechResultsChange}
+            autoTriggered={autoSpeechRecognitionTriggered}
+            autoError={autoSpeechRecognitionError}
+            onAddOperationRecord={(record) => setOperationRecords(prev => [...prev, record])}
+            initialVocabulary={exampleVideoVocabulary}
           />
         </div>
         
