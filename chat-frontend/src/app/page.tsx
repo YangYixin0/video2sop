@@ -187,9 +187,9 @@ export default function Home() {
         // 确保 currentUploadResult 已设置（从 audio_url 创建）
         if (data.audio_url && data.session_id) {
           const uploadResult = {
-            session_id: data.session_id,
+            session_id: String(data.session_id),
             video_url: '',
-            audio_url: data.audio_url
+            audio_url: String(data.audio_url)
           };
           setCurrentUploadResult(uploadResult);
         }
