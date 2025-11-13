@@ -43,10 +43,10 @@ export const en: TranslationDict = {
   },
   feedback: {
     title: 'Report issues or suggestions',
-    intro_1: 'Choose an option below, then send the downloaded content and your description/suggestions to the comments or our email: ',
-    intro_2: 'We will fix issues as soon as possible, or consider unimplementable requests as future roadmap directions!',
-    btn_with_video: '1. Download session (agree to keep the video for analysis)',
-    btn_without_video: '2. Download session (do not keep the video)',
+    intro_1: 'Choose an option below, then send the current session with issues and/or your suggestions to the comments or our email: ',
+    intro_2: 'We will fix issues as soon as possible, or consider requests for future development!',
+    btn_with_video: '1. Download the current session (and approve us to use the video for analysis)',
+    btn_without_video: '2. Download the current session (and disapprove us to use the video for analysis)',
     btn_suggest_only: '3. Do not download, I just want to leave a suggestion',
     download_failed: 'Failed to download the report. Please retry.'
   },
