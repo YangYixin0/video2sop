@@ -1,4 +1,5 @@
 // SOP区块数据类型定义
+import { IconName } from '@/components/Icon';
 
 export interface SOPBlock {
   id: string;
@@ -38,39 +39,39 @@ export interface RefineSOPResponse {
 export interface BlockTypeConfig {
   label: string;
   color: string;
-  icon: string;
+  icon: IconName;
 }
 
 export const BLOCK_TYPE_CONFIGS: Record<SOPBlock['type'], BlockTypeConfig> = {
   title: {
     label: '标题',
     color: 'bg-blue-100 border-blue-300',
-    icon: '📋'
+    icon: 'clipboard'
   },
   abstract: {
     label: '摘要',
     color: 'bg-green-100 border-green-300',
-    icon: '📄'
+    icon: 'edit'
   },
   keywords: {
     label: '关键词',
     color: 'bg-yellow-100 border-yellow-300',
-    icon: '🏷️'
+    icon: 'edit'
   },
   materials: {
     label: '材料清单',
     color: 'bg-purple-100 border-purple-300',
-    icon: '🧪'
+    icon: 'edit'
   },
   step: {
     label: '操作步骤',
     color: 'bg-orange-100 border-orange-300',
-    icon: '⚡'
+    icon: 'play'
   },
   unknown: {
     label: '其他',
     color: 'bg-gray-100 border-gray-300',
-    icon: '📝'
+    icon: 'edit'
   }
 };
 

@@ -3,6 +3,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useI18n } from '@/i18n';
 import { API_ENDPOINTS } from '@/config/api';
+import Icon from './Icon';
 
 // 各环节用时典型值面板组件
 const PerformanceAnalysisPanel = () => {
@@ -698,7 +699,7 @@ export default function VideoUploader({
     <div className="w-full max-w-7xl mx-auto bg-white rounded-lg shadow-sm border">
       <div className="p-4 border-b border-gray-200">
         <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-          <span className="mr-2">📁</span>
+          <Icon name="upload" size={20} className="mr-2" inline />
           {t('uploader.title')}
         </h3>
       </div>
@@ -734,15 +735,16 @@ export default function VideoUploader({
       >
         {!selectedFile ? (
           <div>
-            <div className="text-4xl mb-4">📁</div>
+            <Icon name="upload" size={48} className="mb-4 mx-auto" />
             <p className="text-gray-600 mb-2">
               {t('uploader.drop_or_click')}
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-gray-600">
               {t('uploader.support_formats', { size_gb: Math.round(maxFileSize / 1024 / 1024 / 1024) })}
             </p>
-            <p className="text-xs text-blue-600 mt-2">
-              🛡️ {t('uploader.data_protection')}
+            <p className="text-blue-600 mt-2">
+              <Icon name="shield" size={16} inline />
+              {t('uploader.data_protection')}
             </p>
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -753,7 +755,7 @@ export default function VideoUploader({
           </div>
         ) : (
           <div>
-            <div className="text-4xl mb-4">✅</div>
+            <Icon name="success" size={48} className="mb-4 mx-auto" />
             <p className="text-gray-800 font-medium">{selectedFile.name}</p>
             <p className="text-sm text-gray-500">
               {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
@@ -801,7 +803,6 @@ export default function VideoUploader({
             disabled={uploadStatus.status === 'uploading' || uploadStatus.status === 'extracting'}
             className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center space-x-2 mx-auto"
           >
-            <span>🎬</span>
             <span>{t('uploader.load_example')}</span>
           </button>
         </div>
@@ -830,7 +831,10 @@ export default function VideoUploader({
             <div className="text-red-600 text-sm">{uploadStatus.message}</div>
           ) : uploadStatus.status === 'completed' ? (
             <div className="text-green-600 text-sm">
-              <p>✅ {t('uploader.upload_ok')}</p>
+              <p className="flex items-center gap-1">
+                <Icon name="success" size={16} inline />
+                {t('uploader.upload_ok')}
+              </p>
             </div>
           ) : null}
         </div>

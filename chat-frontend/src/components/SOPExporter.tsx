@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useI18n } from '@/i18n';
 import { SOPBlock, ExportFormat } from '@/types/sop';
+import Icon, { getIconImgTag } from './Icon';
 
 interface SOPExporterProps {
   blocksA: SOPBlock[];
@@ -218,7 +219,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
     <!-- 视频文件配置区域 -->
     <div class="video-config">
         <h3 style="margin: 0 0 15px 0; color: #495057; display: flex; align-items: center;">
-            <span style="margin-right: 8px;">🎥</span>
+            ${getIconImgTag('movie', 20, undefined, 'mr-2')}
             ${t('exporter_html.video_config_title')}
         </h3>
         <div style="margin-bottom: 15px;">
@@ -281,7 +282,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
                 <div class="block-title">${blockTitle}</div>
                 ${canPlay ? `
                 <button class="play-button" onclick="playSegment(${block.start_time}, ${block.end_time || 'null'})">
-                    ▶️ 播放 (${block.start_time !== undefined ? formatTime(block.start_time) : ''}${block.end_time ? ` - ${formatTime(block.end_time)}` : ''})
+                    ${getIconImgTag('play', 16)} 播放 (${block.start_time !== undefined ? formatTime(block.start_time) : ''}${block.end_time ? ` - ${formatTime(block.end_time)}` : ''})
                 </button>
                 ` : ''}
             </div>
@@ -486,7 +487,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
             \`;
             notification.innerHTML = \`
                 <div style="display: flex; align-items: center;">
-                    <span style="margin-right: 8px;">💾</span>
+                    ${getIconImgTag('edit', 20, undefined, 'mr-2')}
                     <span>编辑内容已更新！</span>
                 </div>
             \`;
@@ -593,12 +594,15 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
   return (
     <div className="bg-white rounded-lg shadow-sm border p-4">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-gray-800 mb-2">📤 {t('exporter.title')}</h3>
+        <h3 className="text-lg font-semibold text-gray-800 mb-2 flex items-center gap-2">
+          <Icon name="download" size={20} inline />
+          {t('exporter.title')}
+        </h3>
         
         {/* 区块选择 */}
         <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <label className="block text-base font-semibold text-blue-800 mb-3 flex items-center">
-            <span className="text-lg mr-2">🎯</span>
+            <Icon name="target" size={20} className="mr-2" inline />
             {t('exporter.select_area')}
           </label>
           <div className="flex space-x-6">
@@ -619,7 +623,8 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
                 <span className={`text-sm font-medium ${
                   selectedBlocks === 'A' ? 'text-blue-800' : 'text-gray-700'
                 }`}>
-                  📝 {t('exporter.edit_area')}
+                  <Icon name="edit" size={16} className="mr-1" inline />
+                  {t('exporter.edit_area')}
                 </span>
                 <span className={`block text-xs ${
                   selectedBlocks === 'A' ? 'text-blue-600' : 'text-gray-500'
@@ -646,7 +651,8 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
                   <span className={`text-sm font-medium ${
                     selectedBlocks === 'B' ? 'text-blue-800' : 'text-gray-700'
                   }`}>
-                    ✨ {t('exporter.refine_area')}
+                    <Icon name="sparkles" size={16} className="mr-1" inline />
+                    {t('exporter.refine_area')}
                   </span>
                   <span className={`block text-xs ${
                     selectedBlocks === 'B' ? 'text-blue-600' : 'text-gray-500'
@@ -664,12 +670,17 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
       <div className="space-y-3">
         {/* 导出纯文本 */}
         <div className="border border-gray-200 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <h4 className="font-medium text-gray-800">📄 {t('exporter.txt_title')}</h4>
-              <p className="text-sm text-gray-600">
-                {t('exporter.txt_desc')} <a href="https://protocols.io" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-800">Protocols.io</a>
-              </p>
+          <div className="flex items-start justify-between mb-2">
+            <div className="flex items-start gap-4">
+              <Icon name="description" size={96} />
+              <div>
+                <h4 className="font-medium text-gray-800 mb-1">
+                  {t('exporter.txt_title')}
+                </h4>
+                <p className="text-sm text-gray-600">
+                  {t('exporter.txt_desc')} <a href="https://protocols.io" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-800">Protocols.io</a>
+                </p>
+              </div>
             </div>
             <button
               onClick={() => handleExport('txt')}
@@ -683,15 +694,20 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
 
         {/* 导出HTML关联格式 */}
         <div className="border border-gray-200 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <h4 className="font-medium text-gray-800">🌐 {t('exporter.html_title')}</h4>
-              <p className="text-sm text-gray-600 mb-1">
-                {t('exporter.html_desc1')}
-              </p>
-              <p className="text-sm text-gray-600">
-                {t('exporter.html_desc2')}
-              </p>
+          <div className="flex items-start justify-between mb-2">
+            <div className="flex items-start gap-4">
+              <Icon name="videoFile" size={96} />
+              <div>
+                <h4 className="font-medium text-gray-800 mb-1">
+                  {t('exporter.html_title')}
+                </h4>
+                <p className="text-sm text-gray-600 mb-1">
+                  {t('exporter.html_desc1')}
+                </p>
+                <p className="text-sm text-gray-600">
+                  {t('exporter.html_desc2')}
+                </p>
+              </div>
             </div>
             <button
               onClick={() => handleExport('html')}

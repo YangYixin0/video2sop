@@ -13,6 +13,7 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { SOPBlock } from '@/types/sop';
 import { notificationManager } from '@/utils/notifications';
 import { API_ENDPOINTS } from '@/config/api';
+import Icon from '@/components/Icon';
 
 function AppTitle() {
   const { t } = useI18n();
@@ -952,7 +953,10 @@ export default function Home() {
         {/* 技术栈 */}
         <div className="w-full max-w-7xl mx-auto mb-6">
           <div className="bg-white p-4 rounded-lg shadow-sm border">
-            <h3 className="text-base font-semibold text-gray-800 mb-2">🚀 <AppTitleTechStack /></h3>
+            <h3 className="text-base font-semibold text-gray-800 mb-2 flex items-center gap-2">
+              <Icon name="sparkles" size={18} inline />
+              <AppTitleTechStack />
+            </h3>
             <ul className="space-y-1 text-sm text-gray-600">
               <li>• <strong><I18nLabel k="common.tech_ai_models" /></strong>: <I18nLabel k="common.tech_ai_models_value" /></li>
               <li>• <strong><I18nLabel k="common.tech_backend" /></strong>: <I18nLabel k="common.tech_backend_value" /></li>

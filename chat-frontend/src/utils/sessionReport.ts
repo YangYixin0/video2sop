@@ -1,5 +1,6 @@
 import { OperationRecord } from '@/components/OperationHistory';
 import { SOPBlock } from '@/types/sop';
+import { getIconImgTag, IconName } from '@/components/Icon';
 
 // 定义操作数据的类型
 interface UploadData {
@@ -152,14 +153,15 @@ export function generateSessionReport(options: SessionReportOptions): string {
 
   // 生成操作记录HTML
   const operationRecordsHtml = operationRecords.map(record => {
-    const icon = getOperationIcon(record.type);
+    const iconName = getOperationIcon(record.type);
+    const iconImg = getIconImgTag(iconName, 32);
     const statusColor = record.status === 'success' ? 'text-green-600' : 
                        record.status === 'error' ? 'text-red-600' : 'text-yellow-600';
     
     return `
       <div class="bg-white rounded-lg border border-gray-200 p-4 mb-3">
         <div class="flex items-start space-x-3">
-          <span class="text-2xl">${icon}</span>
+          <span class="flex items-center">${iconImg}</span>
           <div class="flex-1">
             <div class="flex items-center space-x-2 mb-2">
               <h4 class="font-semibold text-gray-800">${getOperationTitle(record.type)}</h4>
@@ -177,7 +179,7 @@ export function generateSessionReport(options: SessionReportOptions): string {
   // 生成语音识别结果HTML
   const speechRecognitionHtml = speechRecognitionResult && speechRecognitionResult.length > 0 ? `
     <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">
-      <h3 class="text-lg font-semibold text-gray-800 mb-3">🎤 ${tr[locale].speech_results}</h3>
+      <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">${getIconImgTag('microphone', 24)} ${tr[locale].speech_results}</h3>
       <div class="space-y-2">
         ${speechRecognitionResult.map((item) => `
           <div class="bg-gray-50 rounded p-3">
@@ -192,7 +194,7 @@ export function generateSessionReport(options: SessionReportOptions): string {
   // 生成视频理解结果HTML
   const videoUnderstandingHtml = videoUnderstandingResult ? `
     <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">
-      <h3 class="text-lg font-semibold text-gray-800 mb-3">🎬 ${tr[locale].video_understanding_results}</h3>
+      <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">${getIconImgTag('video', 24)} ${tr[locale].video_understanding_results}</h3>
       ${videoUnderstandingPrompt ? `
         <div class="mb-3">
           <h4 class="text-sm font-medium text-gray-700 mb-2">${tr[locale].user_prompt}</h4>
@@ -211,7 +213,7 @@ export function generateSessionReport(options: SessionReportOptions): string {
   // 生成SOP区块HTML
   const sopBlocksHtml = sopBlocks && sopBlocks.length > 0 ? `
     <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">
-      <h3 class="text-lg font-semibold text-gray-800 mb-3">📋 ${tr[locale].sop_parse_results}</h3>
+      <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">${getIconImgTag('clipboard', 24)} ${tr[locale].sop_parse_results}</h3>
       ${sopParsePrompt ? `
         <div class="mb-3">
           <h4 class="text-sm font-medium text-gray-700 mb-2">${tr[locale].parse_prompt}</h4>
@@ -240,7 +242,7 @@ export function generateSessionReport(options: SessionReportOptions): string {
   // 生成SOP精修结果HTML
   const refinedSopBlocksHtml = refinedSopBlocks && refinedSopBlocks.length > 0 ? `
     <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">
-      <h3 class="text-lg font-semibold text-gray-800 mb-3">✨ ${tr[locale].sop_refine_results}</h3>
+      <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">${getIconImgTag('sparkles', 24)} ${tr[locale].sop_refine_results}</h3>
       ${sopRefinePrompt ? `
         <div class="mb-3">
           <h4 class="text-sm font-medium text-gray-700 mb-2">${tr[locale].refine_prompt}</h4>
@@ -297,7 +299,7 @@ export function generateSessionReport(options: SessionReportOptions): string {
 
     ${includeVideoLinks && uploadResult ? `
       <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4">
-        <h3 class="text-lg font-semibold text-gray-800 mb-3">📁 ${tr[locale].upload_files}</h3>
+        <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">${getIconImgTag('upload', 24)} ${tr[locale].upload_files}</h3>
         <div class="space-y-2">
           <div class="bg-gray-50 rounded p-3">
             <div class="text-sm text-gray-600 mb-1">${tr[locale].video_file}</div>
@@ -317,7 +319,7 @@ export function generateSessionReport(options: SessionReportOptions): string {
     ${refinedSopBlocksHtml}
 
     <div class="bg-white rounded-lg border border-gray-200 p-4">
-      <h3 class="text-lg font-semibold text-gray-800 mb-3">📝 ${tr[locale].records}</h3>
+      <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">${getIconImgTag('edit', 24)} ${tr[locale].records}</h3>
       <div class="space-y-3">
         ${operationRecordsHtml}
       </div>
@@ -335,16 +337,16 @@ export function generateSessionReport(options: SessionReportOptions): string {
   return html;
 }
 
-function getOperationIcon(type: OperationRecord['type']): string {
+function getOperationIcon(type: OperationRecord['type']): IconName {
   switch (type) {
-    case 'upload': return '📁';
-    case 'speech_recognition': return '🎤';
-    case 'video_understanding': return '🎬';
-    case 'video_compression': return '🗜️';
-    case 'sop_parse': return '📋';
-    case 'sop_refine': return '✨';
-    case 'file_removed': return '🗑️';
-    default: return '📝';
+    case 'upload': return 'upload';
+    case 'speech_recognition': return 'microphone';
+    case 'video_understanding': return 'video';
+    case 'video_compression': return 'compress';
+    case 'sop_parse': return 'clipboard';
+    case 'sop_refine': return 'sparkles';
+    case 'file_removed': return 'trash';
+    default: return 'edit';
   }
 }
 

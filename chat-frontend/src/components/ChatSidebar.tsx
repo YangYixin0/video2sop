@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
+import Icon from './Icon';
 
 interface Message {
   id: string;
@@ -216,12 +217,12 @@ export default function ChatSidebar() {
                 <div className="flex items-center space-x-2 mb-2">
                   {message.removeResult ? (
                     <>
-                      <span className="text-lg">🗑️</span>
+                      <Icon name="trash" size={20} inline />
                       <span className="text-xs font-medium">文件删除</span>
                     </>
                   ) : (
                     <>
-                      <span className="text-lg">📁</span>
+                      <Icon name="upload" size={20} inline />
                       <span className="text-xs font-medium">文件上传</span>
                     </>
                   )}
@@ -231,7 +232,7 @@ export default function ChatSidebar() {
               {/* 工具调用标识 */}
               {message.toolCall && (
                 <div className="flex items-center space-x-2 mb-2">
-                  <span className="text-lg">🎤</span>
+                  <Icon name="microphone" size={20} inline />
                   <span className="text-xs font-medium">
                     {message.toolCall.name === 'speech_recognition' ? '语音识别' : message.toolCall.name}
                   </span>

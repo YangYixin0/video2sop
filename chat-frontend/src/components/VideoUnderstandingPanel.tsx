@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useI18n } from '@/i18n';
+import Icon from './Icon';
 
 interface SpeechResult {
   sentence_id: number;
@@ -171,7 +172,7 @@ export default function VideoUnderstandingPanel({
     <div className="w-full max-w-7xl mx-auto bg-white rounded-lg shadow-sm border">
         <div className="p-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-            <span className="mr-2">🎬</span>
+            <Icon name="video" size={20} className="mr-2" inline />
             {t('vu.title')}
             <span className="ml-2 text-sm font-normal text-blue-600">{t('vu.model')}</span>
           </h3>
@@ -182,14 +183,14 @@ export default function VideoUnderstandingPanel({
         {!uploadResult ? (
           <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
             <div className="flex items-center space-x-2">
-              <span className="text-lg">⏳</span>
+              <Icon name="waiting" size={20} inline />
               <span className="text-yellow-700">{t('vu.need_upload')}</span>
             </div>
           </div>
         ) : !speechRecognitionResult || speechRecognitionResult.length === 0 ? (
           <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
             <div className="flex items-center space-x-2">
-              <span className="text-lg">🎤</span>
+              <Icon name="microphone" size={20} inline />
               <span className="text-yellow-700">{t('vu.need_asr')}</span>
             </div>
           </div>
@@ -386,12 +387,12 @@ export default function VideoUnderstandingPanel({
               </div>
             ) : !isReady ? (
               <div className="flex items-center justify-center space-x-2">
-                <span>🎬</span>
+                <Icon name="video" size={18} inline />
                 <span>{t('vu.run_btn_prereq')}</span>
               </div>
             ) : (
               <div className="flex items-center justify-center space-x-2">
-                <span>🎬</span>
+                <Icon name="video" size={18} inline />
                 <span>{t('vu.run_btn')}</span>
               </div>
             )}
@@ -408,8 +409,9 @@ export default function VideoUnderstandingPanel({
 
           {/* 语音识别错误提示 */}
           {autoSpeechRecognitionError && (
-            <div className="mt-2 text-sm text-red-600">
-              ❌ 语音识别失败，请先重试语音识别
+            <div className="mt-2 text-sm text-red-600 flex items-center gap-1">
+              <Icon name="error" size={16} color="#dc2626" inline />
+              语音识别失败，请先重试语音识别
             </div>
           )}
         </div>
@@ -418,7 +420,7 @@ export default function VideoUnderstandingPanel({
         {hasEditedSpeech && (
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center space-x-2">
-              <span className="text-blue-500">✏️</span>
+              <Icon name="pencil" size={20} color="#3b82f6" inline />
               <span className="text-blue-700 text-sm">将使用编辑后的语音内容进行视频理解</span>
             </div>
           </div>
@@ -428,7 +430,7 @@ export default function VideoUnderstandingPanel({
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
             <div className="flex items-center space-x-2">
-              <span className="text-red-500">❌</span>
+              <Icon name="error" size={20} color="#ef4444" inline />
               <span className="text-red-700 text-sm">{error}</span>
             </div>
           </div>
@@ -440,7 +442,6 @@ export default function VideoUnderstandingPanel({
             <div className="p-3 border-b border-gray-200 bg-gray-50">
               <div className="flex items-center justify-between">
                 <h4 className="font-medium text-gray-800 flex items-center">
-                  <span className="mr-2">📄</span>
                   {t('vu.result_title')}
                 </h4>
                 <div className="flex items-center space-x-2">
@@ -452,7 +453,7 @@ export default function VideoUnderstandingPanel({
                         : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'
                     }`}
                   >
-                    📖 {t('vu.view_rendered')}
+                    {t('vu.view_rendered')}
                   </button>
                   <button
                     onClick={() => setShowMarkdown(false)}
@@ -462,7 +463,7 @@ export default function VideoUnderstandingPanel({
                         : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'
                     }`}
                   >
-                    📝 {t('vu.view_source')}
+                    {t('vu.view_source')}
                   </button>
                 </div>
               </div>
@@ -555,7 +556,7 @@ export default function VideoUnderstandingPanel({
         {/* 空状态提示 */}
         {!isProcessing && !result && !integratedResult && !error && isReady && (
           <div className="text-center text-gray-500 py-8">
-            <div className="text-4xl mb-2">🎬</div>
+            <Icon name="video" size={48} className="mb-2 mx-auto" />
             <p>{t('vu.empty_ready_title')}</p>
             <p className="text-sm mt-1">{t('vu.empty_ready_desc')}</p>
             

@@ -3,6 +3,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { VideoPlayerProps } from '@/types/sop';
 import { useI18n } from '@/i18n';
+import Icon from './Icon';
 
 const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
   videoUrl,
@@ -147,7 +148,7 @@ const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
                 onClick={togglePlayPause}
                 className="flex items-center justify-center w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-colors"
               >
-                {isPlaying ? '⏸️' : '▶️'}
+                <Icon name={isPlaying ? 'pause' : 'play'} size={24} className="text-white" />
               </button>
               
               <div className="flex-1 text-sm text-gray-600">
@@ -213,7 +214,7 @@ const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
 
       {!videoUrl && (
         <div className="text-center py-8 text-gray-500">
-          <div className="text-4xl mb-2">📹</div>
+          <Icon name="camera" size={48} className="mb-2 mx-auto" />
           <div>请先上传视频文件</div>
         </div>
       )}

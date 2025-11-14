@@ -7,6 +7,7 @@ import { API_ENDPOINTS } from '@/config/api';
 import { SOPBlock } from '@/types/sop';
 import { useStatusI18n } from '@/utils/statusMap';
 import { useI18n } from '@/i18n';
+import Icon, { IconName } from './Icon';
 
 export interface OperationRecord {
   id: string;
@@ -132,24 +133,24 @@ export default function OperationHistory({
     });
   };
 
-  const getOperationIcon = (type: OperationRecord['type']) => {
+  const getOperationIcon = (type: OperationRecord['type']): IconName => {
     switch (type) {
       case 'upload':
-        return '📁';
+        return 'upload';
       case 'speech_recognition':
-        return '🎤';
+        return 'microphone';
       case 'video_understanding':
-        return '🎬';
+        return 'video';
       case 'video_compression':
-        return '🗜️';
+        return 'compress';
       case 'sop_parse':
-        return '📋';
+        return 'clipboard';
       case 'sop_refine':
-        return '✨';
+        return 'sparkles';
       case 'file_removed':
-        return '🗑️';
+        return 'trash';
       default:
-        return '📝';
+        return 'edit';
     }
   };
 
@@ -166,16 +167,16 @@ export default function OperationHistory({
     }
   };
 
-  const getStatusIcon = (status: OperationRecord['status']) => {
+  const getStatusIcon = (status: OperationRecord['status']): IconName => {
     switch (status) {
       case 'success':
-        return '✅';
+        return 'success';
       case 'error':
-        return '❌';
+        return 'error';
       case 'processing':
-        return '⏳';
+        return 'waiting';
       default:
-        return '📝';
+        return 'edit';
     }
   };
 
@@ -219,7 +220,7 @@ export default function OperationHistory({
         {/* 通知设置 */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <span className="text-sm">🔔</span>
+            <Icon name="notifications" size={16} inline />
             <span className="text-xs text-gray-600">
               {notificationEnabled ? t('common.enabled') : t('common.notifications_not_enabled')}
             </span>
@@ -288,7 +289,7 @@ export default function OperationHistory({
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {records.length === 0 ? (
           <div className="text-center text-gray-500 mt-8">
-            <div className="text-4xl mb-2">📝</div>
+            <Icon name="edit" size={48} className="mb-2 mx-auto" />
             <p>{t('common.no_records')}</p>
             <p className="text-sm mt-1">{t('common.upload_to_show_records')}</p>
           </div>
@@ -301,7 +302,7 @@ export default function OperationHistory({
               {/* 操作头部 */}
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-2">
-                  <span className="text-lg">{getOperationIcon(record.type)}</span>
+                  <Icon name={getOperationIcon(record.type)} size={20} inline />
                   <span className="font-medium text-gray-800">
                     {record.type === 'upload' && t('types.upload')}
                     {record.type === 'speech_recognition' && t('types.speech_recognition')}
@@ -313,7 +314,7 @@ export default function OperationHistory({
                   </span>
                 </div>
                 <div className="flex items-center space-x-1">
-                  <span className="text-sm">{getStatusIcon(record.status)}</span>
+                  <Icon name={getStatusIcon(record.status)} size={16} inline />
                   <span className={`text-xs ${getStatusColor(record.status)}`}>
                     {record.status === 'success' && t('status_label.success')}
                     {record.status === 'error' && t('status_label.error')}

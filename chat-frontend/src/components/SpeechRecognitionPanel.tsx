@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useI18n } from '@/i18n';
 import { OperationRecord } from './OperationHistory';
+import Icon from './Icon';
 
 interface SpeechResult {
   sentence_id: number;
@@ -249,7 +250,7 @@ export default function SpeechRecognitionPanel({
     <div className="w-full max-w-7xl mx-auto bg-white rounded-lg shadow-sm border">
         <div className="p-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-            <span className="mr-2">🎤</span>
+            <Icon name="microphone" size={20} className="mr-2" inline />
             {t('speech.title')}
             <span className="ml-2 text-sm font-normal text-blue-600">(Paraformer-V2)</span>
           </h3>
@@ -260,7 +261,7 @@ export default function SpeechRecognitionPanel({
         {uploadResult ? (
           <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
             <div className="flex items-center space-x-2">
-              <span className="text-lg">✅</span>
+              <Icon name="success" size={20} inline />
               <span className="font-medium text-green-800">
                 {results.length > 0 ? t('speech.ready_done') : t('speech.ready_upload_done')}
               </span>
@@ -269,7 +270,7 @@ export default function SpeechRecognitionPanel({
         ) : (
           <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
             <div className="flex items-center space-x-2">
-              <span className="text-lg">⏳</span>
+              <Icon name="waiting" size={20} inline />
               <span className="text-yellow-700">{t('speech.need_upload')}</span>
             </div>
           </div>
@@ -312,17 +313,17 @@ export default function SpeechRecognitionPanel({
               </div>
             ) : autoError ? (
               <div className="flex items-center justify-center space-x-2">
-                <span>🔄</span>
+                <Icon name="loading" size={18} inline />
                 <span>{t('speech.retry')}</span>
               </div>
             ) : uploadResult ? (
               <div className="flex items-center justify-center space-x-2">
-                <span>🎤</span>
+                <Icon name="microphone" size={18} inline />
                 <span>{t('speech.start')}</span>
               </div>
             ) : (
               <div className="flex items-center justify-center space-x-2">
-                <span>🎤</span>
+                <Icon name="microphone" size={18} inline />
                 <span>{t('speech.need_upload_short')}</span>
               </div>
             )}
@@ -333,7 +334,7 @@ export default function SpeechRecognitionPanel({
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
             <div className="flex items-center space-x-2">
-              <span className="text-red-500">❌</span>
+              <Icon name="error" size={20} color="#ef4444" inline />
               <span className="text-red-700 text-sm">{error}</span>
             </div>
           </div>
@@ -343,7 +344,7 @@ export default function SpeechRecognitionPanel({
         {autoError && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
             <div className="flex items-center space-x-2">
-              <span className="text-red-500">❌</span>
+              <Icon name="error" size={20} color="#ef4444" inline />
               <div className="text-red-700 text-sm">
                 <p>{t('speech.auto_failed')}: {autoError}</p>
                 <p className="text-red-500 text-xs mt-1">{t('speech.manual_retry')}</p>
@@ -357,7 +358,6 @@ export default function SpeechRecognitionPanel({
           <div className="border border-gray-200 rounded-lg">
             <div className="p-3 border-b border-gray-200 bg-gray-50">
               <h4 className="font-medium text-gray-800 flex items-center">
-                <span className="mr-2">📄</span>
                 {t('speech.result_title', { count: results.length })}
               </h4>
             </div>
@@ -374,8 +374,9 @@ export default function SpeechRecognitionPanel({
                       {t('speech.sentence_index', { index: index + 1 })}
                     </span>
                       {result.isEdited && (
-                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
-                          ✏️ 已编辑
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full flex items-center gap-1">
+                          <Icon name="pencil" size={14} inline />
+                          已编辑
                         </span>
                       )}
                     </div>
@@ -464,7 +465,7 @@ export default function SpeechRecognitionPanel({
         {/* 空状态提示 */}
         {!isProcessing && results.length === 0 && !error && uploadResult && (
           <div className="text-center text-gray-500 py-8">
-            <div className="text-4xl mb-2">🎤</div>
+            <Icon name="microphone" size={48} className="mb-2 mx-auto" />
             <p>点击上方&ldquo;开始语音识别&rdquo;按钮</p>
             <p className="text-sm mt-1">系统将自动处理视频中的音频并显示识别结果</p>
           </div>

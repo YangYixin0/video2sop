@@ -6,6 +6,7 @@ import { SOPBlock } from '@/types/sop';
 import SOPBlockItem from './SOPBlockItem';
 import SOPVideoPlayer from './SOPVideoPlayer';
 import SOPExporter from './SOPExporter';
+import Icon from './Icon';
 import {
   DndContext,
   closestCenter,
@@ -348,7 +349,10 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
   return (
     <div className="w-full max-w-7xl mx-auto">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">📝 {t('sop.editor_title')}</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <Icon name="edit" size={24} inline />
+          {t('sop.editor_title')}
+        </h2>
         
         {/* 解析按钮 */}
         {manuscript && (
@@ -376,7 +380,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
             onClick={() => setIsVideoPlayerCollapsed(!isVideoPlayerCollapsed)}
           >
             <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-              <span className="mr-2">🎬</span>
+              <Icon name="video" size={20} className="mr-2" inline />
               {t('sop.video_player')}
             </h3>
             <div className="flex items-center">
@@ -412,7 +416,10 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
         {/* 上方：用户编辑区 */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-800">📝 {t('sop.edit_area')}</h3>
+            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+              <Icon name="edit" size={20} inline />
+              {t('sop.edit_area')}
+            </h3>
             <div className="flex space-x-2">
               <button
                 onClick={() => handleAddBlock('step')}
@@ -462,7 +469,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
             
             {blocksA.length === 0 && (
               <div className="text-center py-8 text-gray-500">
-                <div className="text-4xl mb-2">📝</div>
+                <Icon name="edit" size={48} className="mb-2 mx-auto" />
                     <div>{t('sop.no_blocks')}</div>
               </div>
             )}
@@ -474,7 +481,10 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
         {/* 下方：AI精修区 */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-800">🤖 {t('sop.refine_area')}</h3>
+            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+              <Icon name="sparkles" size={20} inline />
+              {t('sop.refine_area')}
+            </h3>
             {blocksB.length > 0 && (
               <div className="flex items-center space-x-3">
                 <span className="text-sm text-gray-600">
@@ -537,7 +547,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
             
             {blocksB.length === 0 && (
               <div className="text-center py-8 text-gray-500">
-                <div className="text-4xl mb-2">🤖</div>
+                <Icon name="sparkles" size={48} className="mb-2 mx-auto" />
                 <div>{t('sop.refine_empty')}</div>
               </div>
             )}

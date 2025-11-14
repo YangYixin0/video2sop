@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { SOPBlock, BLOCK_TYPE_CONFIGS } from '@/types/sop';
 import { useI18n } from '@/i18n';
+import Icon from './Icon';
 
 interface SOPBlockItemProps {
   block: SOPBlock;
@@ -197,7 +198,7 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
         {/* 左侧：类型图标和内容预览 */}
         <div className="flex-1 min-w-0 mr-3">
           <div className="flex items-center space-x-2 mb-1">
-            <span className="text-sm">{typeConfig.icon}</span>
+            <Icon name={typeConfig.icon} size={16} inline />
             <span className="text-xs font-medium text-gray-700">{typeLabel}</span>
             <span className="text-xs text-gray-400">#{block.id.slice(-6)}</span>
           </div>
@@ -249,7 +250,7 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
                 }
                 onPointerDown={(e) => e.stopPropagation()}
               >
-                <span className="text-sm">▶️</span>
+                <Icon name="play" size={16} inline />
               </button>
             )}
             
@@ -260,7 +261,7 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
               title={isEditing ? t('common.done_editing') : t('common.edit_block')}
               onPointerDown={(e) => e.stopPropagation()}
             >
-              <span className="text-sm">{isEditing ? '✓' : '✏️'}</span>
+              <Icon name={isEditing ? 'check' : 'pencil'} size={16} inline />
             </button>
             
             {/* 删除按钮 */}
@@ -270,7 +271,7 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
               title={t('common.delete_block')}
               onPointerDown={(e) => e.stopPropagation()}
             >
-              <span className="text-sm">🗑️</span>
+              <Icon name="trash" size={16} inline />
             </button>
           </div>
         </div>

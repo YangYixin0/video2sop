@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Video2SOP：将仪器教学视频转化为SOP",
-  description: "基于 Qwen3-plus 模型的智能对话助手，使用 LangGraph 构建，支持实时流式对话和视频处理",
+  description: "将仪器教学视频转化为标准操作流程文档（SOP）。该文档中的操作步骤会分别关联相应视频片段，可一键跳转播放。",
 };
 
 export default function RootLayout({

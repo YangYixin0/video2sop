@@ -3,6 +3,7 @@
 import React from 'react';
 import Modal from './Modal';
 import { useI18n } from '@/i18n';
+import Icon from './Icon';
 
 interface SubscribeModalProps {
   isOpen: boolean;
@@ -36,7 +37,10 @@ export default function SubscribeModal({ isOpen, onClose }: SubscribeModalProps)
 
         <div className="space-y-3">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 className="font-medium text-blue-900 mb-2">📧 {t('subscribe.email_subscribe')}</h4>
+            <h4 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
+              <Icon name="mail" size={20} inline />
+              {t('subscribe.email_subscribe')}
+            </h4>
             <p className="text-sm text-blue-800 mb-3">
               {t('subscribe.email_hint')}
             </p>
@@ -52,7 +56,10 @@ export default function SubscribeModal({ isOpen, onClose }: SubscribeModalProps)
           </div>
 
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <h4 className="font-medium text-gray-900 mb-2">🐙 {t('subscribe.github_repo')}</h4>
+            <h4 className="font-medium text-gray-900 mb-2 flex items-center gap-2">
+              <Icon name="code" size={20} inline />
+              {t('subscribe.github_repo')}
+            </h4>
             <p className="text-sm text-gray-700 mb-3">
               {t('subscribe.github_hint')}
             </p>
