@@ -66,10 +66,10 @@ export const en: TranslationDict = {
   status: {
     upload_start: 'Start uploading compressed video',
     upload_done: 'Compressed video uploaded',
-    understanding_start: 'Start video understanding',
+    understanding_start: 'Start video understanding (~1 minute)',
     understanding_done: 'Video understanding completed',
     long_understanding_done: 'Long video understanding completed',
-    parse_start: 'Start SOP parsing',
+    parse_start: 'Start SOP parsing (~3 minutes)',
     parse_done: 'SOP parsing completed',
     refine_done: 'SOP refinement completed',
     compressed_skipped: 'Compressed video detected, skipping compression',

@@ -66,10 +66,10 @@ export const zh: TranslationDict = {
   status: {
     upload_start: '开始上传压缩视频',
     upload_done: '压缩视频上传完成',
-    understanding_start: '开始视频理解',
+    understanding_start: '开始视频理解（约1分钟）',
     understanding_done: '视频理解完成',
     long_understanding_done: '长视频理解完成',
-    parse_start: '开始SOP拆解',
+    parse_start: '开始SOP拆解（约3分钟）',
     parse_done: 'SOP解析完成',
     refine_done: 'SOP精修完成',
     compressed_skipped: '检测到已压缩视频，跳过压缩',

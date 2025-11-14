@@ -4,7 +4,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useI18n } from '@/i18n';
 import { SOPBlock } from '@/types/sop';
 import SOPBlockItem from './SOPBlockItem';
-import SOPVideoPlayer from './SOPVideoPlayer';
+import FloatingVideoPlayer from './FloatingVideoPlayer';
 import SOPExporter from './SOPExporter';
 import Icon from './Icon';
 import {
@@ -29,65 +29,45 @@ interface SOPEditorProps {
   onParseSOP?: (manuscript: string) => Promise<{ blocks: SOPBlock[] }>;
   onRefineSOP?: (blocks: SOPBlock[], userNotes: string) => Promise<{ blocks: SOPBlock[] }>;
   onBlocksChange?: (blocks: SOPBlock[]) => void;
+  onRefinementApplied?: () => void;
   initialBlocks?: SOPBlock[];
 }
 
-const SOPEditor: React.FC<SOPEditorProps> = ({
-  manuscript = '',
-  videoUrl,
-  onParseSOP,
-  onRefineSOP,
-  onBlocksChange,
-  initialBlocks = []
-}) => {
-  const { t } = useI18n();
-  const videoContainerRef = useRef<HTMLDivElement>(null);
-  // 状态管理
-  const [blocksA, setBlocksA] = useState<SOPBlock[]>(initialBlocks);
-  const [blocksB, setBlocksB] = useState<SOPBlock[]>([]);
-  const [editingBlocks, setEditingBlocks] = useState<Set<string>>(new Set());
-  const [selectedBlocks, setSelectedBlocks] = useState<Set<string>>(new Set());
-  const [userNotes, setUserNotes] = useState('');
-  const [isRefining, setIsRefining] = useState(false);
-  const [currentVideoTime, setCurrentVideoTime] = useState<{ start?: number; end?: number }>({});
-  const [isParsing, setIsParsing] = useState(false);
-  const [isVideoPlayerCollapsed, setIsVideoPlayerCollapsed] = useState(true); // 默认折叠
+interface SortableBlockItemProps {
+  block: SOPBlock;
+  index: number;
+  videoUrl?: string;
+  isEditing: boolean;
+  isSelected: boolean;
+  onBlockEdit: (blockId: string, field: keyof SOPBlock, value: string | number | boolean) => void;
+  onDeleteBlock: (blockId: string) => void;
+  onPlay: (startTime: number, endTime?: number) => void;
+  onSelectBlock: (blockId: string, selected: boolean) => void;
+  onToggleEdit: (blockId: string) => void;
+}
 
-  // 拖拽传感器配置
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
-  );
-
-  // 可排序区块组件
-  const SortableBlockItem: React.FC<{
-    block: SOPBlock;
-    index: number;
-    videoUrl?: string;
-    editingBlocks: Set<string>;
-    selectedBlocks: Set<string>;
-    onBlockEdit: (blockId: string, field: keyof SOPBlock, value: string | number | boolean) => void;
-    onDeleteBlock: (blockId: string) => void;
-    onPlay: (startTime: number, endTime?: number) => void;
-    onSelectBlock: (blockId: string, selected: boolean) => void;
-    onToggleEdit: (blockId: string) => void;
-  }> = ({ block, index, videoUrl, editingBlocks, selectedBlocks, onBlockEdit, onDeleteBlock, onPlay, onSelectBlock, onToggleEdit }) => {
-    const {
-      attributes,
-      listeners,
-      setNodeRef,
-      transform,
-      transition,
-      isDragging,
-    } = useSortable({ id: block.id });
+const SortableBlockItem = React.memo(
+  ({
+    block,
+    index,
+    videoUrl,
+    isEditing,
+    isSelected,
+    onBlockEdit,
+    onDeleteBlock,
+    onPlay,
+    onSelectBlock,
+    onToggleEdit,
+  }: SortableBlockItemProps) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id });
 
     const style = {
       transform: CSS.Transform.toString(transform),
       transition,
     };
+
+    // 每次都重新生成 dragHandleProps（参考 dnd-kit 官方实现），比较函数会忽略它
+    const dragHandleProps = { ...attributes, ...listeners };
 
     return (
       <div ref={setNodeRef} style={style} className="relative">
@@ -97,21 +77,77 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
         <div className="ml-6">
           <SOPBlockItem
             block={block}
-            isEditing={editingBlocks.has(block.id)}
-            isSelected={selectedBlocks.has(block.id)}
+            isEditing={isEditing}
+            isSelected={isSelected}
             videoUrl={videoUrl}
             onEdit={onBlockEdit}
             onDelete={onDeleteBlock}
             onPlay={onPlay}
             onSelect={onSelectBlock}
             onToggleEdit={onToggleEdit}
-            dragHandleProps={{ ...attributes, ...listeners }}
+            dragHandleProps={dragHandleProps}
             isDragging={isDragging}
           />
         </div>
       </div>
     );
-  };
+  },
+  (prevProps, nextProps) => {
+    // React.memo 比较函数：返回 true 表示 props 相等（不重新渲染）
+    if (prevProps.block === nextProps.block) {
+      return (
+        prevProps.index === nextProps.index &&
+        prevProps.isEditing === nextProps.isEditing &&
+        prevProps.isSelected === nextProps.isSelected &&
+        prevProps.videoUrl === nextProps.videoUrl
+      );
+    }
+
+    return (
+      prevProps.index === nextProps.index &&
+      prevProps.block.id === nextProps.block.id &&
+      prevProps.block.content === nextProps.block.content &&
+      prevProps.block.start_time === nextProps.block.start_time &&
+      prevProps.block.end_time === nextProps.block.end_time &&
+      prevProps.block.show_play_button === nextProps.block.show_play_button &&
+      prevProps.block.type === nextProps.block.type &&
+      prevProps.isEditing === nextProps.isEditing &&
+      prevProps.isSelected === nextProps.isSelected &&
+      prevProps.videoUrl === nextProps.videoUrl
+    );
+  }
+);
+
+const SOPEditor: React.FC<SOPEditorProps> = ({
+  manuscript = '',
+  videoUrl,
+  onParseSOP,
+  onRefineSOP,
+  onBlocksChange,
+  onRefinementApplied,
+  initialBlocks = []
+}) => {
+  const { t } = useI18n();
+  // 状态管理
+  const [blocksA, setBlocksA] = useState<SOPBlock[]>(initialBlocks);
+  const [blocksB, setBlocksB] = useState<SOPBlock[]>([]);
+  const [editingBlocks, setEditingBlocks] = useState<Set<string>>(new Set());
+  const [selectedBlocks, setSelectedBlocks] = useState<Set<string>>(new Set());
+  const [userNotes, setUserNotes] = useState('');
+  const [isRefining, setIsRefining] = useState(false);
+  const [currentVideoTime, setCurrentVideoTime] = useState<{ start?: number; end?: number }>({});
+  const playCounterRef = useRef(0);
+  const [isParsing, setIsParsing] = useState(false);
+  const [isVideoPlayerVisible, setIsVideoPlayerVisible] = useState(false);
+
+  // 拖拽传感器配置
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
 
   // 拖拽结束处理
   const handleDragEnd = useCallback((event: DragEndEvent) => {
@@ -178,6 +214,8 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
     setBlocksA(blocksB);
     setBlocksB([]);
     setUserNotes('');
+    // 通知父组件精修结果已被应用，需要清空精修区
+    onRefinementApplied?.();
   };
 
   // 区块编辑处理 - 使用更高效的状态更新
@@ -227,23 +265,19 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
   }, []);
 
   // 播放视频片段
+  // 使用一个计数器来确保每次点击都能触发自动播放模式
   const handlePlay = useCallback((startTime: number, endTime?: number) => {
-    setCurrentVideoTime({ start: startTime, end: endTime });
-    // 自动展开视频播放器
-    setIsVideoPlayerCollapsed(false);
-    // 平滑滚动到视频区域
+    // 增加计数器，确保即使时间值相同也能触发重新渲染
+    playCounterRef.current += 1;
+    // 即使时间值相同，也更新状态以触发重新渲染
+    // 通过先清空再设置来强制触发useEffect
+    setCurrentVideoTime({ start: undefined, end: undefined });
+    // 使用requestAnimationFrame确保状态更新顺序
     requestAnimationFrame(() => {
-      const el = videoContainerRef.current;
-      if (el) {
-        try {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        } catch (_) {
-          // 兼容不支持smooth的环境
-          const rect = el.getBoundingClientRect();
-          window.scrollTo(0, window.scrollY + rect.top - 80);
-        }
-      }
+      setCurrentVideoTime({ start: startTime, end: endTime });
     });
+    // 显示视频播放器
+    setIsVideoPlayerVisible(true);
   }, []);
 
   // 选择区块
@@ -347,7 +381,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
   }, [selectedBlocks, blocksA, generateId]);
 
   return (
-    <div className="w-full max-w-7xl mx-auto">
+    <div className="w-full max-w-7xl mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
           <Icon name="edit" size={24} inline />
@@ -363,7 +397,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
             <button
               onClick={handleParseSOP}
               disabled={isParsing}
-              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-lg transition-colors"
+              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
             >
               {isParsing ? t('sop.parsing') : t('sop.parse_action')}
             </button>
@@ -371,45 +405,15 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
         )}
       </div>
 
-      {/* 视频播放器 - 可折叠 */}
-      <div className="mb-6" ref={videoContainerRef}>
-        <div className="bg-white rounded-lg shadow-sm border">
-          {/* 可折叠标题栏 */}
-          <div 
-            className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors border-b border-gray-200"
-            onClick={() => setIsVideoPlayerCollapsed(!isVideoPlayerCollapsed)}
-          >
-            <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-              <Icon name="video" size={20} className="mr-2" inline />
-              {t('sop.video_player')}
-            </h3>
-            <div className="flex items-center">
-              <span className="text-sm text-gray-500 mr-2">
-                {isVideoPlayerCollapsed ? t('sop.expand') : t('sop.collapse')}
-              </span>
-              <svg 
-                className={`w-5 h-5 text-gray-500 transition-transform ${isVideoPlayerCollapsed ? 'rotate-90' : ''}`}
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
-          
-          {/* 视频播放器内容 */}
-          {!isVideoPlayerCollapsed && (
-            <div className="p-4">
-              <SOPVideoPlayer
-                videoUrl={videoUrl || ''}
-                currentStartTime={currentVideoTime.start}
-                currentEndTime={currentVideoTime.end}
-              />
-            </div>
-          )}
-        </div>
-      </div>
+      {/* 悬浮视频播放器 */}
+      {videoUrl && isVideoPlayerVisible && (
+        <FloatingVideoPlayer
+          videoUrl={videoUrl}
+          currentStartTime={currentVideoTime.start}
+          currentEndTime={currentVideoTime.end}
+          onClose={() => setIsVideoPlayerVisible(false)}
+        />
+      )}
 
       {/* 上下布局编辑器 */}
       <div className="space-y-6 mb-6">
@@ -430,14 +434,14 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
               <button
                 onClick={handleMergeBlocks}
                 disabled={selectedBlocks.size < 2}
-                className="px-3 py-1 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded transition-colors disabled:bg-gray-100 disabled:text-gray-400"
+                className="px-3 py-1 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded transition-colors disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
               >
                 {t('sop.merge_selected')}
               </button>
               <button
                 onClick={handleSplitBlock}
                 disabled={selectedBlocks.size !== 1}
-                className="px-3 py-1 text-sm bg-orange-100 hover:bg-orange-200 text-orange-700 rounded transition-colors disabled:bg-gray-100 disabled:text-gray-400"
+                className="px-3 py-1 text-sm bg-orange-100 hover:bg-orange-200 text-orange-700 rounded transition-colors disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
               >
                 {t('sop.split_selected')}
               </button>
@@ -451,21 +455,26 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
           >
             <SortableContext items={blocksA.map(block => block.id)} strategy={verticalListSortingStrategy}>
               <div className="space-y-3 max-h-[40rem] overflow-y-auto">
-            {blocksA.map((block, index) => (
-                  <SortableBlockItem
-                    key={block.id}
-                    block={block}
-                    index={index}
-                    videoUrl={videoUrl}
-                    editingBlocks={editingBlocks}
-                    selectedBlocks={selectedBlocks}
-                    onBlockEdit={handleBlockEdit}
-                    onDeleteBlock={handleDeleteBlock}
-                    onPlay={handlePlay}
-                    onSelectBlock={handleSelectBlock}
-                    onToggleEdit={handleToggleEdit}
-                  />
-            ))}
+            {blocksA.map((block, index) => {
+                  // 预先计算isEditing和isSelected，避免在SortableBlockItem内部计算
+                  const isEditing = editingBlocks.has(block.id);
+                  const isSelected = selectedBlocks.has(block.id);
+                  return (
+                    <SortableBlockItem
+                      key={block.id}
+                      block={block}
+                      index={index}
+                      videoUrl={videoUrl}
+                      isEditing={isEditing}
+                      isSelected={isSelected}
+                      onBlockEdit={handleBlockEdit}
+                      onDeleteBlock={handleDeleteBlock}
+                      onPlay={handlePlay}
+                      onSelectBlock={handleSelectBlock}
+                      onToggleEdit={handleToggleEdit}
+                    />
+                  );
+                })}
             
             {blocksA.length === 0 && (
               <div className="text-center py-8 text-gray-500">
@@ -492,7 +501,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
                 </span>
                 <button
                   onClick={handleApplyRefinement}
-                  className="px-3 py-1 text-sm bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
+                  className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors"
                 >
                   {t('sop.replace')}
                 </button>
@@ -519,7 +528,7 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
               <button
                 onClick={handleRefine}
                 disabled={isRefining || blocksA.length === 0}
-                className="px-4 py-2 bg-purple-500 hover:bg-purple-600 disabled:bg-gray-300 text-white rounded-lg transition-colors text-sm"
+                className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
               >
                 {isRefining ? t('sop.refining') : t('sop.refine_action')}
               </button>
@@ -555,15 +564,6 @@ const SOPEditor: React.FC<SOPEditorProps> = ({
         </div>
       </div>
 
-      {/* 导出组件 */}
-      <div className="mb-6">
-        <SOPExporter
-          blocksA={blocksA}
-          blocksB={blocksB}
-          videoUrl={videoUrl}
-          fileName="sop_document"
-        />
-      </div>
     </div>
   );
 };

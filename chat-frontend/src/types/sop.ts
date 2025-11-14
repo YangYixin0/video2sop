@@ -84,6 +84,7 @@ export interface VideoPlayerProps {
   currentStartTime?: number;
   currentEndTime?: number;
   onTimeUpdate?: (currentTime: number) => void;
+  onAspectRatioChange?: (aspectRatio: number) => void;
 }
 
 // 区块编辑相关类型

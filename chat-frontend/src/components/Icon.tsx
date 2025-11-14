@@ -33,7 +33,8 @@ export type IconName =
   | 'videoFile'      // 📹
   | 'mail'           // 📧
   | 'code'           // 🐙 (GitHub)
-  | 'shield';        // 🛡️
+  | 'shield'         // 🛡️
+  | 'close';         // ✕
 
 interface IconProps {
   name: IconName;
@@ -71,6 +72,7 @@ const iconMap: Record<IconName, string> = {
   mail: 'material-symbols:mail',
   code: 'material-symbols:code',
   shield: 'material-symbols:shield-lock',
+  close: 'material-symbols:close',
 };
 
 export default function Icon({ 

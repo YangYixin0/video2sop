@@ -1,5 +1,5 @@
 import { OperationRecord } from '@/components/OperationHistory';
-import { SOPBlock } from '@/types/sop';
+import { SOPBlock, BLOCK_TYPE_CONFIGS } from '@/types/sop';
 import { getIconImgTag, IconName } from '@/components/Icon';
 
 // 定义操作数据的类型
@@ -70,6 +70,32 @@ function getLocale(): 'zh' | 'en' {
     }
   } catch {}
   return 'zh';
+}
+
+// 获取区块样式（浅色背景和深色左边框）
+function getBlockStyles(blockType: SOPBlock['type']): { bgColor: string; borderColor: string } {
+  const config = BLOCK_TYPE_CONFIGS[blockType] || BLOCK_TYPE_CONFIGS.unknown;
+  // 从 Tailwind 类名中提取颜色
+  // bg-blue-100 -> 浅蓝色背景
+  // 使用更深的颜色作为左边框（-500 或 -600）
+  const colorMap: Record<string, { bg: string; border: string }> = {
+    'blue': { bg: '#dbeafe', border: '#3b82f6' },      // bg-blue-100, border-blue-500
+    'green': { bg: '#dcfce7', border: '#22c55e' },    // bg-green-100, border-green-500
+    'yellow': { bg: '#fef9c3', border: '#eab308' },    // bg-yellow-100, border-yellow-500
+    'purple': { bg: '#f3e8ff', border: '#a855f7' },   // bg-purple-100, border-purple-500
+    'orange': { bg: '#ffedd5', border: '#f97316' },   // bg-orange-100, border-orange-500
+    'gray': { bg: '#f3f4f6', border: '#6b7280' }       // bg-gray-100, border-gray-500
+  };
+  
+  // 从配置中提取颜色名称
+  const bgClass = config.color.split(' ')[0]; // bg-blue-100
+  const bgColorName = bgClass.split('-')[1]; // blue
+  
+  const colors = colorMap[bgColorName] || colorMap.gray;
+  return {
+    bgColor: colors.bg,
+    borderColor: colors.border
+  };
 }
 
 const tr = {
@@ -222,9 +248,11 @@ export function generateSessionReport(options: SessionReportOptions): string {
           </div>
         </div>
       ` : ''}
-      <div class="space-y-3">
-        ${sopBlocks.map((block, index) => `
-          <div class="bg-gray-50 rounded p-3">
+      <div>
+        ${sopBlocks.map((block, index) => {
+          const styles = getBlockStyles(block.type);
+          return `
+          <div style="background-color: ${styles.bgColor}; border-left: 4px solid ${styles.borderColor}; padding: 12px;">
             <div class="flex items-center space-x-2 mb-2">
               <span class="text-sm font-medium text-gray-700">${tr[locale].block} ${index + 1}</span>
               <span class="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">${block.type || 'unknown'}</span>
@@ -234,7 +262,8 @@ export function generateSessionReport(options: SessionReportOptions): string {
               <div class="text-xs text-gray-500 mt-1">${tr[locale].time}: ${block.start_time}${tr[locale].seconds} - ${block.end_time}${tr[locale].seconds}</div>
             ` : ''}
           </div>
-        `).join('')}
+        `;
+        }).join('')}
       </div>
     </div>
   ` : '';
@@ -251,9 +280,11 @@ export function generateSessionReport(options: SessionReportOptions): string {
           </div>
         </div>
       ` : ''}
-      <div class="space-y-3">
-        ${refinedSopBlocks.map((block, index) => `
-          <div class="bg-gray-50 rounded p-3">
+      <div>
+        ${refinedSopBlocks.map((block, index) => {
+          const styles = getBlockStyles(block.type);
+          return `
+          <div style="background-color: ${styles.bgColor}; border-left: 4px solid ${styles.borderColor}; padding: 12px;">
             <div class="flex items-center space-x-2 mb-2">
               <span class="text-sm font-medium text-gray-700">${tr[locale].block} ${index + 1}</span>
               <span class="text-xs px-2 py-1 bg-green-100 text-green-800 rounded">${block.type || 'unknown'}</span>
@@ -263,7 +294,8 @@ export function generateSessionReport(options: SessionReportOptions): string {
               <div class="text-xs text-gray-500 mt-1">${tr[locale].time}: ${block.start_time}${tr[locale].seconds} - ${block.end_time}${tr[locale].seconds}</div>
             ` : ''}
           </div>
-        `).join('')}
+        `;
+        }).join('')}
       </div>
     </div>
   ` : '';

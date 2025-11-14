@@ -247,16 +247,13 @@ export default function SpeechRecognitionPanel({
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto bg-white rounded-lg shadow-sm border">
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-            <Icon name="microphone" size={20} className="mr-2" inline />
+    <div className="w-full max-w-7xl mx-auto bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="p-4">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <Icon name="microphone" size={24} inline />
             {t('speech.title')}
             <span className="ml-2 text-sm font-normal text-blue-600">(Paraformer-V2)</span>
-          </h3>
-        </div>
-
-      <div className="p-4">
+          </h2>
         {/* 当前视频信息 */}
         {uploadResult ? (
           <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
@@ -288,7 +285,7 @@ export default function SpeechRecognitionPanel({
               setVocabularyInitialized(true); // 标记为已手动修改
             }}
             placeholder={t('speech.vocabulary_placeholder')}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-400 focus:border-transparent"
             rows={4}
           />
         </div>
@@ -298,12 +295,12 @@ export default function SpeechRecognitionPanel({
           <button
             onClick={handleSpeechRecognition}
             disabled={!uploadResult || (isProcessing && !autoError)}
-            className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
+            className={`w-full px-4 py-2 rounded-lg transition-colors ${
               !uploadResult || (isProcessing && !autoError)
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : autoError
-                ? 'bg-yellow-500 text-white hover:bg-yellow-600'
-                : 'bg-green-500 text-white hover:bg-green-600'
+                ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                : 'bg-green-500 hover:bg-green-600 text-white'
             }`}
           >
             {isProcessing ? (
@@ -366,9 +363,9 @@ export default function SpeechRecognitionPanel({
               {results.map((result, index) => (
                 <div 
                   key={result.sentence_id || index}
-                  className="p-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
+                  className="p-2 border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
                 >
-                  <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-start justify-between mb-1">
                     <div className="flex items-center space-x-2">
                     <span className="text-xs text-gray-500 font-mono">
                       {t('speech.sentence_index', { index: index + 1 })}
@@ -449,7 +446,7 @@ export default function SpeechRecognitionPanel({
                     </div>
                   ) : (
                     <p 
-                      className="text-sm text-gray-800 leading-relaxed cursor-pointer hover:bg-blue-50 p-2 rounded transition-colors"
+                      className="text-sm text-gray-800 leading-normal cursor-pointer hover:bg-blue-50 p-1 rounded transition-colors"
                       onClick={() => handleStartEdit(index)}
                       title="点击编辑文本和时间"
                     >
@@ -462,14 +459,6 @@ export default function SpeechRecognitionPanel({
           </div>
         )}
 
-        {/* 空状态提示 */}
-        {!isProcessing && results.length === 0 && !error && uploadResult && (
-          <div className="text-center text-gray-500 py-8">
-            <Icon name="microphone" size={48} className="mb-2 mx-auto" />
-            <p>点击上方&ldquo;开始语音识别&rdquo;按钮</p>
-            <p className="text-sm mt-1">系统将自动处理视频中的音频并显示识别结果</p>
-          </div>
-        )}
       </div>
     </div>
   );

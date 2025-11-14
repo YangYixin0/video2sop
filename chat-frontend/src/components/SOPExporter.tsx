@@ -127,18 +127,37 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
             background: #f8f9fa;
             border-radius: 0 0 8px 8px;
         }
+        /* 区块样式：少量间隔、无圆角/边框，浅色背景 + 深色左边缘 */
         .block {
-            margin-bottom: 30px;
-            padding: 20px;
-            border-left: 4px solid #e0e0e0;
-            background: #fafafa;
-            border-radius: 0 8px 8px 0;
+            margin-bottom: 8px;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 0;
         }
-        .block.title { border-left-color: #3b82f6; background: #eff6ff; }
-        .block.abstract { border-left-color: #10b981; background: #f0fdf4; }
-        .block.keywords { border-left-color: #f59e0b; background: #fffbeb; }
-        .block.materials { border-left-color: #8b5cf6; background: #faf5ff; }
-        .block.step { border-left-color: #f97316; background: #fff7ed; }
+        .block.title {
+            background: #dbeafe;
+            border-left: 4px solid #3b82f6;
+        }
+        .block.abstract {
+            background: #dcfce7;
+            border-left: 4px solid #22c55e;
+        }
+        .block.keywords {
+            background: #fef9c3;
+            border-left: 4px solid #eab308;
+        }
+        .block.materials {
+            background: #f3e8ff;
+            border-left: 4px solid #a855f7;
+        }
+        .block.step {
+            background: #ffedd5;
+            border-left: 4px solid #f97316;
+        }
+        .block.unknown {
+            background: #f3f4f6;
+            border-left: 4px solid #6b7280;
+        }
         .block-header {
             display: flex;
             align-items: center;
@@ -155,7 +174,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
             color: white;
             border: none;
             padding: 8px 16px;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 0.9em;
             transition: background-color 0.2s;
@@ -165,29 +184,17 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
         }
         .play-button:disabled {
             background: #d1d5db;
+            color: #6b7280;
             cursor: not-allowed;
         }
         .block-content {
             white-space: pre-wrap;
             line-height: 1.7;
             color: #4b5563;
-            padding: 12px;
-            border: 2px solid transparent;
-            border-radius: 6px;
-            transition: all 0.2s ease;
+            padding: 0;
+            border: none;
+            border-radius: 0;
             outline: none;
-        }
-        .block-content:hover {
-            border-color: #e5e7eb;
-            background-color: #f9fafb;
-        }
-        .block-content:focus {
-            border-color: #3b82f6;
-            background-color: #f8faff;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-        .block-content:focus:hover {
-            background-color: #f8faff;
         }
         .time-info {
             margin-top: 10px;
@@ -233,26 +240,26 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
         <div style="display: flex; gap: 10px; align-items: center;">
             <button onclick="selectVideoFile()" style="
                 padding: 8px 16px; 
-                background: #007bff; 
+                background: #3b82f6; 
                 color: white; 
                 border: none; 
-                border-radius: 4px; 
+                border-radius: 8px; 
                 cursor: pointer; 
                 font-size: 0.9em;
                 transition: background-color 0.2s;
-            " onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background='#007bff'">
+            " onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
                 ${t('exporter_html.select_video')}
             </button>
             <button onclick="testVideoFile()" style="
                 padding: 8px 16px; 
-                background: #28a745; 
+                background: #10b981; 
                 color: white; 
                 border: none; 
-                border-radius: 4px; 
+                border-radius: 8px; 
                 cursor: pointer; 
                 font-size: 0.9em;
                 transition: background-color 0.2s;
-            " onmouseover="this.style.background='#1e7e34'" onmouseout="this.style.background='#28a745'">
+            " onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">
                 ${t('exporter_html.test_play')}
             </button>
             <span id="videoStatus" style="font-size: 0.85em; color: #6c757d;"></span>
@@ -592,16 +599,16 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
   const currentBlocks = getCurrentBlocks();
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border p-4">
+    <div className="w-full max-w-7xl mx-auto bg-white rounded-lg shadow-sm border border-gray-200 p-4">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-gray-800 mb-2 flex items-center gap-2">
-          <Icon name="download" size={20} inline />
+        <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <Icon name="download" size={24} inline />
           {t('exporter.title')}
-        </h3>
+        </h2>
         
         {/* 区块选择 */}
         <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <label className="block text-base font-semibold text-blue-800 mb-3 flex items-center">
+          <label className="block text-lg font-semibold text-blue-800 mb-3 flex items-center">
             <Icon name="target" size={20} className="mr-2" inline />
             {t('exporter.select_area')}
           </label>
@@ -673,19 +680,19 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
           <div className="flex items-start justify-between mb-2">
             <div className="flex items-start gap-4">
               <Icon name="description" size={96} />
-              <div>
+            <div>
                 <h4 className="font-medium text-gray-800 mb-1">
                   {t('exporter.txt_title')}
                 </h4>
-                <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600">
                   {t('exporter.txt_desc')} <a href="https://protocols.io" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-800">Protocols.io</a>
-                </p>
+              </p>
               </div>
             </div>
             <button
               onClick={() => handleExport('txt')}
               disabled={isExporting || currentBlocks.length === 0}
-              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white rounded-lg transition-colors"
+              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
             >
               {isExporting ? t('exporter.exporting') : t('exporter.export_txt')}
             </button>
@@ -697,22 +704,22 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
           <div className="flex items-start justify-between mb-2">
             <div className="flex items-start gap-4">
               <Icon name="videoFile" size={96} />
-              <div>
+            <div>
                 <h4 className="font-medium text-gray-800 mb-1">
                   {t('exporter.html_title')}
                 </h4>
-                <p className="text-sm text-gray-600 mb-1">
+              <p className="text-sm text-gray-600 mb-1">
                   {t('exporter.html_desc1')}
-                </p>
-                <p className="text-sm text-gray-600">
+              </p>
+              <p className="text-sm text-gray-600">
                   {t('exporter.html_desc2')}
-                </p>
+              </p>
               </div>
             </div>
             <button
               onClick={() => handleExport('html')}
               disabled={isExporting || currentBlocks.length === 0}
-              className="px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white rounded-lg transition-colors"
+              className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
             >
               {isExporting ? t('exporter.exporting') : t('exporter.export_html')}
             </button>

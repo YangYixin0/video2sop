@@ -21,7 +21,7 @@ interface SOPBlockItemProps {
   isDragging?: boolean;
 }
 
-const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
+const SOPBlockItem: React.FC<SOPBlockItemProps> = ({
   block,
   isEditing = false,
   isSelected = false,
@@ -182,7 +182,7 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
   return (
     <div
       className={`
-        relative border rounded-lg transition-all duration-200
+        relative border-2 rounded-lg p-2 transition-all duration-200
         ${typeConfig.color}
         ${isSelected ? 'ring-2 ring-blue-400' : ''}
         ${isEditing ? 'shadow-md' : 'hover:shadow-sm'}
@@ -192,7 +192,7 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
     >
       {/* 紧凑的头部 - 包含类型、内容预览和操作按钮 */}
       <div 
-        className="flex items-start justify-between p-3 border-b border-gray-100 cursor-grab active:cursor-grabbing"
+        className="flex items-start justify-between p-2 border-b border-gray-100 cursor-grab active:cursor-grabbing"
         {...dragHandleProps}
       >
         {/* 左侧：类型图标和内容预览 */}
@@ -202,89 +202,81 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
             <span className="text-xs font-medium text-gray-700">{typeLabel}</span>
             <span className="text-xs text-gray-400">#{block.id.slice(-6)}</span>
           </div>
-          {/* 内容预览 - 步骤类型显示更多行，其他类型显示2行 */}
-          <div 
-            className="text-sm text-gray-800"
-            style={{
-              display: '-webkit-box',
-              WebkitLineClamp: block.type === 'step' ? 6 : 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis'
-            }}
-          >
-            {block.content ? (
-              <span className="whitespace-pre-wrap">{block.content}</span>
-            ) : (
-              <span className="text-gray-400 italic">{t('sop.block_fields.no_content')}</span>
-            )}
-          </div>
+          {/* 内容预览 - 仅在非编辑模式下显示 */}
+          {!isEditing && (
+            <div 
+              className="text-sm text-gray-800"
+              style={{
+                display: '-webkit-box',
+                WebkitLineClamp: block.type === 'step' ? 6 : 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}
+            >
+              {block.content ? (
+                <span className="whitespace-pre-wrap">{block.content}</span>
+              ) : (
+                <span className="text-gray-400 italic">{t('sop.block_fields.no_content')}</span>
+              )}
+            </div>
+          )}
         </div>
         
-        {/* 右侧：时间和操作按钮 */}
-        <div className="flex flex-col items-end space-y-2">
-          {/* 时间信息 */}
-          <div className="flex items-center space-x-2 text-xs">
-            {block.start_time !== undefined && (
-              <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded">
-                {formatTime(block.start_time)}
-                {block.end_time && ` - ${formatTime(block.end_time)}`}
-              </span>
-            )}
-            {localShowPlayButton && (
-              <span className="px-2 py-1 bg-green-50 text-green-700 rounded">{t('sop.block_fields.playable')}</span>
-            )}
-          </div>
-          
-          {/* 操作按钮 */}
-          <div className="flex items-center space-x-1">
-            {/* 播放按钮 */}
-            {canPlay && (
-              <button
-                onClick={handlePlay}
-                className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
-                title={
-                  block.end_time && block.start_time !== undefined
-                    ? t('sop.tooltip.play_range', { start: formatTime(block.start_time), end: formatTime(block.end_time) })
-                    : t('sop.tooltip.play_at', { start: block.start_time !== undefined ? formatTime(block.start_time) : '' })
-                }
-                onPointerDown={(e) => e.stopPropagation()}
-              >
-                <Icon name="play" size={16} inline />
-              </button>
-            )}
-            
-            {/* 编辑按钮 */}
+        {/* 右侧：时间范围、可播放标记和操作按钮 - 同一行 */}
+        <div className="flex items-center space-x-2">
+          {/* 时间范围 - 仅在可播放时显示 */}
+          {canPlay && block.start_time !== undefined && (
+            <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs whitespace-nowrap">
+              {formatTime(block.start_time)}
+              {block.end_time && ` - ${formatTime(block.end_time)}`}
+            </span>
+          )}
+          {/* 可播放标记 */}
+          {localShowPlayButton && (
+            <span className="px-2 py-1 bg-green-50 text-green-700 rounded text-xs whitespace-nowrap">{t('sop.block_fields.playable')}</span>
+          )}
+          {/* 播放按钮 */}
+          {canPlay && (
             <button
-              onClick={handleToggleEdit}
-              className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-              title={isEditing ? t('common.done_editing') : t('common.edit_block')}
+              onClick={handlePlay}
+              className="p-1 text-green-600 hover:bg-green-50 rounded transition-colors"
+              title={
+                block.end_time && block.start_time !== undefined
+                  ? t('sop.tooltip.play_range', { start: formatTime(block.start_time), end: formatTime(block.end_time) })
+                  : t('sop.tooltip.play_at', { start: block.start_time !== undefined ? formatTime(block.start_time) : '' })
+              }
               onPointerDown={(e) => e.stopPropagation()}
             >
-              <Icon name={isEditing ? 'check' : 'pencil'} size={16} inline />
+              <Icon name="play" size={20} inline />
             </button>
-            
-            {/* 删除按钮 */}
-            <button
-              onClick={() => onDelete?.(block.id)}
-              className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-              title={t('common.delete_block')}
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              <Icon name="trash" size={16} inline />
-            </button>
-          </div>
+          )}
+          {/* 编辑按钮 */}
+          <button
+            onClick={handleToggleEdit}
+            className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+            title={isEditing ? t('common.done_editing') : t('common.edit_block')}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <Icon name={isEditing ? 'check' : 'pencil'} size={20} inline />
+          </button>
+          {/* 删除按钮 */}
+          <button
+            onClick={() => onDelete?.(block.id)}
+            className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+            title={t('common.delete_block')}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <Icon name="trash" size={20} inline />
+          </button>
         </div>
       </div>
 
       {/* 编辑区域 - 仅在编辑模式下显示 */}
       {isEditing && (
-        <div className="p-3 space-y-3">
+        <div className="p-2 space-y-2">
           {/* 文本内容编辑 */}
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">
-              {t('sop.block_fields.content')}
-            </label>
             <textarea
               ref={textareaRef}
               value={localContent}
@@ -295,44 +287,44 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
             />
           </div>
 
-          {/* 时间和设置 - 紧凑布局 */}
-          <div className="grid grid-cols-3 gap-3">
+          {/* 时间和设置 - 所有字段在同一行 */}
+          <div className="flex items-center gap-3 flex-wrap">
             {/* 开始时间 */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-600 whitespace-nowrap">
                 {t('sop.block_fields.begin_time')}
               </label>
               <input
                 type="number"
                 value={localStartTime}
                 onChange={(e) => handleTimeChange('start_time', e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-              placeholder={t('sop.block_fields.time_placeholder')}
+                className="w-20 p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                placeholder={t('sop.block_fields.time_placeholder')}
                 min="0"
               />
             </div>
             
             {/* 结束时间 */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-600 whitespace-nowrap">
                 {t('sop.block_fields.end_time')}
               </label>
               <input
                 type="number"
                 value={localEndTime}
                 onChange={(e) => handleTimeChange('end_time', e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-              placeholder={t('sop.block_fields.time_placeholder')}
+                className="w-20 p-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                placeholder={t('sop.block_fields.time_placeholder')}
                 min="0"
               />
             </div>
             
             {/* 播放按钮设置 */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-gray-600 whitespace-nowrap">
                 {t('sop.block_fields.show_play_button')}
               </label>
-              <label className="flex items-center justify-center h-8 border border-gray-300 rounded cursor-pointer hover:bg-gray-50">
+              <label className="flex items-center border border-gray-300 rounded cursor-pointer hover:bg-gray-50">
                 <input
                   type="checkbox"
                   checked={localShowPlayButton}
@@ -348,7 +340,7 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
 
           {/* 选择框 */}
           {onSelect && (
-            <div className="flex items-center justify-center pt-2 border-t border-gray-100">
+            <div className="flex items-center justify-center pt-1 border-t border-gray-100">
               <label className="flex items-center space-x-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -364,8 +356,45 @@ const SOPBlockItem: React.FC<SOPBlockItemProps> = React.memo(({
       )}
     </div>
   );
-});
+};
 
 SOPBlockItem.displayName = 'SOPBlockItem';
 
-export default SOPBlockItem;
+// 自定义比较函数，只比较关键属性，避免不必要的重新渲染
+// 这样当userNotes变化导致SOPEditor重新渲染时，如果区块的关键属性没有变化，就不会重新渲染
+// React.memo 的比较函数：返回 true 表示 props 相等（不重新渲染），返回 false 表示 props 不等（需要重新渲染）
+export default React.memo(SOPBlockItem, (prevProps, nextProps) => {
+  // 如果关键属性没有变化，返回true（不重新渲染）
+  // 注意：比较的是实际值，而不是引用
+  // dragHandleProps 和回调函数（onEdit, onDelete等）每次都是新对象/新函数，但内容相同，所以不比较它们
+  
+  // 首先检查 block 对象本身是否相同（引用相等）
+  if (prevProps.block === nextProps.block) {
+    // 如果 block 引用相同，只需要检查其他 props
+    return (
+      prevProps.isEditing === nextProps.isEditing &&
+      prevProps.isSelected === nextProps.isSelected &&
+      prevProps.videoUrl === nextProps.videoUrl &&
+      prevProps.isDragging === nextProps.isDragging
+    );
+  }
+  
+  // block 引用不同，需要深度比较 block 的属性
+  const blockEqual = 
+    prevProps.block.id === nextProps.block.id &&
+    prevProps.block.content === nextProps.block.content &&
+    prevProps.block.start_time === nextProps.block.start_time &&
+    prevProps.block.end_time === nextProps.block.end_time &&
+    prevProps.block.show_play_button === nextProps.block.show_play_button &&
+    prevProps.block.type === nextProps.block.type;
+  
+  const propsEqual = 
+    prevProps.isEditing === nextProps.isEditing &&
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.videoUrl === nextProps.videoUrl &&
+    prevProps.isDragging === nextProps.isDragging;
+  
+  // 如果所有关键属性都相等，不重新渲染
+  // 注意：不比较 dragHandleProps、onEdit、onDelete、onPlay 等回调函数，因为它们每次都是新引用
+  return blockEqual && propsEqual;
+});

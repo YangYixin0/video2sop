@@ -8,6 +8,7 @@ import VideoUploader from '@/components/VideoUploader';
 import SpeechRecognitionPanel from '@/components/SpeechRecognitionPanel';
 import VideoUnderstandingPanel from '@/components/VideoUnderstandingPanel';
 import SOPEditor from '@/components/SOPEditor';
+import SOPExporter from '@/components/SOPExporter';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { SOPBlock } from '@/types/sop';
@@ -295,16 +296,20 @@ export default function Home() {
       setCompressionMessage(data);
       setCompressionStatus('compressing');
       
-      // 添加到操作记录
-      const compressionRecord: OperationRecord = {
-        id: `compression-started-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        type: 'video_compression',
-        timestamp: new Date(),
-        status: 'processing',
-        message: data.message as string || '开始压缩视频...',
-        data: { stage: 'compression_started' }
-      };
-      setOperationRecords(prev => [...prev, compressionRecord]);
+      // 如果是"检测到已压缩视频，跳过压缩"消息，不添加到操作记录
+      const message = data.message as string || '';
+      if (!message.includes('检测到已压缩视频，跳过压缩') && !message.includes('Compressed video detected, skipping compression')) {
+        // 添加到操作记录
+        const compressionRecord: OperationRecord = {
+          id: `compression-started-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          type: 'video_compression',
+          timestamp: new Date(),
+          status: 'processing',
+          message: message || '开始压缩视频...',
+          data: { stage: 'compression_started' }
+        };
+        setOperationRecords(prev => [...prev, compressionRecord]);
+      }
     } else if (data.type === 'compression_progress') {
       // 转发给VideoUploader
       setCompressionMessage(data);
@@ -947,13 +952,27 @@ export default function Home() {
             onParseSOP={handleParseSOP}
             onRefineSOP={handleRefineSOP}
             onBlocksChange={handleSopBlocksChange}
+            onRefinementApplied={() => {
+              // 当精修结果被应用到编辑区时，清空精修区
+              setRefinedSopBlocks([]);
+            }}
+          />
+        </div>
+
+        {/* 导出SOP文档 */}
+        <div className="mb-6">
+          <SOPExporter
+            blocksA={sopBlocks || []}
+            blocksB={refinedSopBlocks || []}
+            videoUrl={localVideoPreviewUrl || currentUploadResult?.video_url}
+            fileName="sop_document"
           />
         </div>
         
         {/* 技术栈 */}
         <div className="w-full max-w-7xl mx-auto mb-6">
-          <div className="bg-white p-4 rounded-lg shadow-sm border">
-            <h3 className="text-base font-semibold text-gray-800 mb-2 flex items-center gap-2">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <h3 className="text-lg font-semibold text-gray-800 mb-2 flex items-center gap-2">
               <Icon name="sparkles" size={18} inline />
               <AppTitleTechStack />
             </h3>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { VideoPlayerProps } from '@/types/sop';
 import { useI18n } from '@/i18n';
 import Icon from './Icon';
@@ -9,13 +9,12 @@ const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
   videoUrl,
   currentStartTime,
   currentEndTime,
-  onTimeUpdate
+  onTimeUpdate,
+  onAspectRatioChange
 }) => {
   const { t } = useI18n();
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const isAutoPlayModeRef = useRef(false); // 标记是否处于自动播放模式
 
   // 格式化时间显示
   const formatTime = (seconds: number): string => {
@@ -28,13 +27,13 @@ const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
   const seekTo = useCallback((time: number) => {
     if (videoRef.current) {
       videoRef.current.currentTime = time;
-      setCurrentTime(time);
     }
   }, []);
 
   // 播放指定时间段
   const playSegment = useCallback(async (startTime: number) => {
     if (videoRef.current) {
+      isAutoPlayModeRef.current = true; // 进入自动播放模式
       seekTo(startTime);
       try {
         await videoRef.current.play();
@@ -44,171 +43,146 @@ const SOPVideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   }, [seekTo]);
 
-  // 播放/暂停控制
-  const togglePlayPause = () => {
-    if (!videoRef.current) return;
-    if (videoRef.current.paused) {
-      videoRef.current.play();
-    } else {
-        videoRef.current.pause();
-    }
-    // 由事件处理器统一更新 isPlaying，避免抖动
-  };
-
-  // 监听视频事件
+  // 监听视频事件 - 主要用于时间范围控制和回调
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     const handleTimeUpdate = () => {
       const time = video.currentTime;
-      setCurrentTime(time);
       onTimeUpdate?.(time);
-      // 边界检查：到达片段结束自动暂停
-      if (currentEndTime !== undefined && time >= currentEndTime) {
+      // 边界检查：只在自动播放模式下，到达片段结束自动暂停（时间范围控制）
+      if (isAutoPlayModeRef.current && currentEndTime !== undefined && time >= currentEndTime) {
         video.pause();
+        isAutoPlayModeRef.current = false; // 退出自动播放模式
       }
     };
 
-    const handleLoadedMetadata = () => {
-      setDuration(video.duration);
+    // 监听用户手动操作，退出自动播放模式
+    const handleSeeking = () => {
+      isAutoPlayModeRef.current = false;
     };
 
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
+    const handlePlay = () => {
+      // 如果用户手动播放，且不在自动播放的时间范围内，退出自动播放模式
+      if (!isAutoPlayModeRef.current) {
+        return;
+      }
+      const time = video.currentTime;
+      if (currentStartTime !== undefined && currentEndTime !== undefined) {
+        if (time < currentStartTime || time > currentEndTime) {
+          isAutoPlayModeRef.current = false;
+        }
+      }
+    };
 
     video.addEventListener('timeupdate', handleTimeUpdate);
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('seeking', handleSeeking);
     video.addEventListener('play', handlePlay);
-    video.addEventListener('pause', handlePause);
 
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('seeking', handleSeeking);
       video.removeEventListener('play', handlePlay);
-      video.removeEventListener('pause', handlePause);
     };
-  }, [onTimeUpdate, currentEndTime]);
+  }, [onTimeUpdate, currentEndTime, currentStartTime]);
 
   // 当currentStartTime或currentEndTime变化时自动播放
   useEffect(() => {
     if (currentStartTime !== undefined) {
       if (currentEndTime !== undefined) {
+        // 每次调用playSegment时都会设置isAutoPlayModeRef.current = true
         playSegment(currentStartTime);
       } else {
-      seekTo(currentStartTime);
+        isAutoPlayModeRef.current = false; // 没有结束时间，不限制
+        seekTo(currentStartTime);
       }
+    } else {
+      isAutoPlayModeRef.current = false; // 没有开始时间，退出自动播放模式
     }
   }, [currentStartTime, currentEndTime, playSegment, seekTo]);
 
-  // 进度条点击处理
-  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (videoRef.current && duration > 0) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      const percentage = clickX / rect.width;
-      const newTime = percentage * duration;
-      seekTo(newTime);
+  // 添加一个额外的effect来确保每次currentStartTime和currentEndTime同时存在时都进入自动播放模式
+  // 这解决了点击同一个区块两次时，由于值没变化导致useEffect不触发的问题
+  // 使用一个ref来跟踪上一次的值，确保每次点击都能触发
+  const lastPlayTimeRef = useRef<{ start?: number; end?: number }>({});
+  useEffect(() => {
+    if (currentStartTime !== undefined && currentEndTime !== undefined) {
+      // 检查是否是新的播放请求（时间值变化或首次设置）
+      const isNewPlay = 
+        lastPlayTimeRef.current.start !== currentStartTime ||
+        lastPlayTimeRef.current.end !== currentEndTime;
+      
+      if (isNewPlay) {
+        lastPlayTimeRef.current = { start: currentStartTime, end: currentEndTime };
+        // 强制进入自动播放模式并重新播放
+        isAutoPlayModeRef.current = true;
+        // 如果视频已经在播放，重新跳转到开始时间并播放
+        if (videoRef.current) {
+          videoRef.current.currentTime = currentStartTime;
+          videoRef.current.play().catch(() => {
+            // ignore autoplay restrictions
+          });
+        }
+      } else {
+        // 即使值相同（用户再次点击同一个区块），也跳转到开始时间并进入自动播放模式
+        isAutoPlayModeRef.current = true;
+        if (videoRef.current) {
+          videoRef.current.currentTime = currentStartTime;
+          videoRef.current.play().catch(() => {
+            // ignore autoplay restrictions
+          });
+        }
+      }
     }
-  };
+  }, [currentStartTime, currentEndTime]);
+
+  // 获取视频高宽比
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !videoUrl) return;
+
+    const handleLoadedMetadata = () => {
+      if (video.videoWidth && video.videoHeight) {
+        const aspectRatio = video.videoWidth / video.videoHeight;
+        onAspectRatioChange?.(aspectRatio);
+      }
+    };
+
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    
+    // 如果视频已经加载，立即获取
+    if (video.readyState >= 1) {
+      handleLoadedMetadata();
+    }
+
+    return () => {
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    };
+  }, [videoUrl, onAspectRatioChange]);
+
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border p-4">
-      <div className="mb-4">
-        {videoUrl ? (
-          <div className="text-sm text-gray-600 mb-2">
-            {t('sop.player.current_video')}{videoUrl.split('/').pop()}
-          </div>
-        ) : (
-          <div className="text-sm text-gray-500 mb-2">
-            {t('sop.player.no_video')}
-          </div>
-        )}
-      </div>
-
+    <div className="w-full h-full flex flex-col">
       {videoUrl && (
         <>
-          {/* 视频元素 */}
+          {/* 视频元素 - 使用浏览器原生控制条 */}
           <video
             ref={videoRef}
-            className="max-w-full max-h-96 rounded-lg mb-4 mx-auto block"
+            className="w-full h-full rounded-lg object-contain"
             controls
             preload="metadata"
-            style={{ maxWidth: '600px' }}
           >
             <source src={videoUrl} type="video/mp4" />
             {t('uploader.no_video_support')}
           </video>
 
-          {/* 自定义控制条 */}
-          <div className="space-y-3">
-            {/* 播放控制 */}
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={togglePlayPause}
-                className="flex items-center justify-center w-10 h-10 bg-blue-500 hover:bg-blue-600 text-white rounded-full transition-colors"
-              >
-                <Icon name={isPlaying ? 'pause' : 'play'} size={24} className="text-white" />
-              </button>
-              
-              <div className="flex-1 text-sm text-gray-600">
-                {formatTime(currentTime)} / {formatTime(duration)}
-              </div>
-              
-              {currentStartTime !== undefined && currentEndTime !== undefined && (
-                <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                  {t('sop.player.segment_label')} {formatTime(currentStartTime)} - {formatTime(currentEndTime)}
-                </div>
-              )}
+          {/* 时间段标签 */}
+          {currentStartTime !== undefined && currentEndTime !== undefined && (
+            <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded text-center mt-2">
+              {t('sop.player.segment_label')} {formatTime(currentStartTime)} - {formatTime(currentEndTime)}
             </div>
-
-            {/* 进度条 */}
-            <div className="relative">
-              <div
-                className="w-full h-2 bg-gray-200 rounded-full cursor-pointer"
-                onClick={handleProgressClick}
-              >
-                <div
-                  className="h-2 bg-blue-500 rounded-full transition-all duration-100"
-                  style={{
-                    width: duration > 0 ? `${(currentTime / duration) * 100}%` : '0%'
-                  }}
-                />
-              </div>
-              
-              {/* 时间段标记 */}
-              {currentStartTime !== undefined && currentEndTime !== undefined && duration > 0 && (
-                <div
-                  className="absolute top-0 h-2 bg-green-400 rounded-full opacity-50"
-                  style={{
-                    left: `${(currentStartTime / duration) * 100}%`,
-                    width: `${((currentEndTime - currentStartTime) / duration) * 100}%`
-                  }}
-                />
-              )}
-            </div>
-
-            {/* 快速跳转按钮 */}
-            <div className="flex space-x-2">
-              {currentStartTime !== undefined && (
-                <button
-                  onClick={() => seekTo(currentStartTime)}
-                  className="px-3 py-1 text-xs bg-green-100 hover:bg-green-200 text-green-700 rounded transition-colors"
-                >
-                  {t('sop.player.jump_to_start')} ({formatTime(currentStartTime)})
-                </button>
-              )}
-              
-              {currentEndTime !== undefined && (
-                <button
-                  onClick={() => seekTo(currentEndTime)}
-                  className="px-3 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-700 rounded transition-colors"
-                >
-                  {t('sop.player.jump_to_end')} ({formatTime(currentEndTime)})
-                </button>
-              )}
-            </div>
-          </div>
+          )}
         </>
       )}
 

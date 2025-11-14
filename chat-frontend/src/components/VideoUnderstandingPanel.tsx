@@ -96,7 +96,7 @@ export default function VideoUnderstandingPanel({
   const [prompt, setPrompt] = useState(locale === 'en' ? DEFAULT_PROMPT_EN : DEFAULT_PROMPT_ZH);
   const [userModifiedPrompt, setUserModifiedPrompt] = useState(false);
   const [fps, setFps] = useState(2);
-  const [showMarkdown, setShowMarkdown] = useState(true);
+  const [showMarkdown, setShowMarkdown] = useState(false);
   // 语言切换时，如果用户未修改提示词，则同步默认提示词
   useEffect(() => {
     if (!userModifiedPrompt) {
@@ -169,16 +169,13 @@ export default function VideoUnderstandingPanel({
   const hasEditedSpeech = speechRecognitionResult?.some(item => item.isEdited) || false;
 
   return (
-    <div className="w-full max-w-7xl mx-auto bg-white rounded-lg shadow-sm border">
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-            <Icon name="video" size={20} className="mr-2" inline />
+    <div className="w-full max-w-7xl mx-auto bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="p-4">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <Icon name="video" size={24} inline />
             {t('vu.title')}
             <span className="ml-2 text-sm font-normal text-blue-600">{t('vu.model')}</span>
-          </h3>
-        </div>
-
-      <div className="p-4">
+          </h2>
         {/* 前置条件检查 */}
         {!uploadResult ? (
           <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
@@ -213,7 +210,7 @@ export default function VideoUnderstandingPanel({
             onChange={(e) => { setPrompt(e.target.value); setUserModifiedPrompt(true); }}
             rows={16}
             maxLength={3000}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder={t('vu.prompt_placeholder')}
           />
           <div className="text-xs text-gray-500 mt-1">
@@ -374,7 +371,7 @@ export default function VideoUnderstandingPanel({
           <button
             onClick={handleVideoUnderstanding}
             disabled={!isReady || isProcessing}
-            className={`w-full py-2 px-4 rounded-lg font-medium transition-colors ${
+            className={`w-full px-4 py-2 rounded-lg transition-colors ${
               !isReady || isProcessing
                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : 'bg-blue-500 text-white hover:bg-blue-600'
@@ -439,25 +436,15 @@ export default function VideoUnderstandingPanel({
         {/* 结果显示 */}
         {result && (
           <div className="border border-gray-200 rounded-lg">
-            <div className="p-3 border-b border-gray-200 bg-gray-50">
+            <div className="p-2 border-b border-gray-200 bg-gray-50">
               <div className="flex items-center justify-between">
                 <h4 className="font-medium text-gray-800 flex items-center">
                   {t('vu.result_title')}
                 </h4>
                 <div className="flex items-center space-x-2">
                   <button
-                    onClick={() => setShowMarkdown(true)}
-                    className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                      showMarkdown 
-                        ? 'bg-blue-100 text-blue-700 border border-blue-200' 
-                        : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'
-                    }`}
-                  >
-                    {t('vu.view_rendered')}
-                  </button>
-                  <button
                     onClick={() => setShowMarkdown(false)}
-                    className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                    className={`px-3 py-1 text-xs rounded transition-colors ${
                       !showMarkdown 
                         ? 'bg-blue-100 text-blue-700 border border-blue-200' 
                         : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'
@@ -465,11 +452,21 @@ export default function VideoUnderstandingPanel({
                   >
                     {t('vu.view_source')}
                   </button>
+                  <button
+                    onClick={() => setShowMarkdown(true)}
+                    className={`px-3 py-1 text-xs rounded transition-colors ${
+                      showMarkdown 
+                        ? 'bg-blue-100 text-blue-700 border border-blue-200' 
+                        : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'
+                    }`}
+                  >
+                    {t('vu.view_rendered')}
+                  </button>
                 </div>
               </div>
             </div>
             
-            <div className="p-4 max-h-96 overflow-y-auto">
+            <div className="p-2 max-h-[576px] overflow-y-auto">
               {showMarkdown ? (
                 <div className="prose prose-sm max-w-none break-words">
                   <ReactMarkdown 
@@ -503,7 +500,7 @@ export default function VideoUnderstandingPanel({
                   </ReactMarkdown>
                 </div>
               ) : (
-                <pre className="text-sm text-gray-700 whitespace-pre-wrap break-words font-mono bg-gray-50 p-3 rounded-lg border">
+                <pre className="text-sm text-gray-800 whitespace-pre-wrap break-words p-2 font-sans">
                   {result}
                 </pre>
               )}
@@ -516,7 +513,7 @@ export default function VideoUnderstandingPanel({
           <div className="mt-4 border border-gray-200 rounded-lg">
             <div className="p-3 border-b border-gray-200 bg-gray-50">
               <h4 className="font-medium text-gray-800 flex items-center">
-                <span className="mr-2">🧩</span>
+                <Icon name="edit" size={18} className="mr-2" inline />
                 {t('vu.segments_title')}
               </h4>
             </div>
@@ -553,15 +550,6 @@ export default function VideoUnderstandingPanel({
           </div>
         )}
 
-        {/* 空状态提示 */}
-        {!isProcessing && !result && !integratedResult && !error && isReady && (
-          <div className="text-center text-gray-500 py-8">
-            <Icon name="video" size={48} className="mb-2 mx-auto" />
-            <p>{t('vu.empty_ready_title')}</p>
-            <p className="text-sm mt-1">{t('vu.empty_ready_desc')}</p>
-            
-          </div>
-        )}
       </div>
     </div>
   );

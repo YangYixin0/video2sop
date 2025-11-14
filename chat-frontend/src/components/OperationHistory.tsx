@@ -183,9 +183,9 @@ export default function OperationHistory({
   return (
     <div className="flex flex-col h-full bg-white border-l border-gray-200">
       {/* 头部 */}
-      <div className="p-4 border-b border-gray-200 bg-gray-50">
+      <div className="p-4 bg-gray-50">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-gray-800">{t('common.operation_history')}</h2>
+          <h2 className="text-2xl font-bold text-gray-900">{t('common.operation_history')}</h2>
           <div className="flex items-center space-x-3">
             {/* 连接状态指示器 */}
             <div className="flex items-center space-x-2">
@@ -236,21 +236,21 @@ export default function OperationHistory({
               <>
                 <button
                   onClick={onNotificationTest}
-                  className="px-1 py-0.5 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors"
+                  className="px-1 py-0.5 text-xs bg-green-500 hover:bg-green-600 text-white rounded transition-colors"
                   title={t('common.notification_test_title')}
                 >
                   {t('common.test')}
                 </button>
                 <button
                   onClick={onNotificationDisable}
-                  className="px-1 py-0.5 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition-colors"
+                  className="px-1 py-0.5 text-xs bg-red-500 hover:bg-red-600 text-white rounded transition-colors"
                   title={t('common.disable_notifications')}
                 >
                   {t('common.disable')}
                 </button>
                 <button
                   onClick={onNotificationSimulate}
-                  className="px-1 py-0.5 bg-purple-500 text-white rounded text-xs hover:bg-purple-600 transition-colors"
+                  className="px-1 py-0.5 text-xs bg-purple-500 hover:bg-purple-600 text-white rounded transition-colors"
                   title={t('common.simulate_notifications')}
                 >
                   {t('common.simulate')}
@@ -259,7 +259,7 @@ export default function OperationHistory({
             ) : (
               <button
                 onClick={onNotificationToggle}
-                className="px-1 py-0.5 bg-blue-400 text-white rounded text-xs hover:bg-blue-600 transition-colors"
+                className="px-1 py-0.5 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
                 title={t('common.enable_notifications')}
               >
                 {t('common.enable')}
@@ -272,13 +272,13 @@ export default function OperationHistory({
         <div className="mt-2 flex space-x-2">
           <button 
             onClick={() => setShowFeedback(true)} 
-            className="flex-2 px-3 py-1.5 bg-blue-400 text-white rounded text-sm hover:bg-blue-600 transition-colors"
+            className="flex-2 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition-colors"
           >
             {t('common.report_issue')}
           </button>
           <button 
             onClick={() => setShowSubscribe(true)}
-            className="flex-1 px-3 py-1.5 bg-blue-400 text-white rounded text-sm hover:bg-blue-600 transition-colors"
+            className="flex-1 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded text-sm transition-colors"
           >
             {t('common.subscribe_updates')}
           </button>
@@ -286,7 +286,7 @@ export default function OperationHistory({
       </div>
 
       {/* 记录列表 */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-4 space-y-2">
         {records.length === 0 ? (
           <div className="text-center text-gray-500 mt-8">
             <Icon name="edit" size={48} className="mb-2 mx-auto" />
@@ -297,10 +297,10 @@ export default function OperationHistory({
           records.map((record) => (
             <div
               key={record.id}
-              className="bg-gray-50 rounded-lg p-3 border border-gray-200 hover:bg-gray-100 transition-colors"
+              className="bg-gray-50 rounded-lg p-2 border border-gray-200 hover:bg-gray-100 transition-colors"
             >
               {/* 操作头部 */}
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center space-x-2">
                   <Icon name={getOperationIcon(record.type)} size={20} inline />
                   <span className="font-medium text-gray-800">
@@ -313,33 +313,26 @@ export default function OperationHistory({
                     {record.type === 'file_removed' && t('types.file_removed')}
                   </span>
                 </div>
-                <div className="flex items-center space-x-1">
-                  <Icon name={getStatusIcon(record.status)} size={16} inline />
-                  <span className={`text-xs ${getStatusColor(record.status)}`}>
-                    {record.status === 'success' && t('status_label.success')}
-                    {record.status === 'error' && t('status_label.error')}
-                    {record.status === 'processing' && t('status_label.processing')}
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs text-gray-500">
+                    {formatTimestamp(record.timestamp)}
                   </span>
+                  <Icon name={getStatusIcon(record.status)} size={16} inline />
                 </div>
               </div>
 
               {/* 操作消息 */}
-              <p className="text-sm text-gray-700 mb-2">
+              <p className="text-sm text-gray-700 mb-1">
                 {getMessage(record.data?.stage || '', record.message, record.message)}
               </p>
 
 
               {/* 删除统计（仅删除操作） */}
               {record.type === 'file_removed' && record.data?.deleted_count !== undefined && (
-                <div className="text-xs text-gray-600 mb-2">
+                <div className="text-xs text-gray-600">
                   {t('common.deleted_count', { count: record.data.deleted_count as number })}
                 </div>
               )}
-
-              {/* 时间戳 */}
-              <div className="text-xs text-gray-500">
-                {formatTimestamp(record.timestamp)}
-              </div>
             </div>
           ))
         )}

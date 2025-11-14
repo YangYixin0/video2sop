@@ -696,20 +696,16 @@ export default function VideoUploader({
   }, [clientSessionId, onUploadComplete, onUploadError, onWebSocketMessage]);
 
   return (
-    <div className="w-full max-w-7xl mx-auto bg-white rounded-lg shadow-sm border">
-      <div className="p-4 border-b border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-          <Icon name="upload" size={20} className="mr-2" inline />
-          {t('uploader.title')}
-        </h3>
-      </div>
-      
+    <div className="w-full max-w-7xl mx-auto bg-white rounded-lg shadow-sm border border-gray-200">
       <div className="p-4">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <Icon name="upload" size={24} inline />
+          {t('uploader.title')}
+        </h2>
 
       {/* 视频预览 */}
       {videoPreview && selectedFile && (
         <div className="mb-4">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">{t('uploader.preview')}</h4>
           <video
             src={videoPreview}
             controls
@@ -764,20 +760,20 @@ export default function VideoUploader({
               <button
                 onClick={() => handleUpload('1080p')}
                 disabled={uploadStatus.status === 'uploading' || uploadStatus.status === 'extracting' || uploadResult !== null}
-                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
               >
                 {t('uploader.upload_and_compress_1080p')}
               </button>
               <button
                 onClick={() => handleUpload('720p')}
                 disabled={uploadStatus.status === 'uploading' || uploadStatus.status === 'extracting' || uploadResult !== null}
-                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
               >
                 {t('uploader.upload_and_compress_720p')}
               </button>
               <button
                 onClick={handleRemove}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
               >
                 {t('uploader.remove')}
               </button>
@@ -801,7 +797,7 @@ export default function VideoUploader({
           <button
             onClick={handleLoadExampleVideo}
             disabled={uploadStatus.status === 'uploading' || uploadStatus.status === 'extracting'}
-            className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center space-x-2 mx-auto"
+            className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed flex items-center space-x-2 mx-auto"
           >
             <span>{t('uploader.load_example')}</span>
           </button>

@@ -46,7 +46,7 @@ export default function SubscribeModal({ isOpen, onClose }: SubscribeModalProps)
             </p>
             <button
               onClick={handleEmailClick}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-sm"
+              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
             >
               {t('subscribe.send_email')}
             </button>
@@ -65,7 +65,7 @@ export default function SubscribeModal({ isOpen, onClose }: SubscribeModalProps)
             </p>
             <button
               onClick={handleGithubClick}
-              className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors text-sm"
+              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
             >
               {t('subscribe.visit_github')}
             </button>

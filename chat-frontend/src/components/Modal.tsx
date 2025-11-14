@@ -41,7 +41,7 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
       />
       
       {/* 模态框内容 */}
-      <div className="relative bg-white rounded-lg shadow-xl max-w-xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         {/* 标题栏 */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
