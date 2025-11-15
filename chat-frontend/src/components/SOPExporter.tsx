@@ -170,7 +170,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
             color: #374151;
         }
         .play-button {
-            background: #10b981;
+            background: #f97316;
             color: white;
             border: none;
             padding: 8px 16px;
@@ -180,7 +180,7 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
             transition: background-color 0.2s;
         }
         .play-button:hover {
-            background: #059669;
+            background: #ea580c;
         }
         .play-button:disabled {
             background: #d1d5db;
@@ -630,7 +630,6 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
                 <span className={`text-sm font-medium ${
                   selectedBlocks === 'A' ? 'text-blue-800' : 'text-gray-700'
                 }`}>
-                  <Icon name="edit" size={16} className="mr-1" inline />
                   {t('exporter.edit_area')}
                 </span>
                 <span className={`block text-xs ${
@@ -658,7 +657,6 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
                   <span className={`text-sm font-medium ${
                     selectedBlocks === 'B' ? 'text-blue-800' : 'text-gray-700'
                   }`}>
-                    <Icon name="sparkles" size={16} className="mr-1" inline />
                     {t('exporter.refine_area')}
                   </span>
                   <span className={`block text-xs ${
@@ -684,8 +682,11 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
                 <h4 className="font-medium text-gray-800 mb-1">
                   {t('exporter.txt_title')}
                 </h4>
+              <p className="text-sm text-gray-600 mb-1">
+                  {t('exporter.txt_desc1')}
+              </p>
               <p className="text-sm text-gray-600">
-                  {t('exporter.txt_desc')} <a href="https://protocols.io" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-800">Protocols.io</a>
+                  {t('exporter.txt_desc2')} <a href="https://protocols.io" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-800">Protocols.io</a>
               </p>
               </div>
             </div>
@@ -711,8 +712,15 @@ const SOPExporter: React.FC<SOPExporterProps> = ({
               <p className="text-sm text-gray-600 mb-1">
                   {t('exporter.html_desc1')}
               </p>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 mb-1">
                   {t('exporter.html_desc2')}
+              </p>
+              <p className="text-sm text-gray-600">
+                  {t('exporter.html_desc3_part1')}
+                  <a href="https://chat.qwen.ai/?inputFeature=artifacts" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-800">
+                    {t('exporter.html_desc3_link')}
+                  </a>
+                  {t('exporter.html_desc3_part2')}
               </p>
               </div>
             </div>

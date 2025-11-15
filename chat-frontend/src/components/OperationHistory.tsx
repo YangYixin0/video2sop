@@ -291,7 +291,6 @@ export default function OperationHistory({
           <div className="text-center text-gray-500 mt-8">
             <Icon name="edit" size={48} className="mb-2 mx-auto" />
             <p>{t('common.no_records')}</p>
-            <p className="text-sm mt-1">{t('common.upload_to_show_records')}</p>
           </div>
         ) : (
           records.map((record) => (

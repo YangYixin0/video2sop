@@ -739,7 +739,7 @@ export default function VideoUploader({
               {t('uploader.support_formats', { size_gb: Math.round(maxFileSize / 1024 / 1024 / 1024) })}
             </p>
             <p className="text-blue-600 mt-2">
-              <Icon name="shield" size={16} inline />
+              <Icon name="shield" size={24} inline />
               {t('uploader.data_protection')}
             </p>
             <button

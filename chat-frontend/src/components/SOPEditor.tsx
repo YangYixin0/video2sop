@@ -5,7 +5,6 @@ import { useI18n } from '@/i18n';
 import { SOPBlock } from '@/types/sop';
 import SOPBlockItem from './SOPBlockItem';
 import FloatingVideoPlayer from './FloatingVideoPlayer';
-import SOPExporter from './SOPExporter';
 import Icon from './Icon';
 import {
   DndContext,
@@ -117,6 +116,8 @@ const SortableBlockItem = React.memo(
     );
   }
 );
+
+SortableBlockItem.displayName = 'SortableBlockItem';
 
 const SOPEditor: React.FC<SOPEditorProps> = ({
   manuscript = '',

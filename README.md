@@ -255,9 +255,10 @@ cd /root/video2sop
 
 ## 🔄 更新日志
 
-- **v1.8.0** - 语音识别易错词表功能
+- **v1.8.0** - 语音识别增强和UI优化
   - 新增易错词表输入功能，用户可在语音识别面板中输入易错词以提高识别准确性
   - 修复 DashScope 的 paraformer-v2 API 调用问题：使用`phrase_id`参数会导致`403 Resource access denied`错误，应当改为使用`vocabulary_id`参数
+  - 优化UI
 
 - **v1.7.0** - 视频压缩、长视频分段处理
   - 将视频上传文件大小限制从800MB提升至3GB，支持更大视频文件
@@ -343,9 +344,31 @@ cd /root/video2sop
 │   │   │   ├── SpeechRecognitionPanel.tsx  # 语音识别组件
 │   │   │   ├── VideoUnderstandingPanel.tsx # 视频理解组件
 │   │   │   ├── OperationHistory.tsx  # 操作历史组件
-│   │   │   └── SOPExporter.tsx       # SOP导出组件
-│   │   └── hooks/
-│   │       └── useWebSocket.ts       # WebSocket 钩子
+│   │   │   ├── SOPEditor.tsx         # SOP编辑器组件
+│   │   │   ├── SOPBlockItem.tsx      # SOP区块项组件
+│   │   │   ├── SOPVideoPlayer.tsx    # SOP视频播放器组件
+│   │   │   ├── FloatingVideoPlayer.tsx # 悬浮视频播放器组件
+│   │   │   ├── SOPExporter.tsx       # SOP导出组件
+│   │   │   ├── ChatSidebar.tsx       # 聊天侧边栏组件
+│   │   │   ├── LanguageSwitcher.tsx # 语言切换组件
+│   │   │   ├── Icon.tsx              # 图标组件
+│   │   │   ├── Modal.tsx             # 模态框组件
+│   │   │   ├── FeedbackModal.tsx     # 反馈模态框组件
+│   │   │   ├── SubscribeModal.tsx    # 订阅模态框组件
+│   │   │   └── ResizableLayout.tsx   # 可调整大小布局组件
+│   │   ├── hooks/
+│   │   │   └── useWebSocket.ts       # WebSocket 钩子
+│   │   ├── i18n/                     # 国际化配置
+│   │   │   ├── index.tsx             # i18n主文件
+│   │   │   ├── zh.ts                 # 中文翻译
+│   │   │   └── en.ts                 # 英文翻译
+│   │   ├── types/                    # TypeScript类型定义
+│   │   │   └── sop.ts                # SOP相关类型
+│   │   ├── utils/                    # 工具函数
+│   │   │   ├── statusMap.ts          # 状态消息映射
+│   │   │   └── notifications.ts     # 通知管理
+│   │   └── config/                   # 配置文件
+│   │       └── api.ts                # API端点配置
 │   ├── package.json                  # 前端依赖
 │   ├── tailwind.config.js           # Tailwind配置
 │   └── README.md                    # 前端文档
