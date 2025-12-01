@@ -164,9 +164,6 @@ export default function VideoUnderstandingPanel({
     compressionStatus === 'completed' &&
     !autoSpeechRecognitionError
   );
-  
-  // 检查是否有编辑过的语音内容
-  const hasEditedSpeech = speechRecognitionResult?.some(item => item.isEdited) || false;
 
   return (
     <div className="w-full max-w-7xl mx-auto bg-white rounded-lg shadow-sm border border-gray-200">
@@ -412,16 +409,6 @@ export default function VideoUnderstandingPanel({
             </div>
           )}
         </div>
-
-        {/* 编辑提示 */}
-        {hasEditedSpeech && (
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center space-x-2">
-              <Icon name="pencil" size={20} color="#3b82f6" inline />
-              <span className="text-blue-700 text-sm">将使用编辑后的语音内容进行视频理解</span>
-            </div>
-          </div>
-        )}
 
         {/* 错误提示 */}
         {error && (

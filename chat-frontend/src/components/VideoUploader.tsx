@@ -86,7 +86,7 @@ const PerformanceAnalysisPanel = () => {
 
 interface UploadStatus {
   status: 'idle' | 'uploading' | 'extracting' | 'completed' | 'error';
-  message: string;
+  message: string; // 用于错误消息等动态内容
   progress: number;
 }
 
@@ -154,6 +154,17 @@ export default function VideoUploader({
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
+  const uploadAbortControllerRef = useRef<AbortController | null>(null);
+
+  // 组件卸载时取消正在进行的上传
+  useEffect(() => {
+    return () => {
+      if (uploadAbortControllerRef.current) {
+        uploadAbortControllerRef.current.abort();
+        uploadAbortControllerRef.current = null;
+      }
+    };
+  }, []);
 
   // 获取示例视频信息
   useEffect(() => {
@@ -507,13 +518,22 @@ export default function VideoUploader({
   const handleUpload = useCallback(async (resolution: '1080p' | '720p') => {
     if (!selectedFile || !clientSessionId) return;
 
+    // 如果已有正在进行的上传，先取消它
+    if (uploadAbortControllerRef.current) {
+      uploadAbortControllerRef.current.abort();
+    }
+
+    // 创建新的 AbortController
+    const abortController = new AbortController();
+    uploadAbortControllerRef.current = abortController;
+
     try {
       // 调用上传开始回调
       if (onUploadStart) {
         onUploadStart();
       }
 
-      setUploadStatus({ status: 'uploading', message: t('uploader.uploading_hint'), progress: 10 });
+      setUploadStatus({ status: 'uploading', message: '', progress: 10 });
 
       // 直接上传视频到后端，使用 clientSessionId
       const formData = new FormData();
@@ -524,14 +544,25 @@ export default function VideoUploader({
       const response = await fetch(API_ENDPOINTS.UPLOAD_VIDEO_TO_BACKEND, {
         method: 'POST',
         body: formData,
+        signal: abortController.signal,
       });
+
+      // 检查是否已被取消
+      if (abortController.signal.aborted) {
+        return;
+      }
 
       const data = await response.json();
       if (!data.success) {
         throw new Error(t('uploader.upload_failed'));
       }
 
-      setUploadStatus({ status: 'completed', message: t('uploader.upload_done'), progress: 100 });
+      // 再次检查是否已被取消（在解析JSON后）
+      if (abortController.signal.aborted) {
+        return;
+      }
+
+      setUploadStatus({ status: 'completed', message: '', progress: 100 });
 
       // 回调，返回session_id和audio_url
       const result: UploadResult = {
@@ -542,17 +573,42 @@ export default function VideoUploader({
       setUploadResult(result);
       onUploadComplete?.(result);
 
+      // 清除 AbortController 引用
+      uploadAbortControllerRef.current = null;
+
     } catch (error) {
+      // 如果是取消操作，不显示错误
+      if (error instanceof Error && error.name === 'AbortError') {
+        setUploadStatus({ status: 'idle', message: '', progress: 0 });
+        uploadAbortControllerRef.current = null;
+        return;
+      }
+
+      // 检查是否已被取消
+      if (abortController.signal.aborted) {
+        setUploadStatus({ status: 'idle', message: '', progress: 0 });
+        uploadAbortControllerRef.current = null;
+        return;
+      }
+
       const errorMessage = error instanceof Error ? error.message : t('uploader.upload_failed');
       setUploadStatus({ status: 'error', message: errorMessage, progress: 0 });
       onUploadError?.(errorMessage);
+      uploadAbortControllerRef.current = null;
     }
-  }, [selectedFile, onUploadStart, onUploadComplete, onUploadError, clientSessionId]);
+  }, [selectedFile, onUploadStart, onUploadComplete, onUploadError, clientSessionId, t]);
 
   // 移除文件
   const handleRemove = useCallback(async () => {
     let deletedCount = 0;
     const currentSessionId = uploadResult?.session_id;
+    
+    // 如果正在上传，先取消上传
+    if (uploadAbortControllerRef.current) {
+      uploadAbortControllerRef.current.abort();
+      uploadAbortControllerRef.current = null;
+      setUploadStatus({ status: 'idle', message: '', progress: 0 });
+    }
     
     // 如果正在压缩，先取消压缩任务
     if (compressionStatus === 'compressing' && currentSessionId) {
@@ -603,7 +659,7 @@ export default function VideoUploader({
     if (currentSessionId && deletedCount > 0) {
       onFileRemoved?.();
     }
-  }, [uploadResult, cleanup, onFileRemoved, compressionStatus]);
+  }, [uploadResult, cleanup, onFileRemoved, compressionStatus, onVideoPreviewChange]);
 
   // 拖拽处理
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -639,7 +695,8 @@ export default function VideoUploader({
     if (!clientSessionId) return;
     
     try {
-      setUploadStatus({ status: 'uploading', message: t('uploader.loading_example'), progress: 10 });
+      setIsExampleVideo(true); // 先标记为示例视频，以便显示正确的消息
+      setUploadStatus({ status: 'uploading', message: '', progress: 10 });
       
       // 从后端获取示例视频
       const response = await fetch(API_ENDPOINTS.LOAD_EXAMPLE_VIDEO, {
@@ -652,7 +709,7 @@ export default function VideoUploader({
       
       const data = await response.json();
       if (data.success) {
-        setUploadStatus({ status: 'completed', message: t('uploader.example_loaded'), progress: 100 });
+        setUploadStatus({ status: 'completed', message: '', progress: 100 });
         setIsExampleVideo(true); // 标记为示例视频
         
         const result: UploadResult = {
@@ -689,11 +746,12 @@ export default function VideoUploader({
         throw new Error(data.error || t('uploader.example_failed'));
       }
     } catch (error) {
+      setIsExampleVideo(false); // 失败时重置示例视频状态
       const errorMessage = error instanceof Error ? error.message : t('uploader.example_failed');
       setUploadStatus({ status: 'error', message: errorMessage, progress: 0 });
       onUploadError?.(errorMessage);
     }
-  }, [clientSessionId, onUploadComplete, onUploadError, onWebSocketMessage]);
+  }, [clientSessionId, onUploadComplete, onUploadError, onWebSocketMessage, exampleVideoFilename, onVideoPreviewChange, t]);
 
   return (
     <div className="w-full max-w-7xl mx-auto bg-white rounded-lg shadow-sm border border-gray-200">
@@ -761,6 +819,7 @@ export default function VideoUploader({
                 onClick={() => handleUpload('1080p')}
                 disabled={uploadStatus.status === 'uploading' || uploadStatus.status === 'extracting' || uploadResult !== null}
                 className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
+                title={t('uploader.upload_1080p_tooltip')}
               >
                 {t('uploader.upload_and_compress_1080p')}
               </button>
@@ -768,6 +827,7 @@ export default function VideoUploader({
                 onClick={() => handleUpload('720p')}
                 disabled={uploadStatus.status === 'uploading' || uploadStatus.status === 'extracting' || uploadResult !== null}
                 className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
+                title={t('uploader.upload_720p_tooltip')}
               >
                 {t('uploader.upload_and_compress_720p')}
               </button>
@@ -809,7 +869,12 @@ export default function VideoUploader({
         <div className="mt-4 p-4 bg-gray-50 rounded-lg">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-gray-700">
-              {uploadStatus.message}
+              {uploadStatus.status === 'uploading' && !isExampleVideo && t('uploader.uploading_hint')}
+              {uploadStatus.status === 'uploading' && isExampleVideo && t('uploader.loading_example')}
+              {uploadStatus.status === 'extracting' && t('uploader.uploading_hint')}
+              {uploadStatus.status === 'completed' && !isExampleVideo && t('uploader.upload_done')}
+              {uploadStatus.status === 'completed' && isExampleVideo && t('uploader.example_loaded')}
+              {uploadStatus.status === 'error' && uploadStatus.message}
             </span>
             <span className="text-sm text-gray-500">
               {uploadStatus.progress}%
