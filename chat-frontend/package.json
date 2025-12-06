@@ -16,9 +16,9 @@
     "@iconify/react": "^6.0.2",
     "@iconify/utils": "^3.0.2",
     "@tailwindcss/typography": "^0.5.19",
-    "next": "15.5.4",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
+    "next": "15.5.7",
+    "react": "19.1.2",
+    "react-dom": "19.1.2",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1"
   },
@@ -29,7 +29,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.5.4",
+    "eslint-config-next": "15.5.7",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
