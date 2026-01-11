@@ -65,6 +65,47 @@ def check_ffmpeg_available() -> bool:
     except FileNotFoundError:
         return False
 
+def has_audio_stream(video_file_path: str) -> bool:
+    """
+    检查视频文件是否包含音频流
+    
+    Args:
+        video_file_path: 视频文件路径
+    
+    Returns:
+        True if 视频包含音频流, False otherwise
+    """
+    try:
+        cmd = [
+            'ffprobe',
+            '-v', 'quiet',
+            '-select_streams', 'a',  # 只选择音频流
+            '-show_entries', 'stream=codec_type',
+            '-of', 'csv=p=0',
+            video_file_path
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        
+        if result.returncode != 0:
+            # 如果ffprobe失败，可能是文件不存在或其他问题
+            print(f"Warning: FFprobe failed to check audio stream: {result.stderr}")
+            return False
+        
+        # 如果输出包含 'audio'，说明有音频流
+        output = result.stdout.strip()
+        return 'audio' in output.lower()
+        
+    except subprocess.TimeoutExpired:
+        print(f"Warning: Audio stream check timed out for {video_file_path}")
+        return False
+    except FileNotFoundError:
+        print("Warning: FFprobe not found. Please install ffmpeg.")
+        return False
+    except Exception as e:
+        print(f"Warning: Error checking audio stream: {str(e)}")
+        return False
+
 def get_video_duration(video_file_path: str) -> float:
     """
     获取视频时长（秒）

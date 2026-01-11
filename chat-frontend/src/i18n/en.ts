@@ -135,6 +135,7 @@ export const enUploader = {
     loading_example: 'Loading example video (progress not accurate)',
     example_loaded: 'Example video loaded!',
     example_failed: 'Failed to load example video',
+    no_audio_stream: 'This video does not contain audio and does not meet task expectations. Processing is temporarily unavailable.',
   }
 };
 

@@ -135,6 +135,7 @@ export const zhUploader = {
     loading_example: '正在加载示例视频（进度条不准）',
     example_loaded: '粉末压块示例视频加载完成！',
     example_failed: '加载示例视频失败',
+    no_audio_stream: '该视频不包含音频，不符合任务预期，暂时无法处理。',
   }
 };
 

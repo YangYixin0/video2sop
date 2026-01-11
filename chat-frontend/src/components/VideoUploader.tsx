@@ -552,6 +552,42 @@ export default function VideoUploader({
         return;
       }
 
+      // 检查响应状态
+      if (!response.ok) {
+        // 尝试解析错误响应
+        let errorMessage = t('uploader.upload_failed');
+        try {
+          const errorData = await response.json();
+          // FastAPI的HTTPException返回格式: { "detail": ... }
+          // detail可能是字符串或对象
+          if (errorData.detail) {
+            const detail = errorData.detail;
+            // 检查是否是"无音频流"错误对象
+            if (typeof detail === 'object' && detail.error === 'no_audio_stream') {
+              errorMessage = t('uploader.no_audio_stream');
+            } else if (typeof detail === 'object' && detail.message) {
+              errorMessage = detail.message;
+            } else if (typeof detail === 'string') {
+              // 如果是字符串，尝试解析为JSON
+              try {
+                const parsedDetail = JSON.parse(detail);
+                if (parsedDetail.error === 'no_audio_stream') {
+                  errorMessage = t('uploader.no_audio_stream');
+                } else if (parsedDetail.message) {
+                  errorMessage = parsedDetail.message;
+                }
+              } catch {
+                // 解析失败，使用原始字符串
+                errorMessage = detail;
+              }
+            }
+          }
+        } catch {
+          // 如果JSON解析失败，使用默认错误消息
+        }
+        throw new Error(errorMessage);
+      }
+
       const data = await response.json();
       if (!data.success) {
         throw new Error(t('uploader.upload_failed'));

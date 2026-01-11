@@ -327,24 +327,38 @@ def setup_oss_routes(app, connection_manager=None):
     ) -> Dict[str, Any]:
         """接收视频文件，保存到本地，提取并上传音频到OSS"""
         try:
+            import asyncio
             from local_storage_manager import save_video_locally_streaming
-            from audio_extractor import extract_audio_from_video
+            from audio_extractor import extract_audio_from_video, has_audio_stream
             
             # 1 & 2. 流式保存视频到本地（合并步骤，避免大文件内存溢出）
             local_video_path = await save_video_locally_streaming(file, client_session_id)
             
-            # 3. 提取音频
+            # 3. 检查视频是否包含音频流
+            if not await asyncio.to_thread(has_audio_stream, local_video_path):
+                # 如果没有音频流，返回错误信息
+                # FastAPI的HTTPException会将detail作为JSON响应体返回
+                # 前端需要解析response.json()中的detail字段
+                raise HTTPException(
+                    status_code=400, 
+                    detail={
+                        "error": "no_audio_stream",
+                        "message": "该视频不包含音频，不符合任务预期，暂时无法处理。"
+                    }
+                )
+            
+            # 4. 提取音频
             audio_path = extract_audio_from_video(local_video_path)
             
-            # 4. 上传音频到OSS（使用client_session_id作为路径）
+            # 5. 上传音频到OSS（使用client_session_id作为路径）
             audio_oss_key = f"{client_session_id}/audio/extracted_audio.mp3"
             audio_url = upload_file_to_oss(audio_path, audio_oss_key)
             
-            # 5. 删除临时音频文件
+            # 6. 删除临时音频文件
             if os.path.exists(audio_path):
                 os.remove(audio_path)
             
-            # 6. WebSocket通知音频提取完成并触发自动语音识别
+            # 7. WebSocket通知音频提取完成并触发自动语音识别
             if connection_manager and client_session_id:
                 await connection_manager.send_to_client(client_session_id, json.dumps({
                     "type": "audio_extraction_complete",
@@ -354,7 +368,7 @@ def setup_oss_routes(app, connection_manager=None):
                     "auto_start_speech_recognition": True  # 新增：标记触发自动语音识别
                 }))
             
-            # 7. 启动异步压缩任务
+            # 8. 启动异步压缩任务
             import asyncio
             from video_processor import compress_and_overlay_video, check_video_metadata
             from local_storage_manager import get_local_video_path
@@ -462,7 +476,7 @@ def setup_oss_routes(app, connection_manager=None):
             # 启动压缩任务（不等待完成）
             asyncio.create_task(compress_task())
             
-            # 7. 通过WebSocket通知上传完成（仅返回client_session_id）
+            # 9. 通过WebSocket通知上传完成（仅返回client_session_id）
             if connection_manager and client_session_id:
                 notification = {
                     "type": "video_upload_complete",
@@ -477,6 +491,9 @@ def setup_oss_routes(app, connection_manager=None):
                 "audio_url": audio_url  # 返回音频URL供语音识别使用
             }
             
+        except HTTPException:
+            # 重新抛出HTTPException（包括无音频流的错误）
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"视频上传失败: {str(e)}")
 
